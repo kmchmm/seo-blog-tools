@@ -13,7 +13,7 @@ const PAAScraper: React.FC = () => {
     setLoading(true);
     setError('');
     try {
-      const url = `http://localhost:3000/paa/${encodeURIComponent(query)}`; // Your backend route
+      const url = `http://localhost:3000/paa/${encodeURIComponent(query)}`; // backend route
       console.log(`Requesting: ${url}`);
 
       const response = await axios.get(url);
