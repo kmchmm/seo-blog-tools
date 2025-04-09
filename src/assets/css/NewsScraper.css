@@ -1,77 +1,8 @@
-.news-container {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    width: 100%;
-  }
-  
-  h1{
-    width: 100%;
-    margin: 0;
-    text-align: left;
-  }
-  .news-search-paginate-container {
-    display: flex;
-    justify-content: space-between;  /* This ensures space between the elements */
-    align-items: center;  /* Center the elements vertically */
-    width: 100%;
-    gap: 10px;  /* Add some space between the input, select, and button */
-    flex-direction: row;
-  }
-  .news-search-container{
-    display: flex;
-    align-items: center;  /* Center the elements vertically */
-    width: 50%;
-    gap: 10px;  /* Add some space between the input, select, and button */
-  }
-  .pagination {
-    width: 100%;
-  }
+
   .news-search-button:disabled {
     opacity: 0.5;
   }
 
-  
-  /* Styling the input field */
-  input[type="text"] {
-    padding: 12px;
-    width: 300px;
-    margin: 10px 0;
-    font-size: 16px;
-    border-radius: 5px;
-    border: 1px solid #ddd;
-    box-sizing: border-box;
-    transition: border 0.3s ease;
-    background-color: #ffffff;
-    color: #212429;
-  }
-  
-  /* Focus state for input */
-  input[type="text"]:focus {
-    border: 1px solid #3498db;
-    outline: none;
-  }
-  
-  /* Styling the select dropdown */
-  select {
-    padding: 12px;
-    width: 320px;
-    font-size: 16px;
-    border-radius: 5px;
-    border: 1px solid #ddd;
-    box-sizing: border-box;
-    margin: 10px 0;
-    transition: border 0.3s ease;
-    background-color: #ffffff;
-    color: #212429;
-  }
-  
-  /* Focus state for select */
-  select:focus {
-    border: 1px solid #3498db;
-    outline: none;
-  }
-  
   /* Styling the search button */
   .news-search-button {
     padding: 12px 20px;
@@ -186,12 +117,6 @@ td img{
     font-size: 24px;
   }
   
-  .pagination .prev-button, .pagination .next-button{
-    background-color: transparent;
-    color: #F4C55B;
-    border: 1px solid #F4C55B;
-    font-weight: 700;
-  }
   
   .pagination .prev-button:hover, .pagination .next-button:hover{
     background-color: #2980b9;

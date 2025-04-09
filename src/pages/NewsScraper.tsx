@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import axios from 'axios';
 import '../assets/css/NewsScraper.css';
+import { Button } from '../components/Button';
 
 const NewsScraper: React.FC = () => {
   const [newsArticles, setNewsArticles] = useState<any[]>([]);
@@ -70,10 +71,10 @@ const NewsScraper: React.FC = () => {
   const totalPages = Math.ceil(newsArticles.length / itemsPerPage);
 
   return (
-    <div className="news-container">
+    <div className="flex flex-col items-center w-full">
       <h1>AK OCTO SCRAPER NEWS</h1>
-      <div className="news-search-paginate-container">
-        <div className="news-search-container">
+      <div className="flex justify-between items-center w-full gap-4 flex-row">
+        <div className="flex items-center news-search-container w-1/2 gap-4">
           <input
             type="text"
             value={keywords}
@@ -91,16 +92,26 @@ const NewsScraper: React.FC = () => {
             <option value="m">Past Month</option>
             <option value="y">Past Year</option>
           </select>
-          <button onClick={handleSearch} disabled={loading} className="news-search-button">
+          <Button onClick={handleSearch} disabled={loading} >
             {loading ? 'Searching...' : 'Search'}
-          </button>
+          </Button>
         </div>
         <div>
           {/* Pagination controls */}
-          <div className="pagination">
-            <button onClick={() => paginate(currentPage - 1)} disabled={currentPage === 1} className='prev-button'>PREV</button>
+          <div className="w-full">
+            <button 
+              onClick={() => paginate(currentPage - 1)} disabled={currentPage === 1}
+              className='bg-transparent text-yellow-100 border border-yellow-100 font-bold'
+            >
+              PREV
+            </button>
             <span>Page {currentPage} of {totalPages}</span>
-            <button onClick={() => paginate(currentPage + 1)} disabled={currentPage === totalPages} className='next-button'>NEXT</button>
+            <button
+              onClick={() => paginate(currentPage + 1)} disabled={currentPage === totalPages}
+              className='bg-transparent text-yellow-100 border border-yellow-100 font-bold'
+            >
+              NEXT
+            </button>
           </div>
         </div>
       </div>
