@@ -1,6 +1,9 @@
 import React, { useState } from 'react';
 import axios from 'axios';
-import '../assets/css/NewsScraper.css';
+import { IBtnType } from '../types';
+import { Button } from '../components/Button';
+import { Loading } from '../components/Loading';
+import clsx from 'clsx';
 
 const NewsScraper: React.FC = () => {
   const [newsArticles, setNewsArticles] = useState<any[]>([]);
@@ -70,10 +73,10 @@ const NewsScraper: React.FC = () => {
   const totalPages = Math.ceil(newsArticles.length / itemsPerPage);
 
   return (
-    <div className="news-container">
+    <div className="flex flex-col items-center w-full">
       <h1>AK OCTO SCRAPER NEWS</h1>
-      <div className="news-search-paginate-container">
-        <div className="news-search-container">
+      <div className="flex justify-between items-center w-full gap-4 flex-row">
+        <div className="flex items-center news-search-container w-1/2 gap-4">
           <input
             type="text"
             value={keywords}
@@ -91,35 +94,54 @@ const NewsScraper: React.FC = () => {
             <option value="m">Past Month</option>
             <option value="y">Past Year</option>
           </select>
-          <button onClick={handleSearch} disabled={loading} className="news-search-button">
+          <Button onClick={handleSearch} disabled={loading} >
             {loading ? 'Searching...' : 'Search'}
-          </button>
+          </Button>
         </div>
         <div>
           {/* Pagination controls */}
-          <div className="pagination">
-            <button onClick={() => paginate(currentPage - 1)} disabled={currentPage === 1} className='prev-button'>PREV</button>
+          <div className="w-full">
+            <Button 
+              btnType={IBtnType.PAGINATION}
+              onClick={() => paginate(currentPage - 1)} disabled={currentPage === 1}
+              className='mr-[20px]'
+            >
+              PREV
+            </Button>
             <span>Page {currentPage} of {totalPages}</span>
-            <button onClick={() => paginate(currentPage + 1)} disabled={currentPage === totalPages} className='next-button'>NEXT</button>
+            <Button
+              btnType={IBtnType.PAGINATION}
+              onClick={() => paginate(currentPage + 1)} disabled={currentPage === totalPages}
+              className='ml-[20px]'
+            >
+              NEXT
+            </Button>
           </div>
         </div>
       </div>
 
       {loading && (
         <div className="loading">
-          <div className="loading-spinner"></div>
+          <Loading />
         </div>
       )}
       
       {/* Only show "No articles found" after search is complete and no articles are available */}
-      {!loading && newsArticles.length === 0 && error && <p style={{ color: 'red' }}>{error}</p>}
+      {!loading && newsArticles.length === 0 && error &&
+        <p className="text-red-100 text-base text-center font-bold">
+          {error}
+        </p>
+      }
 
-      <div className="news-table-container">
-        <table>
+      <div className="news-table-container m-0 p-0">
+        <table className={clsx(
+          'w-full my-[20px] mx-auto border-collapse',
+          'table-fixed shadow-[0_4px_6px_rgba(0, 0, 0, 0.1)]'
+        )}>
           <thead>
             <tr>
               <th>FEATURED</th>
-              <th>TITLE</th>
+              <th className="w-[60%]">TITLE</th>
               <th>URL</th>
               <th>DATE PUBLISHED</th>
             </tr>
@@ -132,7 +154,7 @@ const NewsScraper: React.FC = () => {
                     <td>
                       {article.imageUrl && <img src={article.imageUrl} alt="article" style={{ width: '50px', height: '50px' }} />}
                     </td>
-                    <td className="news-title-holder">{article.title}</td>
+                    <td className="whitespace-nowrap overflow-hidden text-ellipsis">{article.title}</td>
                     <td className="news-url-holder">
                       <a
                         href={article.url}
