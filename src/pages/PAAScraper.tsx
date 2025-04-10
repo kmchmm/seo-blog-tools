@@ -62,7 +62,7 @@ const PAAScraper: React.FC = () => {
         <input
           type="text"
           value={keywords}
-          onChange={(e) => setKeywords(e.target.value)}
+          onChange={e => setKeywords(e.target.value)}
           placeholder="Enter keywords"
         />
         <button onClick={handleSearch} disabled={loading} className="news-search-button">

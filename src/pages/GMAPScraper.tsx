@@ -46,7 +46,8 @@ const COUNTIES = [
   'tulare',
   'tuolumne',
   'ventura',
-  'yolo'];
+  'yolo',
+];
 
 const GMAPScraper: FC = () => {
   const [mapResults, setMapResults] = useState<any[]>([]);
@@ -108,20 +109,19 @@ const GMAPScraper: FC = () => {
           <input
             type="text"
             value={keywords}
-            onChange={(e) => setKeywords(e.target.value)}
+            onChange={e => setKeywords(e.target.value)}
             onKeyDown={inputKeyDown}
             placeholder="Keywords, Phrases, Sentences"
           />
-          <select
-            value={location}
-            onChange={(e) => setLocation(e.target.value)}
-          >
-            <option value='any' key='any'>Any</option>
-            {COUNTIES.map(county => 
+          <select value={location} onChange={e => setLocation(e.target.value)}>
+            <option value="any" key="any">
+              Any
+            </option>
+            {COUNTIES.map(county => (
               <option value={county} key={county}>
                 {county.toUpperCase()}
               </option>
-            )}
+            ))}
           </select>
           <Button onClick={handleSearch} disabled={loading}>
             {loading ? 'Searching...' : 'Request'}
@@ -135,19 +135,18 @@ const GMAPScraper: FC = () => {
         </div>
       )}
 
-      {!loading && error &&
-        <p className="text-red-100 text-base text-center font-bold">
-          {error}
-        </p>
-      }
+      {!loading && error && (
+        <p className="text-red-100 text-base text-center font-bold">{error}</p>
+      )}
 
       {error && <p style={{ color: 'red' }}>{error}</p>}
 
       <div className="m-0 p-0">
-        <table className={clsx(
-          'w-full my-[20px] mx-auto border-collapse',
-          'table-fixed shadow-[0_4px_6px_rgba(0, 0, 0, 0.1)]'
-        )}>
+        <table
+          className={clsx(
+            'w-full my-[20px] mx-auto border-collapse',
+            'table-fixed shadow-[0_4px_6px_rgba(0, 0, 0, 0.1)]'
+          )}>
           <thead>
             <tr>
               <th>TITLE</th>
@@ -167,24 +166,23 @@ const GMAPScraper: FC = () => {
             )}
             {mapResults.length > 0 &&
               mapResults.map((result, index) => {
-                return (
-                  (location === 'any' || (location === result.county)) ?
+                return location === 'any' || location === result.county ? (
                   <tr key={index}>
                     <td>{result.title}</td>
                     <td>{result.type}</td>
                     <td>{result.address}</td>
                     <td className="capitalize">{result.county}</td>
                     <td>{result.phone_number}</td>
-                    <td>{result.rating} {result.rating_count}</td>
                     <td>
-                      <a
-                        href={result.website}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                      >{result.website}</a>
+                      {result.rating} {result.rating_count}
                     </td>
-                    </tr> : null
-                );
+                    <td>
+                      <a href={result.website} target="_blank" rel="noopener noreferrer">
+                        {result.website}
+                      </a>
+                    </td>
+                  </tr>
+                ) : null;
               })}
           </tbody>
         </table>

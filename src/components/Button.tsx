@@ -1,5 +1,5 @@
 import clsx from 'clsx';
-import { IBtnType } from '../types'; 
+import { IBtnType } from '../types';
 
 interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   disabled?: boolean;
@@ -16,33 +16,38 @@ const primaryHoverStyle = clsx(
 
 // @todo: should we use hover style for focus? (esp. tabbed into)
 const focusStyle = 'focus:outline-0';
-const paginationStyle = 'bg-transparent text-yellow-100 border border-yellow-100 font-bold';
+const paginationStyle =
+  'bg-transparent text-yellow-100 border border-yellow-100 font-bold';
 const paginationHoverStyle = 'cursor-pointer hover:bg-blue-200';
 
-export const Button = (btnProps : ButtonProps) => {
-  const { disabled, children, className, btnType = IBtnType.PRIMARY, ...props } = btnProps;
-  
+export const Button = (btnProps: ButtonProps) => {
+  const {
+    disabled,
+    children,
+    className,
+    btnType = IBtnType.PRIMARY,
+    ...props
+  } = btnProps;
+
   const btnStyle = clsx(
     'font-medium text-base font-normal leading-[1.5]',
     'rounded-md py-[6px] px-[12px] border bg-transparent',
     'transition-colors duration-150 ease-in-out',
     focusStyle,
-    (btnType === IBtnType.PRIMARY ? primaryStyle : paginationStyle),
+    btnType === IBtnType.PRIMARY ? primaryStyle : paginationStyle,
     !disabled &&
-        (btnType === IBtnType.PRIMARY
-          ? primaryHoverStyle
-          : paginationHoverStyle),
-    disabled && 'cursor-not-allowed opacity-50',
+      (btnType === IBtnType.PRIMARY ? primaryHoverStyle : paginationHoverStyle),
+    disabled && 'cursor-not-allowed opacity-50'
   );
 
   return (
     <button
       ref={props.ref}
       {...props}
-      type='button'
+      type="button"
       disabled={disabled}
       className={clsx(btnStyle, className)}>
       {children}
     </button>
   );
-}
+};

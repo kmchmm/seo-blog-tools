@@ -19,7 +19,7 @@ const NewsScraper: React.FC = () => {
   const fetchNews = async (query: string, timeFilter: string) => {
     setLoading(true);
     setError('');
-    setNewsArticles([]);  // Clear previous articles when searching for new ones
+    setNewsArticles([]); // Clear previous articles when searching for new ones
 
     try {
       const response = await axios.get(`http://localhost:3000/news/${query}`, {
@@ -36,7 +36,7 @@ const NewsScraper: React.FC = () => {
         const sortedArticles = data.deta.sort((a: any, b: any) => {
           const dateA = new Date(a.date).getTime();
           const dateB = new Date(b.date).getTime();
-          return dateB - dateA;  // Sort in descending order
+          return dateB - dateA; // Sort in descending order
         });
         setNewsArticles(sortedArticles);
       } else {
@@ -80,13 +80,10 @@ const NewsScraper: React.FC = () => {
           <input
             type="text"
             value={keywords}
-            onChange={(e) => setKeywords(e.target.value)}
+            onChange={e => setKeywords(e.target.value)}
             placeholder="Search for news, keywords...."
           />
-          <select
-            value={timeFilter}
-            onChange={(e) => setTimeFilter(e.target.value)}
-          >
+          <select value={timeFilter} onChange={e => setTimeFilter(e.target.value)}>
             <option value="a">Any time</option>
             <option value="h">Past Hour</option>
             <option value="d">Past 24 Hours</option>
@@ -94,26 +91,28 @@ const NewsScraper: React.FC = () => {
             <option value="m">Past Month</option>
             <option value="y">Past Year</option>
           </select>
-          <Button onClick={handleSearch} disabled={loading} >
+          <Button onClick={handleSearch} disabled={loading}>
             {loading ? 'Searching...' : 'Search'}
           </Button>
         </div>
         <div>
           {/* Pagination controls */}
           <div className="w-full">
-            <Button 
-              btnType={IBtnType.PAGINATION}
-              onClick={() => paginate(currentPage - 1)} disabled={currentPage === 1}
-              className='mr-[20px]'
-            >
-              PREV
-            </Button>
-            <span>Page {currentPage} of {totalPages}</span>
             <Button
               btnType={IBtnType.PAGINATION}
-              onClick={() => paginate(currentPage + 1)} disabled={currentPage === totalPages}
-              className='ml-[20px]'
-            >
+              onClick={() => paginate(currentPage - 1)}
+              disabled={currentPage === 1}
+              className="mr-[20px]">
+              PREV
+            </Button>
+            <span>
+              Page {currentPage} of {totalPages}
+            </span>
+            <Button
+              btnType={IBtnType.PAGINATION}
+              onClick={() => paginate(currentPage + 1)}
+              disabled={currentPage === totalPages}
+              className="ml-[20px]">
               NEXT
             </Button>
           </div>
@@ -125,19 +124,18 @@ const NewsScraper: React.FC = () => {
           <Loading />
         </div>
       )}
-      
+
       {/* Only show "No articles found" after search is complete and no articles are available */}
-      {!loading && newsArticles.length === 0 && error &&
-        <p className="text-red-100 text-base text-center font-bold">
-          {error}
-        </p>
-      }
+      {!loading && newsArticles.length === 0 && error && (
+        <p className="text-red-100 text-base text-center font-bold">{error}</p>
+      )}
 
       <div className="news-table-container m-0 p-0">
-        <table className={clsx(
-          'w-full my-[20px] mx-auto border-collapse',
-          'table-fixed shadow-[0_4px_6px_rgba(0, 0, 0, 0.1)]'
-        )}>
+        <table
+          className={clsx(
+            'w-full my-[20px] mx-auto border-collapse',
+            'table-fixed shadow-[0_4px_6px_rgba(0, 0, 0, 0.1)]'
+          )}>
           <thead>
             <tr>
               <th>FEATURED</th>
@@ -152,15 +150,19 @@ const NewsScraper: React.FC = () => {
                 return (
                   <tr key={index}>
                     <td>
-                      {article.imageUrl && <img src={article.imageUrl} alt="article" style={{ width: '50px', height: '50px' }} />}
+                      {article.imageUrl && (
+                        <img
+                          src={article.imageUrl}
+                          alt="article"
+                          style={{ width: '50px', height: '50px' }}
+                        />
+                      )}
                     </td>
-                    <td className="whitespace-nowrap overflow-hidden text-ellipsis">{article.title}</td>
+                    <td className="whitespace-nowrap overflow-hidden text-ellipsis">
+                      {article.title}
+                    </td>
                     <td className="news-url-holder">
-                      <a
-                        href={article.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                      >
+                      <a href={article.url} target="_blank" rel="noopener noreferrer">
                         READ MORE
                       </a>
                     </td>
