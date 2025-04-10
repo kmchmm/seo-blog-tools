@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { FC, useCallback, useState } from 'react';
 import axios from 'axios';
 import clsx from 'clsx';
 import { Button } from '../components/Button';
@@ -48,12 +48,12 @@ const COUNTIES = [
   'ventura',
   'yolo'];
 
-const GMAPScraper: React.FC = () => {
+const GMAPScraper: FC = () => {
   const [mapResults, setMapResults] = useState<any[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string>('');
   const [keywords, setKeywords] = useState<string>('');
-  const [location, setLocation] = useState<string>('a');
+  const [location, setLocation] = useState<string>('any');
 
   const fetchMaps = async (keywords: string) => {
     setLoading(true);
@@ -91,6 +91,15 @@ const GMAPScraper: React.FC = () => {
     }
   };
 
+  const inputKeyDown = useCallback(
+    (event: KeyboardEvent) => {
+      if (event.key === 'Enter') {
+        handleSearch();
+      }
+    },
+    [handleSearch]
+  );
+
   return (
     <div className="flex flex-col items-center w-full">
       <h1>AK OCTO SCRAPER Google Maps</h1>
@@ -100,6 +109,7 @@ const GMAPScraper: React.FC = () => {
             type="text"
             value={keywords}
             onChange={(e) => setKeywords(e.target.value)}
+            onKeyDown={inputKeyDown}
             placeholder="Keywords, Phrases, Sentences"
           />
           <select
@@ -150,7 +160,7 @@ const GMAPScraper: React.FC = () => {
             </tr>
           </thead>
           <tbody>
-            {keywords.trim() !== '' && mapResults.length === 0 && (
+            {!loading && keywords.trim() !== '' && mapResults.length === 0 && (
               <tr>
                 <td colSpan={4}>No results found.</td>
               </tr>
@@ -158,11 +168,12 @@ const GMAPScraper: React.FC = () => {
             {mapResults.length > 0 &&
               mapResults.map((result, index) => {
                 return (
+                  (location === 'any' || (location === result.county)) ?
                   <tr key={index}>
                     <td>{result.title}</td>
                     <td>{result.type}</td>
                     <td>{result.address}</td>
-                    <td>{result.county}</td>
+                    <td className="capitalize">{result.county}</td>
                     <td>{result.phone_number}</td>
                     <td>{result.rating} {result.rating_count}</td>
                     <td>
@@ -172,7 +183,7 @@ const GMAPScraper: React.FC = () => {
                         rel="noopener noreferrer"
                       >{result.website}</a>
                     </td>
-                  </tr>
+                    </tr> : null
                 );
               })}
           </tbody>

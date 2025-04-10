@@ -127,10 +127,11 @@ th {
   color: white;
 }
 
-td{
+td {
   border-bottom: 1px solid #bebebe;
   border-top: 1px solid #bebebe;
   padding: 20px 15px;
+  word-wrap: break-word;
 }
 
 td img{
