@@ -1,6 +1,0 @@
-.gmap-search-container{
-  display: flex;
-  align-items: center;  /* Center the elements vertically */
-  width: 50%;
-  gap: 10px;  /* Add some space between the input, select, and button */
-}

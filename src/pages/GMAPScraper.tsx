@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import axios from 'axios';
-import '../assets/css/GMAPScraper.css'; // For styling the sidebar
+import clsx from 'clsx';
 import { Button } from '../components/Button';
 import { Loading } from '../components/Loading';
 
@@ -92,29 +92,31 @@ const GMAPScraper: React.FC = () => {
   };
 
   return (
-    <div>
+    <div className="flex flex-col items-center w-full">
       <h1>AK OCTO SCRAPER Google Maps</h1>
-      <div className='gmap-search-container'>
-        <input
-          type="text"
-          value={keywords}
-          onChange={(e) => setKeywords(e.target.value)}
-          placeholder="Keywords, Phrases, Sentences"
-        />
-        <select
-          value={location}
-          onChange={(e) => setLocation(e.target.value)}
-        >
-          <option value='any' key='any'>Any</option>
-          {COUNTIES.map(county => 
-            <option value={county} key={county}>
-              {county.toUpperCase()}
-            </option>
-          )}
-        </select>
-        <Button onClick={handleSearch} disabled={loading}>
-          {loading ? 'Searching...' : 'Request'}
-        </Button>
+      <div className="flex justify-between items-center w-full gap-4 flex-row">
+        <div className="flex items-center news-search-container w-1/2 gap-4">
+          <input
+            type="text"
+            value={keywords}
+            onChange={(e) => setKeywords(e.target.value)}
+            placeholder="Keywords, Phrases, Sentences"
+          />
+          <select
+            value={location}
+            onChange={(e) => setLocation(e.target.value)}
+          >
+            <option value='any' key='any'>Any</option>
+            {COUNTIES.map(county => 
+              <option value={county} key={county}>
+                {county.toUpperCase()}
+              </option>
+            )}
+          </select>
+          <Button onClick={handleSearch} disabled={loading}>
+            {loading ? 'Searching...' : 'Request'}
+          </Button>
+        </div>
       </div>
 
       {loading && (
@@ -122,11 +124,20 @@ const GMAPScraper: React.FC = () => {
           <Loading />
         </div>
       )}
-      
+
+      {!loading && error &&
+        <p className="text-red-100 text-base text-center font-bold">
+          {error}
+        </p>
+      }
+
       {error && <p style={{ color: 'red' }}>{error}</p>}
 
-      <div>
-        <table>
+      <div className="m-0 p-0">
+        <table className={clsx(
+          'w-full my-[20px] mx-auto border-collapse',
+          'table-fixed shadow-[0_4px_6px_rgba(0, 0, 0, 0.1)]'
+        )}>
           <thead>
             <tr>
               <th>TITLE</th>
@@ -154,7 +165,7 @@ const GMAPScraper: React.FC = () => {
                     <td>{result.county}</td>
                     <td>{result.phone_number}</td>
                     <td>{result.rating} {result.rating_count}</td>
-                    <td className="news-url-holder">
+                    <td>
                       <a
                         href={result.website}
                         target="_blank"
