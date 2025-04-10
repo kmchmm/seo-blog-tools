@@ -2,7 +2,14 @@
 
 @theme {
   --color-yellow-100: #F4C55B;
-  --color-blue-100: #646CFF;
+  --color-blue-100: #3498db;
+  --color-blue-200: #2980B9;
+  --color-blue-300: #646CFF;
+  --color-white-100: #F6F8FA;
+  --color-black-100: #151724;
+  --color-gray-100: #F3F3F3;
+  --color-red-100: #FF0000;
+  --color-shadow-100: #C7C7C7;
 }
 
 :root {
@@ -45,9 +52,10 @@ h1 {
   text-align: left;
 }
 
-button:focus,
-button:focus-visible {
-  outline: 4px auto -webkit-focus-ring-color;
+h2 {
+  text-align: center;
+  color: #333;
+  font-size: 24px;
 }
 
 @media (prefers-color-scheme: light) {
@@ -58,45 +66,77 @@ button:focus-visible {
   a:hover {
     color: #747bff;
   }
-
 }
 
-  /* Styling the input field */
-  input[type="text"] {
-    padding: 12px;
-    width: 300px;
-    margin: 10px 0;
-    font-size: 16px;
-    border-radius: 5px;
-    border: 1px solid #ddd;
-    box-sizing: border-box;
-    transition: border 0.3s ease;
-    background-color: #ffffff;
-    color: #212429;
+/* Responsive Design - for smaller screens */
+@media (max-width: 768px) {
+  input[type="text"], select, button {
+    width: 100%;
+    max-width: 300px;
   }
-  
-  /* Focus state for input */
-  input[type="text"]:focus {
-    border: 1px solid #3498db;
-    outline: none;
-  }
-  
-  /* Styling the select dropdown */
-  select {
-    padding: 12px;
-    width: 320px;
-    font-size: 16px;
-    border-radius: 5px;
-    border: 1px solid #ddd;
-    box-sizing: border-box;
-    margin: 10px 0;
-    transition: border 0.3s ease;
-    background-color: #ffffff;
-    color: #212429;
-  }
-  
-  /* Focus state for select */
-  select:focus {
-    border: 1px solid #3498db;
-    outline: none;
-  }
+}
+
+/* Styling the input field */
+input[type="text"] {
+  padding: 12px;
+  width: 300px;
+  margin: 10px 0;
+  font-size: 16px;
+  border-radius: 5px;
+  border: 1px solid #ddd;
+  box-sizing: border-box;
+  transition: border 0.3s ease;
+  background-color: #ffffff;
+  color: #212429;
+}
+
+/* Focus state for input */
+input[type="text"]:focus {
+  border: 1px solid #3498db;
+  outline: none;
+}
+
+/* Styling the select dropdown */
+select {
+  padding: 12px;
+  width: 320px;
+  font-size: 16px;
+  border-radius: 5px;
+  border: 1px solid #ddd;
+  box-sizing: border-box;
+  margin: 10px 0;
+  transition: border 0.3s ease;
+  background-color: #ffffff;
+  color: #212429;
+}
+
+/* Focus state for select */
+select:focus {
+  border: 1px solid #3498db;
+  outline: none;
+}
+
+th, td {
+  padding: 12px 15px;
+  text-align: left;
+}
+
+th {
+  background-color: #212429;
+  color: white;
+}
+
+td{
+  border-bottom: 1px solid #bebebe;
+  border-top: 1px solid #bebebe;
+  padding: 20px 15px;
+}
+
+td a{
+  color: #ffffff;
+}
+td img{
+  width: 50px;
+  height: 50px;
+  background-color: #fff;
+}

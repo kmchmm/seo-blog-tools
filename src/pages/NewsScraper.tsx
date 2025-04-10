@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
 import axios from 'axios';
-import '../assets/css/NewsScraper.css';
+import { IBtnType } from '../types';
 import { Button } from '../components/Button';
+import { Loading } from '../components/Loading';
+import clsx from 'clsx';
 
 const NewsScraper: React.FC = () => {
   const [newsArticles, setNewsArticles] = useState<any[]>([]);
@@ -99,38 +101,47 @@ const NewsScraper: React.FC = () => {
         <div>
           {/* Pagination controls */}
           <div className="w-full">
-            <button 
+            <Button 
+              btnType={IBtnType.PAGINATION}
               onClick={() => paginate(currentPage - 1)} disabled={currentPage === 1}
-              className='bg-transparent text-yellow-100 border border-yellow-100 font-bold'
+              className='mr-[20px]'
             >
               PREV
-            </button>
+            </Button>
             <span>Page {currentPage} of {totalPages}</span>
-            <button
+            <Button
+              btnType={IBtnType.PAGINATION}
               onClick={() => paginate(currentPage + 1)} disabled={currentPage === totalPages}
-              className='bg-transparent text-yellow-100 border border-yellow-100 font-bold'
+              className='ml-[20px]'
             >
               NEXT
-            </button>
+            </Button>
           </div>
         </div>
       </div>
 
       {loading && (
         <div className="loading">
-          <div className="loading-spinner"></div>
+          <Loading />
         </div>
       )}
       
       {/* Only show "No articles found" after search is complete and no articles are available */}
-      {!loading && newsArticles.length === 0 && error && <p style={{ color: 'red' }}>{error}</p>}
+      {!loading && newsArticles.length === 0 && error &&
+        <p className="text-red-100 text-base text-center font-bold">
+          {error}
+        </p>
+      }
 
-      <div className="news-table-container">
-        <table>
+      <div className="news-table-container m-0 p-0">
+        <table className={clsx(
+          'w-full my-[20px] mx-auto border-collapse',
+          'table-fixed shadow-[0_4px_6px_rgba(0, 0, 0, 0.1)]'
+        )}>
           <thead>
             <tr>
               <th>FEATURED</th>
-              <th>TITLE</th>
+              <th className="w-[60%]">TITLE</th>
               <th>URL</th>
               <th>DATE PUBLISHED</th>
             </tr>
@@ -143,7 +154,7 @@ const NewsScraper: React.FC = () => {
                     <td>
                       {article.imageUrl && <img src={article.imageUrl} alt="article" style={{ width: '50px', height: '50px' }} />}
                     </td>
-                    <td className="news-title-holder">{article.title}</td>
+                    <td className="whitespace-nowrap overflow-hidden text-ellipsis">{article.title}</td>
                     <td className="news-url-holder">
                       <a
                         href={article.url}

@@ -1,4 +1,5 @@
 import clsx from 'clsx';
+import { IBtnType } from '../types'; 
 
 interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   disabled?: boolean;
@@ -7,24 +8,31 @@ interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   ref?: React.Ref<HTMLButtonElement>;
 }
 
-export enum IBtnType {
-  PRIMARY = 'primary',
-  PAGINATION = 'pagination',
-}
+const primaryStyle = 'text-black-100 bg-white-100 border-black-100';
+const primaryHoverStyle = clsx(
+  'hover:cursor-pointer hover:bg-black-100 hover:text-white-100 hover:border-white-100',
+  'hover:shadow-[inset_0_0px_5px_theme(color-shadow-100),inset_0_1px_8px_0_theme(color-shadow-100)]'
+);
+
+// @todo: should we use hover style for focus? (esp. tabbed into)
+const focusStyle = 'focus:outline-0';
+const paginationStyle = 'bg-transparent text-yellow-100 border border-yellow-100 font-bold';
+const paginationHoverStyle = 'cursor-pointer hover:bg-blue-200';
 
 export const Button = (btnProps : ButtonProps) => {
   const { disabled, children, className, btnType = IBtnType.PRIMARY, ...props } = btnProps;
-
   
   const btnStyle = clsx(
-    'cursor-pointer font-medium text-base rounded-lg py-[0.6em] px-[1.2em]',
-    'transition-[border-color] duration-250',
-    'hover:bg-blue-100',
+    'font-medium text-base font-normal leading-[1.5]',
+    'rounded-md py-[6px] px-[12px] border bg-transparent',
+    'transition-colors duration-150 ease-in-out',
+    focusStyle,
+    (btnType === IBtnType.PRIMARY ? primaryStyle : paginationStyle),
     !disabled &&
-        (primary
-          ? 'cursor-pointer hover:bg-primary-light'
-          : 'cursor-pointer hover:bg-secondary-light'),
-    disabled && 'opacity-50',
+        (btnType === IBtnType.PRIMARY
+          ? primaryHoverStyle
+          : paginationHoverStyle),
+    disabled && 'cursor-not-allowed opacity-50',
   );
 
   return (
