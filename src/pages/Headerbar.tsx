@@ -1,11 +1,13 @@
-import { FC, useCallback, useState } from 'react';
+import { FC, use, useCallback } from 'react';
 import ReactSwitch from 'react-switch';
+import { DarkModeContext } from '../context/DarkModeContext';
 
 const Headerbar: FC = () => {
-  const [switched, setSwitched] = useState<boolean>(true);
+  const { darkMode, setDarkMode } = use(DarkModeContext);
+
   const handleSwitched = useCallback(() => {
-    setSwitched(!switched);
-  }, [switched]);
+    setDarkMode(!darkMode);
+  }, [darkMode, setDarkMode]);
 
   return (
     <div className="flex p-3 flex-col justify-center bg-white-100">
@@ -15,7 +17,7 @@ const Headerbar: FC = () => {
             uncheckedIcon={false}
             checkedIcon={false}
             onChange={handleSwitched}
-            checked={switched}
+            checked={darkMode}
             height={16}
             width={36}
             handleDiameter={22}

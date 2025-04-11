@@ -1,7 +1,6 @@
 import { FC, useCallback, useState } from 'react';
 import axios from 'axios';
 import clsx from 'clsx';
-import Switch from 'react-switch';
 import { Button } from '../components/Button';
 import { Loading } from '../components/Loading';
 
@@ -139,8 +138,6 @@ const GMAPScraper: FC = () => {
       {!loading && error && (
         <p className="text-red-100 text-base text-center font-bold">{error}</p>
       )}
-
-      {error && <p style={{ color: 'red' }}>{error}</p>}
 
       <div className="m-0 p-0">
         <table
