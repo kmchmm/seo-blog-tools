@@ -5,6 +5,9 @@
   --color-blue-100: #3498db;
   --color-blue-200: #2980b9;
   --color-blue-300: #646cff;
+  --color-blue-400: #1976d2;
+  --color-blue-500: #84b5e6;
+  --color-blue-600: #091A31;
   --color-white-100: #f6f8fa;
   --color-black-100: #151724;
   --color-gray-100: #f3f3f3;
@@ -38,11 +41,10 @@ a:hover {
 }
 
 body {
-  margin: 5em auto 0;
+  margin: 0;
   min-width: 320px;
   min-height: 100vh;
   overflow-x: hidden;
-  width: 95%;
 }
 
 h1 {

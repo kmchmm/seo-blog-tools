@@ -55,8 +55,8 @@
 
 .sidebar-toggle {
   position: absolute; /* Change from fixed to absolute or relative */
-  top: -50px; /* Adjust top if needed */
-  left: 0px; /* Adjust left if needed */
+  top: 40px; /* Adjust top if needed */
+  left: 30px; /* Adjust left if needed */
   padding: 0px;
   background-color: transparent;
   color: white;

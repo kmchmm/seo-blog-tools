@@ -1,6 +1,7 @@
 import { FC, useCallback, useState } from 'react';
 import axios from 'axios';
 import clsx from 'clsx';
+import Switch from 'react-switch';
 import { Button } from '../components/Button';
 import { Loading } from '../components/Loading';
 
@@ -102,7 +103,7 @@ const GMAPScraper: FC = () => {
   );
 
   return (
-    <div className="flex flex-col items-center w-full">
+    <div className="flex flex-col items-center w-full pt-4 px-3 bg-white-100">
       <h1>AK OCTO SCRAPER Google Maps</h1>
       <div className="flex justify-between items-center w-full gap-4 flex-row">
         <div className="flex items-center news-search-container w-1/2 gap-4">
