@@ -3,15 +3,15 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 @theme {
-  --color-yellow-100: #f4c55b;
-  --color-blue-100: #3498db;
+  --color-yellow-100: var(--base-yellow);
+  --color-blue-100: var(--base-blue);
   --color-blue-200: #2980b9;
-  --color-blue-300: #646cff;
+  --color-blue-300: var(--link-blue);
   --color-blue-400: #1976d2;
   --color-blue-500: #84b5e6;
-  --color-blue-600: #091A31;
+  --color-blue-600: var(--dark-bg);
   --color-blue-700: #060f1d;
-  --color-white-100: #f6f8fa;
+  --color-white-100: var(--white-bg);
   --color-black-100: #151724;
   --color-gray-100: #f3f3f3;
   --color-red-100: #ff0000;
@@ -20,13 +20,21 @@
 }
 
 :root {
-  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
+  --white-bg: #f6f8fa;
+  --dark-bg: #091a31;
+  --base-black: #213547;
+  --base-blue: #3498db;
+  --link-blue: #646cff;
+  --link-hover-blue: #747bff;
+  --base-yellow: #f4c55b;
+
+  font-family: Nunito, system-ui, Avenir, Helvetica, Arial, sans-serif;
   line-height: 1.5;
   font-weight: 400;
 
   color-scheme: light dark;
-  color: #213547;
-  background-color: #f6f8fa;
+  color: var(--base-black);
+  background-color: var(--white-bg);
   /* color: rgba(255, 255, 255, 0.87);
   background-color: #0a1a31; */
 
@@ -38,12 +46,12 @@
 
 a {
   font-weight: 500;
-  color: #646cff;
+  color: var(--link-blue);
   text-decoration: inherit;
 }
 
 a:hover {
-  color: #747bff;
+  color: var(--link-hover-blue);
   /* color: #535bf2; */
 }
 
@@ -55,11 +63,13 @@ body {
 }
 
 body.dark {
-  background-color: #091a31;
+  background-color: var(--dark-bg);
+  color: var(--white-bg);
 }
 
 h1 {
-  font-size: 3.2em;
+  font-size: 2.6em;
+  font-weight: 700;
   line-height: 1.1;
   width: 100%;
   margin: 0;
@@ -97,7 +107,7 @@ input[type='text'] {
 
 /* Focus state for input */
 input[type='text']:focus {
-  border: 1px solid #3498db;
+  border: 1px solid var(--base-blue);
   outline: none;
 }
 
@@ -117,7 +127,7 @@ select {
 
 /* Focus state for select */
 select:focus {
-  border: 1px solid #3498db;
+  border: 1px solid var(--base-blue);
   outline: none;
 }
 
@@ -137,6 +147,12 @@ td {
   border-top: 1px solid #bebebe;
   padding: 20px 15px;
   word-wrap: break-word;
+}
+
+
+.dark td {
+  border-bottom: 1px solid var(--base-yellow);
+  border-top: 1px solid var(--base-yellow);
 }
 
 td img {
