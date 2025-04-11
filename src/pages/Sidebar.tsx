@@ -38,26 +38,52 @@ const Sidebar: React.FC = () => {
       )}
 
       {/* Sidebar */}
-      <div 
+      <div
         ref={sidebarRef} // Attach the ref to the sidebar div
-        className={`sidebar ${isSidebarOpen ? 'open' : ''}`}
-      >
+        className={`sidebar ${isSidebarOpen ? 'open' : ''}`}>
         <h2>AK RAKET</h2>
         <ul>
           <li>
             <h3>OCTO TOOLS</h3>
             <ul>
-              <li><Link to="/news"><i className="bx bx-news"></i><span>NEWS Scraper</span></Link></li>
-              <li><Link to="/paa"><i className="bx bxl-google" ></i><span>GPAA Scraper</span></Link></li>
-              <li><Link to="/gmap"><i className="bx bxs-location-plus" ></i><span>GMAP Scraper</span></Link></li>
+              <li>
+                <Link to="/news">
+                  <i className="bx bx-news"></i>
+                  <span>NEWS Scraper</span>
+                </Link>
+              </li>
+              <li>
+                <Link to="/paa">
+                  <i className="bx bxl-google"></i>
+                  <span>GPAA Scraper</span>
+                </Link>
+              </li>
+              <li>
+                <Link to="/gmap">
+                  <i className="bx bxs-location-plus"></i>
+                  <span>GMAP Scraper</span>
+                </Link>
+              </li>
             </ul>
           </li>
-          <li><h3>SEO TOOLS</h3></li>
-          <li><h3>PUBLISHING TOOLS</h3></li>
-          <li><h3>HR MANAGEMENT</h3></li>
-          <li><h3>EXTENSIONS</h3></li>
-          <li><h3>PBN's HQ</h3></li>
-          <li><h3>FREE TOOLS</h3></li>
+          <li>
+            <h3>SEO TOOLS</h3>
+          </li>
+          <li>
+            <h3>PUBLISHING TOOLS</h3>
+          </li>
+          <li>
+            <h3>HR MANAGEMENT</h3>
+          </li>
+          <li>
+            <h3>EXTENSIONS</h3>
+          </li>
+          <li>
+            <h3>PBN's HQ</h3>
+          </li>
+          <li>
+            <h3>FREE TOOLS</h3>
+          </li>
         </ul>
       </div>
 
