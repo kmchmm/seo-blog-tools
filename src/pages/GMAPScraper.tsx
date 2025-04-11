@@ -1,35 +1,81 @@
-import React, { useState } from 'react';
+import { FC, useCallback, useState } from 'react';
 import axios from 'axios';
-import '../assets/css/GMAPScraper.css'; // For styling the sidebar
+import clsx from 'clsx';
+import { Button } from '../components/Button';
+import { Loading } from '../components/Loading';
 
-const GMAPScraper: React.FC = () => {
-  const [newsArticles, setNewsArticles] = useState<any[]>([]);
+const COUNTIES = [
+  'alameda',
+  'amador',
+  'butte',
+  'calaveras',
+  'contra costa',
+  'el dorado',
+  'fresno',
+  'humboldt',
+  'imperial',
+  'kern',
+  'kings',
+  'los angeles',
+  'madera',
+  'marin',
+  'mendocino',
+  'merced',
+  'monterey',
+  'napa',
+  'nevada',
+  'orange',
+  'placer',
+  'riverside',
+  'sacramento',
+  'san bernardino',
+  'san diego',
+  'san francisco',
+  'san joaquin',
+  'san luis obispo',
+  'san mateo',
+  'santa barbara',
+  'santa clara',
+  'santa cruz',
+  'shasta',
+  'solano',
+  'sonoma',
+  'stanislaus',
+  'sutter',
+  'tehama',
+  'tulare',
+  'tuolumne',
+  'ventura',
+  'yolo'];
+
+const GMAPScraper: FC = () => {
+  const [mapResults, setMapResults] = useState<any[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string>('');
   const [keywords, setKeywords] = useState<string>('');
-  const [timeFilter, setTimeFilter] = useState<string>('a');
+  const [location, setLocation] = useState<string>('any');
 
-  const fetchNews = async (query: string, timeFilter: string) => {
+  const fetchMaps = async (keywords: string) => {
     setLoading(true);
     setError('');
     try {
-      const response = await axios.get(`http://localhost:3000/news/${query}`, {
+      const response = await axios.get(`http://localhost:8003`, {
         headers: {
-          'X-Time': timeFilter,
+          'X-Keywords': keywords,
         },
       });
 
       console.log('API Response:', response.data);
 
       const data = response.data;
-      if (data.deta && data.deta.length > 0) {
-        setNewsArticles(data.deta);
+      if (data.results && data.results.length > 0) {
+        setMapResults(data.results);
       } else {
         setError('No articles found for your search.');
       }
     } catch (err) {
       console.error('Error during API call:', err);
-      setError('An error occurred while fetching news.');
+      setError('An error occurred while fetching results.');
     } finally {
       setLoading(false);
     }
@@ -38,80 +84,106 @@ const GMAPScraper: React.FC = () => {
   const handleSearch = () => {
     if (keywords.trim() === '') {
       setError('Please enter a search keyword.');
-      setNewsArticles([]); // Clear any previous articles
+      setMapResults([]); // Clear any previous articles
     } else {
       setError(''); // Clear previous error if any
-      fetchNews(keywords, timeFilter);
+      fetchMaps(keywords);
     }
   };
 
+  const inputKeyDown = useCallback(
+    (event: KeyboardEvent) => {
+      if (event.key === 'Enter') {
+        handleSearch();
+      }
+    },
+    [handleSearch]
+  );
+
   return (
-    <div>
+    <div className="flex flex-col items-center w-full">
       <h1>AK OCTO SCRAPER Google Maps</h1>
-      <div className='gmap-search-container'>
-        <input
-          type="text"
-          value={keywords}
-          onChange={(e) => setKeywords(e.target.value)}
-          placeholder="Search for news"
-        />
-        <select
-          value={timeFilter}
-          onChange={(e) => setTimeFilter(e.target.value)}
-        >
-          <option value="a">Any</option>
-          <option value="h">Past Hour</option>
-          <option value="d">Past 24 Hours</option>
-          <option value="w">Past Week</option>
-          <option value="m">Past Month</option>
-          <option value="y">Past Year</option>
-        </select>
-        <button onClick={handleSearch} disabled={loading} className="news-search-button">
-          {loading ? 'Searching...' : 'Request'}
-        </button>
+      <div className="flex justify-between items-center w-full gap-4 flex-row">
+        <div className="flex items-center news-search-container w-1/2 gap-4">
+          <input
+            type="text"
+            value={keywords}
+            onChange={(e) => setKeywords(e.target.value)}
+            onKeyDown={inputKeyDown}
+            placeholder="Keywords, Phrases, Sentences"
+          />
+          <select
+            value={location}
+            onChange={(e) => setLocation(e.target.value)}
+          >
+            <option value='any' key='any'>Any</option>
+            {COUNTIES.map(county => 
+              <option value={county} key={county}>
+                {county.toUpperCase()}
+              </option>
+            )}
+          </select>
+          <Button onClick={handleSearch} disabled={loading}>
+            {loading ? 'Searching...' : 'Request'}
+          </Button>
+        </div>
       </div>
 
       {loading && (
         <div className="loading">
-          <div className="loading-spinner"></div>
+          <Loading />
         </div>
       )}
-      
+
+      {!loading && error &&
+        <p className="text-red-100 text-base text-center font-bold">
+          {error}
+        </p>
+      }
+
       {error && <p style={{ color: 'red' }}>{error}</p>}
 
-      <div>
-        <table>
+      <div className="m-0 p-0">
+        <table className={clsx(
+          'w-full my-[20px] mx-auto border-collapse',
+          'table-fixed shadow-[0_4px_6px_rgba(0, 0, 0, 0.1)]'
+        )}>
           <thead>
             <tr>
-              <th>FEATURED</th>
               <th>TITLE</th>
-              <th>URL</th>
-              <th>DATE PUBLISHED</th>
+              <th>TYPE</th>
+              <th>ADDRESS</th>
+              <th>COUNTY</th>
+              <th>PHONE NUMBER</th>
+              <th>RATING</th>
+              <th>WEBSITE</th>
             </tr>
           </thead>
           <tbody>
-            {keywords.trim() !== '' && newsArticles.length === 0 && (
+            {!loading && keywords.trim() !== '' && mapResults.length === 0 && (
               <tr>
-                <td colSpan={4}>No articles found.</td>
+                <td colSpan={4}>No results found.</td>
               </tr>
             )}
-            {newsArticles.length > 0 &&
-              newsArticles.map((article, index) => {
+            {mapResults.length > 0 &&
+              mapResults.map((result, index) => {
                 return (
+                  (location === 'any' || (location === result.county)) ?
                   <tr key={index}>
-                    <td></td>
-                    <td>{article.website}</td>
-                    <td className="news-url-holder">
+                    <td>{result.title}</td>
+                    <td>{result.type}</td>
+                    <td>{result.address}</td>
+                    <td className="capitalize">{result.county}</td>
+                    <td>{result.phone_number}</td>
+                    <td>{result.rating} {result.rating_count}</td>
+                    <td>
                       <a
-                        href={article.url}
+                        href={result.website}
                         target="_blank"
                         rel="noopener noreferrer"
-                      >
-                        READ MORE
-                      </a>
+                      >{result.website}</a>
                     </td>
-                    <td>{article.date}</td>
-                  </tr>
+                    </tr> : null
                 );
               })}
           </tbody>
