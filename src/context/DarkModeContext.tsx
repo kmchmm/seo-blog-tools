@@ -15,7 +15,12 @@ export const Provider = ({ children } : any) => {
   const [darkMode, setDarkMode] = useState<boolean>(false);
 
   useEffect(() => {
-    console.log('DARK MODE!!!', darkMode)
+    const body = document.querySelector('body');
+    if (darkMode) {
+      body?.classList.add('dark');
+      return;
+    }
+    body?.classList.remove('dark');
   }, [darkMode])
 
   return <DarkModeContext.Provider value={{darkMode, setDarkMode}}>{children}</DarkModeContext.Provider>

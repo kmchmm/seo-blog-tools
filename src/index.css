@@ -10,11 +10,13 @@
   --color-blue-400: #1976d2;
   --color-blue-500: #84b5e6;
   --color-blue-600: #091A31;
+  --color-blue-700: #060f1d;
   --color-white-100: #f6f8fa;
   --color-black-100: #151724;
   --color-gray-100: #f3f3f3;
   --color-red-100: #ff0000;
   --color-shadow-100: #c7c7c7;
+  --color-shadow-200: #000000;
 }
 
 :root {
@@ -52,6 +54,10 @@ body {
   overflow-x: hidden;
 }
 
+body.dark {
+  background-color: #091a31;
+}
+
 h1 {
   font-size: 3.2em;
   line-height: 1.1;
@@ -62,7 +68,6 @@ h1 {
 
 h2 {
   text-align: center;
-  color: #333;
   font-size: 24px;
 }
 
