@@ -21,7 +21,7 @@ const Headerbar: FC = () => {
         lightModeStyle,
         darkModeStyle,
       )}>
-        <h2 className="ml-10">Hello</h2>
+        <h2 className="ml-10 text-3xl">Hello</h2>
         <div className="ml-auto">
           <ReactSwitch
             uncheckedIcon={false}

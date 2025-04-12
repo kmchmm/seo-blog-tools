@@ -44,13 +44,13 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
-a {
+td a {
   font-weight: 500;
   color: var(--link-blue);
   text-decoration: inherit;
 }
 
-a:hover {
+td a:hover {
   color: var(--link-hover-blue);
   /* color: #535bf2; */
 }
@@ -78,7 +78,6 @@ h1 {
 
 h2 {
   text-align: center;
-  font-size: 24px;
 }
 
 /* Responsive Design - for smaller screens */
@@ -148,7 +147,6 @@ td {
   padding: 20px 15px;
   word-wrap: break-word;
 }
-
 
 .dark td {
   border-bottom: 1px solid var(--base-yellow);

@@ -1,9 +1,6 @@
-// src/components/Home.tsx
-import React from 'react';
-
-const Home: React.FC = () => {
+const Home: FC = () => {
   return (
-    <div className="home-container">
+    <div className="flex relative">
       {/* Main Content */}
       <div className="main-content">
         <h1>Welcome to the Home Page!</h1>
