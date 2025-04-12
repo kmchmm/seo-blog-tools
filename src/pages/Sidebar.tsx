@@ -2,14 +2,14 @@ import { FC, useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import clsx from 'clsx';
 
-import MenuIcon from "../assets/icons/menu.svg?react";
-import NewsIcon from "../assets/icons/news.svg?react";
-import GoogleIcon from "../assets/icons/google.svg?react";
-import MapsIcon from "../assets/icons/maps.svg?react";
-import JediInsightsIcon from "../assets/icons/insights.svg?react";
-import SERPRankIcon from "../assets/icons/serp.svg?react";
-import HunterIcon from "../assets/icons/hunter.svg?react";
-import P1HarvesterIcon from "../assets/icons/harvester.svg?react";
+import MenuIcon from '../assets/icons/menu.svg?react';
+import NewsIcon from '../assets/icons/news.svg?react';
+import GoogleIcon from '../assets/icons/google.svg?react';
+import MapsIcon from '../assets/icons/maps.svg?react';
+import JediInsightsIcon from '../assets/icons/insights.svg?react';
+import SERPRankIcon from '../assets/icons/serp.svg?react';
+import HunterIcon from '../assets/icons/hunter.svg?react';
+import P1HarvesterIcon from '../assets/icons/harvester.svg?react';
 
 interface RaketMenuItemProps extends React.LiHTMLAttributes<HTMLButtonElement> {
   children?: React.ReactNode;
@@ -20,7 +20,8 @@ const sidebarStyle = clsx(
   'fixed top-0 w-[250px] h-full p-0 z-10',
   'transition-[left] duration-300 ease-ease',
   'bg-white-100 text-black-100',
-  'dark:bg-blue-600 dark:text-white-100');
+  'dark:bg-blue-600 dark:text-white-100'
+);
 
 const menuItemLinkStyle = '[&_a]:flex [&_a]:items-center [&_a]:gap-1';
 const menuItemSvgStyle = '[&_svg]:h-6';
@@ -29,18 +30,19 @@ const RaketMenuItem = (itemProps: RaketMenuItemProps) => {
   const { children } = itemProps;
 
   return (
-    <li className={clsx(
-      'p-1 rounded-md',
-      'transition-all duration-200 ease-in-out',
-      'hover:bg-yellow-100',
-      'dark:[&_svg]:fill-white-100',
-      menuItemSvgStyle,
-      menuItemLinkStyle
-    )}>
+    <li
+      className={clsx(
+        'p-1 rounded-md',
+        'transition-all duration-200 ease-in-out',
+        'hover:bg-yellow-100',
+        'dark:[&_svg]:fill-white-100',
+        menuItemSvgStyle,
+        menuItemLinkStyle
+      )}>
       {children}
     </li>
-  )
-}
+  );
+};
 
 const Sidebar: FC = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -79,8 +81,7 @@ const Sidebar: FC = () => {
             'transition-colors duration-150 ease-[cubic-bezier(0.4,0,0.2,1)]',
             'top-9 left-7 p-2 cursor-pointer z-10 rounded-[50%] hover:bg-black/4'
           )}
-          onClick={toggleSidebar}
-        >
+          onClick={toggleSidebar}>
           <MenuIcon className="w-6" />
         </button>
       )}
@@ -88,11 +89,8 @@ const Sidebar: FC = () => {
       {/* Sidebar */}
       <div
         ref={sidebarRef} // Attach the ref to the sidebar div
-        className={clsx(
-          isSidebarOpen ? 'left-0' : '-left-[350px]',
-          sidebarStyle  
-        )}>
-        <h2 className='p-2 font-bold text-3xl mb-3'>
+        className={clsx(isSidebarOpen ? 'left-0' : '-left-[350px]', sidebarStyle)}>
+        <h2 className="p-2 font-bold text-3xl mb-3">
           <Link to="/">
             <span>AK RAKET</span>
           </Link>
@@ -174,12 +172,11 @@ const Sidebar: FC = () => {
       */}
       <div
         className={clsx(
-          isSidebarOpen ? 'opacity-100' : 'opacity-0 pointer-events-none', 
+          isSidebarOpen ? 'opacity-100' : 'opacity-0 pointer-events-none',
           'fixed top-0 left-0 w-full h-full',
           'backdrop-blur-xs z-9 bg-black/50',
-          'transition-opacity duration-225 ease-[cubic-bezier(0.4,0,0.2,1)]',
-        )}
-      ></div>
+          'transition-opacity duration-225 ease-[cubic-bezier(0.4,0,0.2,1)]'
+        )}></div>
     </div>
   );
 };

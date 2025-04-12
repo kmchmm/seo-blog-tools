@@ -25,8 +25,6 @@ const App: React.FC = () => {
           <Route path="/seo/serp-checker" element={<SERPRank />} />
           <Route path="/seo/hunter" element={<Hunter />} />
           <Route path="/seo/harvester" element={<P1Harvester />} />
-
-
         </Route>
       </Routes>
     </Router>

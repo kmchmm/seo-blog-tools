@@ -1,4 +1,4 @@
-import { createContext, useEffect, useState } from "react";
+import { createContext, useEffect, useState } from 'react';
 
 interface ContextProps {
   darkMode: boolean;
@@ -7,11 +7,11 @@ interface ContextProps {
 
 export const DarkModeContext = createContext<ContextProps>({
   darkMode: true,
-  setDarkMode: () => {}
+  setDarkMode: () => {},
 });
 
 //@todo: remove any, use proper typing for children
-export const Provider = ({ children } : any) => {
+export const Provider = ({ children }: any) => {
   const [darkMode, setDarkMode] = useState<boolean>(false);
 
   useEffect(() => {
@@ -21,9 +21,13 @@ export const Provider = ({ children } : any) => {
       return;
     }
     body?.classList.remove('dark');
-  }, [darkMode])
+  }, [darkMode]);
 
-  return <DarkModeContext.Provider value={{darkMode, setDarkMode}}>{children}</DarkModeContext.Provider>
-}
+  return (
+    <DarkModeContext.Provider value={{ darkMode, setDarkMode }}>
+      {children}
+    </DarkModeContext.Provider>
+  );
+};
 
 export default DarkModeContext;

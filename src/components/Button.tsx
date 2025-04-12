@@ -17,7 +17,7 @@ const primaryHoverStyle = clsx(
   'hover:bg-black-100 hover:text-white-100 hover:border-white-100',
   'hover:shadow-[inset_0_0px_5px_theme(color-shadow-100),inset_0_1px_8px_0_theme(color-shadow-100)]',
   'dark:hover:bg-yellow-100 dark:hover:text-blue-600 dark:hover:border-blue-600',
-  'dark:hover:shadow-[inset_0_0px_5px_theme(color-shadow-200),inset_0_1px_8px_0_theme(color-shadow-200)]',
+  'dark:hover:shadow-[inset_0_0px_5px_theme(color-shadow-200),inset_0_1px_8px_0_theme(color-shadow-200)]'
 );
 
 // @todo: should we use hover style for focus? (esp. tabbed into)

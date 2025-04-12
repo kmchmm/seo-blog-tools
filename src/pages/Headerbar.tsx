@@ -16,11 +16,12 @@ const Headerbar: FC = () => {
 
   return (
     <div className="flex p-3 flex-col justify-center bg-white-100 dark:bg-blue-600">
-      <div className={clsx(
-        'h-22 flex flex-row items-center p-4 rounded-md border-1 ',
-        lightModeStyle,
-        darkModeStyle,
-      )}>
+      <div
+        className={clsx(
+          'h-22 flex flex-row items-center p-4 rounded-md border-1 ',
+          lightModeStyle,
+          darkModeStyle
+        )}>
         <h2 className="ml-10 text-3xl">Hello</h2>
         <div className="ml-auto">
           <ReactSwitch
