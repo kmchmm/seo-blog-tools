@@ -26,6 +26,8 @@ const paginationStyle =
   'bg-transparent text-yellow-100 border border-yellow-100 font-bold';
 const paginationHoverStyle = 'cursor-pointer hover:bg-blue-200';
 
+const searchStyle = 'bg-transparent text-yellow-100 border border-yellow-100 font-bold';
+
 export const Button = (btnProps: ButtonProps) => {
   const {
     disabled,
@@ -35,14 +37,23 @@ export const Button = (btnProps: ButtonProps) => {
     ...props
   } = btnProps;
 
+  const padding = btnType === IBtnType.SEARCH ? 'py-[13px] px-[30px]' : 'py-[6px] px-[12px]';
+
   const btnStyle = clsx(
     'font-medium text-base font-normal leading-[1.5]',
     'rounded-md py-[6px] px-[12px] border bg-transparent',
+    padding,
     'transition-colors duration-150 ease-in-out',
     focusStyle,
-    btnType === IBtnType.PRIMARY ? primaryStyle : paginationStyle,
+    btnType === IBtnType.PRIMARY
+      ? primaryStyle
+      : btnType === IBtnType.PAGINATION
+      ? paginationStyle
+      : searchStyle,
     !disabled &&
-      (btnType === IBtnType.PRIMARY ? primaryHoverStyle : paginationHoverStyle),
+      (btnType === IBtnType.PRIMARY
+        ? primaryHoverStyle
+        : paginationHoverStyle),
     disabled && 'cursor-not-allowed opacity-50'
   );
 
