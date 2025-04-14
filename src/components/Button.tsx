@@ -20,7 +20,7 @@ const primaryHoverStyle = clsx(
   'dark:hover:shadow-[inset_0_0px_5px_theme(color-shadow-200),inset_0_1px_8px_0_theme(color-shadow-200)]'
 );
 
-// @todo: should we use hover style for focus? (esp. tabbed into)
+
 const focusStyle = 'focus:outline-0';
 const paginationStyle =
   'bg-transparent text-yellow-100 border border-yellow-100 font-bold';
