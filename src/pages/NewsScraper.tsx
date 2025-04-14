@@ -70,7 +70,7 @@ const NewsScraper: React.FC = () => {
   const paginate = (pageNumber: number) => setCurrentPage(pageNumber);
 
   return (
-    <div className="flex flex-col items-center w-full pt-4 px-3 bg-white-100">
+    <div className="flex flex-col items-center w-full pt-4 px-3 bg-white-100 dark:bg-blue-600">
       <h1>AK OCTO SCRAPER NEWS</h1>
       <div className="flex justify-between items-center w-full gap-4 flex-row">
         <div className="flex items-center news-search-container w-1/2 gap-4">
@@ -156,7 +156,7 @@ const NewsScraper: React.FC = () => {
                     href={article.url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="!text-[var(--color-yellow-100)] hover:!text-[var(--color-blue-100)]"
+                    className="!text-yellow-100 hover:!text-blue-100"
                   >
                     READ MORE
                   </a>
