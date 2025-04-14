@@ -24,8 +24,8 @@ const NewsScraper: React.FC = () => {
     const isDev = import.meta.env.MODE === 'development';
 
     const apiUrl = isDev
-      ? import.meta.env.VITE_REACT_APP_LOCAL_API_URL || 'http://localhost:3000/news'
-      : import.meta.env.VITE_REACT_APP_PROD_API_URL || 'http://raket.arashlaw.ph:8001/news';
+      ? import.meta.env.VITE_REACT_APP_LOCAL_NEWS_API_URL || 'http://localhost:3000/news'
+      : import.meta.env.VITE_REACT_APP_PROD_NEWS_API_URL || 'http://raket.arashlaw.ph:8001/news';
 
     try {
       const response = await axios.get(`${apiUrl}/${query}`, {
