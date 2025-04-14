@@ -8,10 +8,16 @@ interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   ref?: React.Ref<HTMLButtonElement>;
 }
 
-const primaryStyle = 'text-black-100 bg-white-100 border-black-100';
+const primaryStyle = clsx(
+  'text-black-100 bg-white-100 border-black-100',
+  'dark:text-yellow-100 dark:bg-blue-600 dark:border-yellow-100'
+);
 const primaryHoverStyle = clsx(
-  'hover:cursor-pointer hover:bg-black-100 hover:text-white-100 hover:border-white-100',
-  'hover:shadow-[inset_0_0px_5px_theme(color-shadow-100),inset_0_1px_8px_0_theme(color-shadow-100)]'
+  'hover:cursor-pointer',
+  'hover:bg-black-100 hover:text-white-100 hover:border-white-100',
+  'hover:shadow-[inset_0_0px_5px_theme(color-shadow-100),inset_0_1px_8px_0_theme(color-shadow-100)]',
+  'dark:hover:bg-yellow-100 dark:hover:text-blue-600 dark:hover:border-blue-600',
+  'dark:hover:shadow-[inset_0_0px_5px_theme(color-shadow-200),inset_0_1px_8px_0_theme(color-shadow-200)]'
 );
 
 // @todo: should we use hover style for focus? (esp. tabbed into)

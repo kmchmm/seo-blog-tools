@@ -102,8 +102,12 @@ const GMAPScraper: FC = () => {
   );
 
   return (
-    <div className="flex flex-col items-center w-full">
-      <h1>AK OCTO SCRAPER Google Maps</h1>
+    <div
+      className={clsx(
+        'flex flex-col items-center w-full pt-4 px-3',
+        'bg-white-100 dark:bg-blue-600'
+      )}>
+      <h1 className="text-black-100 dark:text-white-100">AK OCTO SCRAPER Google Maps</h1>
       <div className="flex justify-between items-center w-full gap-4 flex-row">
         <div className="flex items-center news-search-container w-1/2 gap-4">
           <input
@@ -138,8 +142,6 @@ const GMAPScraper: FC = () => {
       {!loading && error && (
         <p className="text-red-100 text-base text-center font-bold">{error}</p>
       )}
-
-      {error && <p style={{ color: 'red' }}>{error}</p>}
 
       <div className="m-0 p-0">
         <table

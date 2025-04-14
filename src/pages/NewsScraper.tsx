@@ -73,7 +73,7 @@ const NewsScraper: React.FC = () => {
   const totalPages = Math.ceil(newsArticles.length / itemsPerPage);
 
   return (
-    <div className="flex flex-col items-center w-full">
+    <div className="flex flex-col items-center w-full pt-4 px-3 bg-white-100">
       <h1>AK OCTO SCRAPER NEWS</h1>
       <div className="flex justify-between items-center w-full gap-4 flex-row">
         <div className="flex items-center news-search-container w-1/2 gap-4">
