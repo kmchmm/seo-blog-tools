@@ -20,6 +20,7 @@ const sidebarStyle = clsx(
   'fixed top-0 w-[250px] h-full p-0 z-10',
   'transition-[left] duration-300 ease-ease',
   'bg-white-100 text-black-100',
+  'shadow-[0_8px_10px_-5px_theme(color-shadow-200/.20),0_16px_24px_2px_theme(color-shadow-200/.14),0_6px_30px_5px_theme(color-shadow-200/.12)]',
   'dark:bg-blue-600 dark:text-white-100'
 );
 
