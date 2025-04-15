@@ -1,4 +1,4 @@
-import { FC,  useState } from 'react';
+import { FC, useState } from 'react';
 import axios from 'axios';
 import clsx from 'clsx';
 import { Button } from '../components/Button';
@@ -92,11 +92,11 @@ const GMAPScraper: FC = () => {
     }
   };
 
-  const inputKeyDown =  (event: React.KeyboardEvent) => {
+  const inputKeyDown = (event: React.KeyboardEvent) => {
     if (event.key === 'Enter') {
       handleSearch();
     }
-  }
+  };
 
   return (
     <div
@@ -104,7 +104,9 @@ const GMAPScraper: FC = () => {
         'flex flex-col items-center w-full pt-4 px-3',
         'bg-white-100 dark:bg-blue-600'
       )}>
-      <h1 className="text-black-100 dark:text-white-100 text-5xl">AK OCTO SCRAPER Google Maps</h1>
+      <h1 className="text-black-100 dark:text-white-100 text-5xl">
+        AK OCTO SCRAPER Google Maps
+      </h1>
       <div className="flex justify-between items-center w-full gap-4 flex-row">
         <div className="flex items-center news-search-container w-1/2 gap-4">
           <input

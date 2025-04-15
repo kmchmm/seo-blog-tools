@@ -9,7 +9,7 @@ const Logout: FC = () => {
 
   useEffect(() => {
     logout();
-  })    
+  });
 
   return (
     <div
@@ -19,8 +19,12 @@ const Logout: FC = () => {
       )}>
       <div>Logged out</div>
       <div className="flex p-3 gap-3">
-        <Button><Link to="/">Go back to home</Link></Button>
-        <Button><Link to="/login">Sign back in</Link></Button>
+        <Button>
+          <Link to="/">Go back to home</Link>
+        </Button>
+        <Button>
+          <Link to="/login">Sign back in</Link>
+        </Button>
       </div>
     </div>
   );

@@ -29,7 +29,6 @@ const App: React.FC = () => {
           <Route path="/seo/harvester" element={<P1Harvester />} />
 
           <Route path="/logout" element={<Logout />} />
-
         </Route>
         <Route path="/login" element={<Login />} />
       </Routes>

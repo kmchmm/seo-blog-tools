@@ -20,8 +20,8 @@ export const Provider = ({ children }: any) => {
   // to avoid re-setting to local storage from initial fetch
   const setSaveDarkMode = (saveDarkMode: boolean) => {
     localStorage.setItem(LOCAL_STORAGE_DARKMODE_KEY, String(saveDarkMode));
-    setDarkMode(saveDarkMode)
-  }
+    setDarkMode(saveDarkMode);
+  };
 
   useEffect(() => {
     const body = document.querySelector('body');
@@ -38,7 +38,7 @@ export const Provider = ({ children }: any) => {
     if (savedDarkMode) {
       setDarkMode(savedDarkMode === 'true');
     }
-  }, [])
+  }, []);
 
   return (
     <DarkModeContext.Provider value={{ darkMode, setSaveDarkMode }}>

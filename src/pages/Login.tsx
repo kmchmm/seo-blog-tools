@@ -7,15 +7,15 @@ import { UserContext } from '../context/UserContext';
 const ARASH_AUTH_URL = 'https://arashlaw.ph/wp-json/ak/v1/auth';
 
 const loadingStyle = '[&>*]:h-7 [&>*]:w-7';
-const disabledInput = 'disabled:cursor-default disabled:opacity-50'
+const disabledInput = 'disabled:cursor-default disabled:opacity-50';
 
 const Login: FC = () => {
   const { userData, setUserData } = use(UserContext);
   const navigate = useNavigate();
-  const [ username, setUsername ] = useState('');
-  const [ password, setPassword ] = useState('');
-  const [ isLoading, setIsLoading ] = useState<boolean>(false);
-  const [ isError, setIsError ] = useState<boolean>(false);
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [isError, setIsError] = useState<boolean>(false);
 
   const handleHomeClick = (event: React.MouseEvent<HTMLHeadingElement>) => {
     // if has data-href, hide menu then navigate
@@ -23,7 +23,7 @@ const Login: FC = () => {
     if (dataHref) {
       navigate(dataHref);
     }
-  }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     setIsError(false);
@@ -32,15 +32,15 @@ const Login: FC = () => {
     try {
       const url = ARASH_AUTH_URL;
       const options = {
-        method: "POST",
+        method: 'POST',
         headers: {
-          Accept: "*/*",
-          "Content-Type": "application/json;charset=UTF-8",
+          Accept: '*/*',
+          'Content-Type': 'application/json;charset=UTF-8',
         },
         body: JSON.stringify({
-          "username" : username,
-          "password" : password
-        })
+          username: username,
+          password: password,
+        }),
       };
 
       const response = await fetch(url, options);
@@ -63,7 +63,7 @@ const Login: FC = () => {
 
   useEffect(() => {
     if (userData.id) navigate('/');
-  }, [userData])
+  }, [userData]);
 
   return (
     <div
@@ -80,13 +80,13 @@ const Login: FC = () => {
         data-href="/"
         tabIndex={0}
         role="link"
-        onClick={handleHomeClick}
-      >AK RAKET</h1>
+        onClick={handleHomeClick}>
+        AK RAKET
+      </h1>
       <p className="text-yellow-100">Tools you didn't know you need</p>
       <form
         className={clsx('flex flex-col gap-2 mt-1 items-center')}
-        onSubmit={handleSubmit}
-      >
+        onSubmit={handleSubmit}>
         <input
           className={clsx(
             '!bg-blue-600 !text-yellow-100 !border-yellow-100 !my-1',
@@ -120,18 +120,20 @@ const Login: FC = () => {
             'border-yellow-100 border text-blue-600 bg-gray-100',
             'shadow-[inset_0_0_5px_theme(color-blue-600),inset_0_1px_8px_theme(color-blue-600)]',
             loadingStyle
-          )}
-        >
+          )}>
           {isLoading ? <Loading /> : 'Login'}
         </button>
       </form>
 
-      {isError && <div className={clsx(
-        'bg-red-200 text-white-100  rounded-md p-4 m-2',
-        'border border-shadow-200/17'
-      )}>
-        Invalid credentials
-      </div>}
+      {isError && (
+        <div
+          className={clsx(
+            'bg-red-200 text-white-100  rounded-md p-4 m-2',
+            'border border-shadow-200/17'
+          )}>
+          Invalid credentials
+        </div>
+      )}
     </div>
   );
 };

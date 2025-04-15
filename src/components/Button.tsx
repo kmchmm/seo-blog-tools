@@ -36,7 +36,8 @@ export const Button = (btnProps: ButtonProps) => {
     ...props
   } = btnProps;
 
-  const padding = btnType === IBtnType.SEARCH ? 'py-[13px] px-[30px]' : 'py-[6px] px-[12px]';
+  const padding =
+    btnType === IBtnType.SEARCH ? 'py-[13px] px-[30px]' : 'py-[6px] px-[12px]';
 
   const btnStyle = clsx(
     'font-medium text-base font-normal leading-[1.5]',
@@ -47,12 +48,10 @@ export const Button = (btnProps: ButtonProps) => {
     btnType === IBtnType.PRIMARY
       ? primaryStyle
       : btnType === IBtnType.PAGINATION
-      ? paginationStyle
-      : searchStyle,
+        ? paginationStyle
+        : searchStyle,
     !disabled &&
-      (btnType === IBtnType.PRIMARY
-        ? primaryHoverStyle
-        : paginationHoverStyle),
+      (btnType === IBtnType.PRIMARY ? primaryHoverStyle : paginationHoverStyle),
     disabled && 'cursor-not-allowed opacity-50'
   );
 

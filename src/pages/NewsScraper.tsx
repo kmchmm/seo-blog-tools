@@ -25,7 +25,8 @@ const NewsScraper: React.FC = () => {
 
     const apiUrl = isDev
       ? import.meta.env.VITE_REACT_APP_LOCAL_NEWS_API_URL || 'http://localhost:3000/news'
-      : import.meta.env.VITE_REACT_APP_PROD_NEWS_API_URL || 'http://raket.arashlaw.ph:8001/news';
+      : import.meta.env.VITE_REACT_APP_PROD_NEWS_API_URL ||
+        'http://raket.arashlaw.ph:8001/news';
 
     try {
       const response = await axios.get(`${apiUrl}/${query}`, {
@@ -77,13 +78,13 @@ const NewsScraper: React.FC = () => {
           <input
             type="text"
             value={keywords}
-            onChange={(e) => setKeywords(e.target.value)}
-            onKeyDown={(e) => {
+            onChange={e => setKeywords(e.target.value)}
+            onKeyDown={e => {
               if (e.key === 'Enter') handleSearch();
             }}
             placeholder="Search for news, keywords...."
           />
-          <select value={timeFilter} onChange={(e) => setTimeFilter(e.target.value)}>
+          <select value={timeFilter} onChange={e => setTimeFilter(e.target.value)}>
             <option value="a">Any time</option>
             <option value="h">Past Hour</option>
             <option value="d">Past 24 Hours</option>
@@ -100,8 +101,7 @@ const NewsScraper: React.FC = () => {
             btnType={IBtnType.PAGINATION}
             onClick={() => paginate(currentPage - 1)}
             disabled={currentPage === 1}
-            className="mr-[20px]"
-          >
+            className="mr-[20px]">
             PREV
           </Button>
           <span>
@@ -111,21 +111,28 @@ const NewsScraper: React.FC = () => {
             btnType={IBtnType.PAGINATION}
             onClick={() => paginate(currentPage + 1)}
             disabled={currentPage === totalPages}
-            className="ml-[20px]"
-          >
+            className="ml-[20px]">
             NEXT
           </Button>
         </div>
       </div>
 
-      {loading && <div className="loading"><Loading /></div>}
+      {loading && (
+        <div className="loading">
+          <Loading />
+        </div>
+      )}
 
       {!loading && newsArticles.length === 0 && error && (
         <p className="text-red-100 text-base text-center font-bold">{error}</p>
       )}
 
       <div className="news-table-container m-0 p-0">
-        <table className={clsx('w-full my-[20px] mx-auto border-collapse', 'table-fixed shadow-[0_4px_6px_rgba(0, 0, 0, 0.1)]')}>
+        <table
+          className={clsx(
+            'w-full my-[20px] mx-auto border-collapse',
+            'table-fixed shadow-[0_4px_6px_rgba(0, 0, 0, 0.1)]'
+          )}>
           <thead>
             <tr>
               <th>FEATURED</th>
@@ -156,8 +163,7 @@ const NewsScraper: React.FC = () => {
                     href={article.url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="!text-yellow-100 hover:!text-blue-100"
-                  >
+                    className="!text-yellow-100 hover:!text-blue-100">
                     READ MORE
                   </a>
                 </td>
