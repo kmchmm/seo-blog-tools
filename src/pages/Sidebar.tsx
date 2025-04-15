@@ -88,7 +88,7 @@ const Sidebar: FC = () => {
           <span className={clsx(
             'absolute pointer-events-none w-full h-full rounded-[50%]',
             'bg-shadow-200/20 top-0',
-            'animate-ripple duration-250 ease-linear transform-[scale(0)]'
+            'animate-ripple duration-200 ease-linear transform-[scale(0)]'
           )}></span>
         </button>
       )}
