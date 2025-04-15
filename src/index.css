@@ -14,6 +14,7 @@
   --color-white-100: var(--white-bg);
   --color-black-100: #151724;
   --color-gray-100: #f3f3f3;
+  --color-gray-200: #bdbdbd;
   --color-red-100: #ff0000;
   --color-shadow-100: #c7c7c7;
   --color-shadow-200: #000000;
@@ -27,6 +28,7 @@
   --link-blue: #646cff;
   --link-hover-blue: #747bff;
   --base-yellow: #f4c55b;
+  --roboto-font: Roboto, Helvetica, Arial, sans-serif;
 
   font-family: Nunito, system-ui, Avenir, Helvetica, Arial, sans-serif;
   line-height: 1.5;

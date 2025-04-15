@@ -6,7 +6,7 @@ interface ContextProps {
 }
 
 export const DarkModeContext = createContext<ContextProps>({
-  darkMode: true,
+  darkMode: false,
   setDarkMode: () => {},
 });
 
