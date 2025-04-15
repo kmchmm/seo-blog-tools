@@ -18,6 +18,13 @@
   --color-red-100: #ff0000;
   --color-shadow-100: #c7c7c7;
   --color-shadow-200: #000000;
+
+  @keyframes ripple {
+    to {
+      transform: scale(4);
+      opacity: 0;
+    }
+  }
 }
 
 :root {

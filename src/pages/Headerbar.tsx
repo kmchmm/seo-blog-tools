@@ -33,6 +33,7 @@ const Headerbar: FC = () => {
         <h2 className="ml-10 text-3xl">Hello {userData.nickname}</h2>
         <div className="ml-auto">
           <ReactSwitch
+            className='top-1'
             uncheckedIcon={false}
             checkedIcon={false}
             onChange={handleSwitched}
@@ -46,8 +47,9 @@ const Headerbar: FC = () => {
             offHandleColor="#1976d2"
           />
           <button className={clsx(
-            'inline-flex items-center justify-center text-center rounded-[50%]',
-            ' text-xl text-white-100 p-2 box-border'
+            'relative inline-flex items-center justify-center text-center rounded-[50%]',
+            ' text-xl text-white-100 p-2 box-border cursor-pointer',
+            'hover:bg-shadow-200/4 active:[&_span]:transform-[scale(1)]'
           )}>
             <div className={clsx(
               'flex relative justify-center items-center',
@@ -55,6 +57,10 @@ const Headerbar: FC = () => {
             )}>
               { initials }
             </div>
+            <span className={clsx(
+              'absolute pointer-events-none w-full h-full rounded-[50%] bg-shadow-200/20',
+              'animate-ripple duration-250 ease-linear transform-[scale(0)]'
+            )}></span>
           </button>
 
         </div>

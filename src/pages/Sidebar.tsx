@@ -79,10 +79,16 @@ const Sidebar: FC = () => {
             'sidebar-toggle',
             'absolute flex justify-around flex-column dark:[&_svg]:fill-white-100',
             'transition-colors duration-150 ease-[cubic-bezier(0.4,0,0.2,1)]',
-            'top-9 left-7 p-2 cursor-pointer z-10 rounded-[50%] hover:bg-black/4'
+            'top-9 left-7 p-2 cursor-pointer z-10 rounded-[50%] hover:bg-black/4',
+            'hover:bg-shadow-200/4 active:[&_span]:transform-[scale(1)]'
           )}
           onClick={toggleSidebar}>
           <MenuIcon className="w-6" />
+          <span className={clsx(
+            'absolute pointer-events-none w-full h-full rounded-[50%]',
+            'bg-shadow-200/20 top-0',
+            'animate-ripple duration-250 ease-linear transform-[scale(0)]'
+          )}></span>
         </button>
       )}
 
