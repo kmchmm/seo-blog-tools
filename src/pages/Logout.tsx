@@ -20,7 +20,11 @@ const Logout: FC = () => {
       <div>Logged out</div>
       <div className="flex p-3 gap-3">
         <Button>
-          <Link to="/">Go back to home</Link>
+          {/* need to offset the padding from the parent button
+          so link encompasses wthe whole */ }
+          <Link className="-mx-3 -my-[6px] px-3 py-[6px] flex " to="/">
+            Go back to home
+          </Link>
         </Button>
         <Button>
           <Link to="/login">Sign back in</Link>
