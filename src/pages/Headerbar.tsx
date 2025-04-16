@@ -44,6 +44,7 @@ const Headerbar: FC = () => {
     // if has data-href, hide menu then navigate
     const dataHref = (event.target as HTMLLabelElement).getAttribute('data-href');
     if (dataHref) {
+      document.removeEventListener('mousedown', handleClickOutside);
       setShowProfileMenu(false);
       navigate(dataHref);
     }
@@ -52,6 +53,8 @@ const Headerbar: FC = () => {
   const handleTooltip = useCallback(() => {
     if (!showProfileMenu) {
       document.addEventListener('mousedown', handleClickOutside);
+    } else {
+      document.removeEventListener('mousedown', handleClickOutside);
     }
 
     setShowProfileMenu(!showProfileMenu);
@@ -67,8 +70,6 @@ const Headerbar: FC = () => {
   }, [userData]);
 
   useEffect(() => {
-    // Add event listener for click outside the headerbar
-
     // Cleanup the event listener when the component unmounts
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);

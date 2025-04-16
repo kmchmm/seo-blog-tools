@@ -119,8 +119,10 @@ const Login: FC = () => {
             'cursor-pointer h-12 w-30 rounded-md',
             'border-yellow-100 border text-blue-600 bg-gray-100',
             'shadow-[inset_0_0_5px_theme(color-blue-600),inset_0_1px_8px_theme(color-blue-600)]',
-            loadingStyle
-          )}>
+            loadingStyle,
+            disabledInput
+          )}
+          disabled={isLoading}>
           {isLoading ? <Loading /> : 'Login'}
         </button>
       </form>

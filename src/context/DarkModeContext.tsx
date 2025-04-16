@@ -17,7 +17,7 @@ export const Provider = ({ children }: any) => {
   const [darkMode, setDarkMode] = useState<boolean>(false);
 
   // we expose a different function from setDarkMode
-  // to avoid re-setting to local storage from initial fetch
+  // to avoid re-setting to local storage from initial get
   const setSaveDarkMode = (saveDarkMode: boolean) => {
     localStorage.setItem(LOCAL_STORAGE_DARKMODE_KEY, String(saveDarkMode));
     setDarkMode(saveDarkMode);
