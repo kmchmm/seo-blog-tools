@@ -10,6 +10,8 @@ import JediInsights from './pages/JediInsights';
 import SERPRank from './pages/SERPRank';
 import Hunter from './pages/Hunter';
 import P1Harvester from './pages/P1Harvester';
+import Login from './pages/Login';
+import Logout from './pages/Logout';
 
 const App: React.FC = () => {
   return (
@@ -25,7 +27,10 @@ const App: React.FC = () => {
           <Route path="/seo/serp-checker" element={<SERPRank />} />
           <Route path="/seo/hunter" element={<Hunter />} />
           <Route path="/seo/harvester" element={<P1Harvester />} />
+
+          <Route path="/logout" element={<Logout />} />
         </Route>
+        <Route path="/login" element={<Login />} />
       </Routes>
     </Router>
   );

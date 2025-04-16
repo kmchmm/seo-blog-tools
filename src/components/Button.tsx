@@ -20,7 +20,6 @@ const primaryHoverStyle = clsx(
   'dark:hover:shadow-[inset_0_0px_5px_theme(color-shadow-200),inset_0_1px_8px_0_theme(color-shadow-200)]'
 );
 
-
 const focusStyle = 'focus:outline-0';
 const paginationStyle =
   'bg-transparent text-yellow-100 border border-yellow-100 font-bold';
@@ -37,7 +36,8 @@ export const Button = (btnProps: ButtonProps) => {
     ...props
   } = btnProps;
 
-  const padding = btnType === IBtnType.SEARCH ? 'py-[13px] px-[30px]' : 'py-[6px] px-[12px]';
+  const padding =
+    btnType === IBtnType.SEARCH ? 'py-[13px] px-[30px]' : 'py-[6px] px-[12px]';
 
   const btnStyle = clsx(
     'font-medium text-base font-normal leading-[1.5]',
@@ -48,12 +48,10 @@ export const Button = (btnProps: ButtonProps) => {
     btnType === IBtnType.PRIMARY
       ? primaryStyle
       : btnType === IBtnType.PAGINATION
-      ? paginationStyle
-      : searchStyle,
+        ? paginationStyle
+        : searchStyle,
     !disabled &&
-      (btnType === IBtnType.PRIMARY
-        ? primaryHoverStyle
-        : paginationHoverStyle),
+      (btnType === IBtnType.PRIMARY ? primaryHoverStyle : paginationHoverStyle),
     disabled && 'cursor-not-allowed opacity-50'
   );
 

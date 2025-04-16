@@ -20,6 +20,7 @@ const sidebarStyle = clsx(
   'fixed top-0 w-[250px] h-full p-0 z-10',
   'transition-[left] duration-300 ease-ease',
   'bg-white-100 text-black-100',
+  'shadow-[0_8px_10px_-5px_theme(color-shadow-200/.20),0_16px_24px_2px_theme(color-shadow-200/.14),0_6px_30px_5px_theme(color-shadow-200/.12)]',
   'dark:bg-blue-600 dark:text-white-100'
 );
 
@@ -79,10 +80,17 @@ const Sidebar: FC = () => {
             'sidebar-toggle',
             'absolute flex justify-around flex-column dark:[&_svg]:fill-white-100',
             'transition-colors duration-150 ease-[cubic-bezier(0.4,0,0.2,1)]',
-            'top-9 left-7 p-2 cursor-pointer z-10 rounded-[50%] hover:bg-black/4'
+            'top-9 left-7 p-2 cursor-pointer z-10 rounded-[50%] hover:bg-black/4',
+            'hover:bg-shadow-200/4 active:[&_span]:transform-[scale(1)]'
           )}
           onClick={toggleSidebar}>
           <MenuIcon className="w-6" />
+          <span
+            className={clsx(
+              'absolute pointer-events-none w-full h-full rounded-[50%]',
+              'bg-shadow-200/20 top-0',
+              'animate-ripple duration-200 ease-linear transform-[scale(0)]'
+            )}></span>
         </button>
       )}
 

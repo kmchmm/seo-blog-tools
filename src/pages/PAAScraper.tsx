@@ -57,7 +57,7 @@ const PAAScraper: React.FC = () => {
 
   return (
     <div>
-      <h1>Google People Also Ask Scraper</h1>
+      <h1 className="text-5xl">Google People Also Ask Scraper</h1>
       <div className="paa-search-container">
         <input
           type="text"

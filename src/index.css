@@ -11,12 +11,23 @@
   --color-blue-500: #84b5e6;
   --color-blue-600: var(--dark-bg);
   --color-blue-700: #060f1d;
+  --color-blue-800: #0d6efd;
   --color-white-100: var(--white-bg);
   --color-black-100: #151724;
+  --color-black-200: #212529;
   --color-gray-100: #f3f3f3;
+  --color-gray-200: #bdbdbd;
   --color-red-100: #ff0000;
+  --color-red-200: #dc3545;
   --color-shadow-100: #c7c7c7;
   --color-shadow-200: #000000;
+
+  @keyframes ripple {
+    to {
+      transform: scale(4);
+      opacity: 0;
+    }
+  }
 }
 
 :root {
@@ -27,6 +38,7 @@
   --link-blue: #646cff;
   --link-hover-blue: #747bff;
   --base-yellow: #f4c55b;
+  --roboto-font: Roboto, Helvetica, Arial, sans-serif;
 
   font-family: Nunito, system-ui, Avenir, Helvetica, Arial, sans-serif;
   line-height: 1.5;
@@ -68,12 +80,10 @@ body.dark {
 }
 
 h1 {
-  font-size: 2.6em;
   font-weight: 700;
   line-height: 1.1;
   width: 100%;
   margin: 0;
-  text-align: left;
 }
 
 h2 {
@@ -91,7 +101,8 @@ h2 {
 }
 
 /* Styling the input field */
-input[type='text'] {
+input[type='text'],
+input[type='password'] {
   padding: 12px;
   width: 300px;
   margin: 10px 0;
@@ -105,7 +116,8 @@ input[type='text'] {
 }
 
 /* Focus state for input */
-input[type='text']:focus {
+input[type='text']:focus,
+input[type='password']:focus {
   border: 1px solid var(--base-blue);
   outline: none;
 }
