@@ -163,7 +163,7 @@ const NewsScraper: React.FC = () => {
                     href={article.url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="!text-yellow-100 hover:!text-blue-100">
+                    className="!text-yellow-500 hover:!text-blue-100 dark:!text-yellow-100">
                     READ MORE
                   </a>
                 </td>
