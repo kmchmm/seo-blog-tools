@@ -68,12 +68,12 @@ const JediInsights: FC = () => {
           )}>
           <thead>
             <tr>
-              <th>Page</th>
-              <th>Keywords</th>
-              <th>MOZ</th>
-              <th>WINCHER</th>
-              <th>Requested By</th>
-              <th></th>
+              <th className="w-1/2">Page</th>
+              <th className="w-1/3">Keywords</th>
+              <th className="w-[120px] !text-center">MOZ</th>
+              <th className="w-[120px] !text-center">WINCHER</th>
+              <th className="w-1/5">Requested By</th>
+              <th className="w-1/5"></th>
             </tr>
           </thead>
           <tbody>
