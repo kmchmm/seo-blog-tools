@@ -6,69 +6,63 @@ import { Loading } from '../components/Loading';
 import clsx from 'clsx';
 
 const PAAScraper: React.FC = () => {
-  const [paaQuestions, setPaaQuestions] = useState<string[]>([]);  // Store all fetched questions
-  const [displayedQuestions, setDisplayedQuestions] = useState<string[]>([]);  // Store questions to display
+  const [paaQuestions, setPaaQuestions] = useState<string[]>([]);
+  const [displayedQuestions, setDisplayedQuestions] = useState<string[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string>('');
   const [keywords, setKeywords] = useState<string>('');
-  const [currentPage, setCurrentPage] = useState<number>(1);  // Track the current page of questions
+  const [currentPage, setCurrentPage] = useState<number>(1);
 
-  // Fetch PAA questions from the backend
   const fetchPaaQuestions = async (query: string, append = false, page = 1) => {
     setLoading(true);
     setError('');
     try {
-      // Use proper format for the URL with query and page separated
       const url = `http://localhost:8002/paa/${encodeURIComponent(query)}/${page}`;
       const response = await axios.get(url);
-  
+
       if (response.data && Array.isArray(response.data.questions) && response.data.questions.length > 0) {
         const newQuestions = response.data.questions;
-  
-        // If we're appending, add the new questions to the existing ones
+
         setPaaQuestions(prev =>
           append
-            ? Array.from(new Set([...prev, ...newQuestions])) // Avoid duplicates
+            ? Array.from(new Set([...prev, ...newQuestions]))
             : newQuestions
         );
-        
-        // Only update displayed questions if not appending (initial load), otherwise, keep appending
-        setDisplayedQuestions(prev => append ? [...prev, ...newQuestions] : newQuestions.slice(0, 4)); // Display the first 4 questions
+
+        // Show new questions at the top
+        setDisplayedQuestions(prev => append ? [...newQuestions, ...prev] : newQuestions.slice(0, 4));
       } else {
         setError(response.data.message || 'No People Also Ask questions found.');
-        if (!append) setPaaQuestions([]);  // Reset all questions if it's the first time search
+        if (!append) setPaaQuestions([]);
       }
     } catch (err: any) {
       console.error('API call error:', err);
       setError('Network error or CORS issue. Please check the server.');
-      if (!append) setPaaQuestions([]);  // Reset all questions if error occurs
+      if (!append) setPaaQuestions([]);
     } finally {
       setLoading(false);
     }
   };
-  
-  // Trigger search when the user clicks the search button
+
   const handleSearch = () => {
     if (keywords.trim() === '') {
       setError('Please enter a search keyword.');
       setPaaQuestions([]);
     } else {
       setError('');
-      setPaaQuestions([]); // Reset PAA questions
-      setDisplayedQuestions([]); // Reset displayed questions
-      setCurrentPage(1);  // Reset to page 1 when searching
-      fetchPaaQuestions(keywords);  // Fetch questions for the first time
+      setPaaQuestions([]);
+      setDisplayedQuestions([]);
+      setCurrentPage(1);
+      fetchPaaQuestions(keywords);
     }
   };
 
-  // Fetch more questions when the "Generate More Questions" button is clicked
   const handleGenerateMore = () => {
     if (paaQuestions.length === 0) return;
 
     const nextPage = currentPage + 1;
     setCurrentPage(nextPage);
 
-    // Fetch more questions from the next page
     fetchPaaQuestions(keywords, true, nextPage);
   };
 
