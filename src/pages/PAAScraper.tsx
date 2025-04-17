@@ -1,107 +1,144 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import axios from 'axios';
-import '../assets/css/PAAScraper.css'; // For styling the sidebar
+import { IBtnType } from '../types';
+import { Button } from '../components/Button';
+import { Loading } from '../components/Loading';
+import clsx from 'clsx';
 
 const PAAScraper: React.FC = () => {
-  const [paaQuestions, setPaaQuestions] = useState<string[]>([]);
+  const [paaQuestions, setPaaQuestions] = useState<string[]>([]);  // Store all fetched questions
+  const [displayedQuestions, setDisplayedQuestions] = useState<string[]>([]);  // Store questions to display
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string>('');
   const [keywords, setKeywords] = useState<string>('');
+  const [currentPage, setCurrentPage] = useState<number>(1);  // Track the current page of questions
 
-  // Function to simulate an API call for debugging purposes
-  const fetchPaaQuestions = async (query: string) => {
+  // Fetch PAA questions from the backend
+  const fetchPaaQuestions = async (query: string, append = false, page = 1) => {
     setLoading(true);
     setError('');
     try {
-      const url = `http://localhost:3000/paa/${encodeURIComponent(query)}`; // backend route
-      console.log(`Requesting: ${url}`);
-
+      // Use proper format for the URL with query and page separated
+      const url = `http://localhost:8002/paa/${encodeURIComponent(query)}/${page}`;
       const response = await axios.get(url);
-      console.log('API Response:', response.data); // Log full response to check the format
-
-      if (response.data && Array.isArray(response.data) && response.data.length > 0) {
-        setPaaQuestions(response.data);
+  
+      if (response.data && Array.isArray(response.data.questions) && response.data.questions.length > 0) {
+        const newQuestions = response.data.questions;
+  
+        // If we're appending, add the new questions to the existing ones
+        setPaaQuestions(prev =>
+          append
+            ? Array.from(new Set([...prev, ...newQuestions])) // Avoid duplicates
+            : newQuestions
+        );
+        
+        // Only update displayed questions if not appending (initial load), otherwise, keep appending
+        setDisplayedQuestions(prev => append ? [...prev, ...newQuestions] : newQuestions.slice(0, 4)); // Display the first 4 questions
       } else {
-        setError('No People Also Ask questions found for your search term.');
-        setPaaQuestions([]); // Clear the questions in case no results
+        setError(response.data.message || 'No People Also Ask questions found.');
+        if (!append) setPaaQuestions([]);  // Reset all questions if it's the first time search
       }
-    } catch (err) {
-      console.error('Error during API call:', err);
-
-      if (err.response && err.response.status === 404) {
-        setError('No People Also Ask questions found for your search term.');
-      } else {
-        setError('An error occurred while fetching People Also Ask questions.');
-      }
-      setPaaQuestions([]);
+    } catch (err: any) {
+      console.error('API call error:', err);
+      setError('Network error or CORS issue. Please check the server.');
+      if (!append) setPaaQuestions([]);  // Reset all questions if error occurs
     } finally {
       setLoading(false);
     }
   };
-
+  
+  // Trigger search when the user clicks the search button
   const handleSearch = () => {
     if (keywords.trim() === '') {
       setError('Please enter a search keyword.');
-      setPaaQuestions([]); // Clear questions if no keyword
+      setPaaQuestions([]);
     } else {
       setError('');
-      setPaaQuestions([]); // Clear previous questions
-      fetchPaaQuestions(keywords); // Call the function to fetch new questions
+      setPaaQuestions([]); // Reset PAA questions
+      setDisplayedQuestions([]); // Reset displayed questions
+      setCurrentPage(1);  // Reset to page 1 when searching
+      fetchPaaQuestions(keywords);  // Fetch questions for the first time
     }
   };
 
-  useEffect(() => {
-    // Test with static data to check if rendering is working
-    // Remove this after confirming that rendering is correct
-  }, []);
+  // Fetch more questions when the "Generate More Questions" button is clicked
+  const handleGenerateMore = () => {
+    if (paaQuestions.length === 0) return;
+
+    const nextPage = currentPage + 1;
+    setCurrentPage(nextPage);
+
+    // Fetch more questions from the next page
+    fetchPaaQuestions(keywords, true, nextPage);
+  };
 
   return (
-    <div>
+    <div className="flex flex-col items-center w-full">
       <h1 className="text-5xl">Google People Also Ask Scraper</h1>
-      <div className="paa-search-container">
-        <input
-          type="text"
-          value={keywords}
-          onChange={e => setKeywords(e.target.value)}
-          placeholder="Enter keywords"
-        />
-        <button onClick={handleSearch} disabled={loading} className="news-search-button">
-          {loading ? 'Searching...' : 'Search'}
-        </button>
+
+      <div className="flex justify-between items-center w-full gap-4 flex-row">
+        <div className="flex items-center news-search-container w-1/2 gap-4">
+          <input
+            type="text"
+            value={keywords}
+            onChange={(e) => setKeywords(e.target.value)}
+            placeholder="Enter keywords"
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') handleSearch();
+            }}
+          />
+          <Button onClick={handleSearch} disabled={loading} btnType={IBtnType.SEARCH}>
+            {loading ? 'Searching...' : 'Search'}
+          </Button>
+        </div>
       </div>
 
       {loading && (
         <div className="loading">
-          <div className="loading-spinner"></div>
+          <Loading />
         </div>
       )}
 
-      {error && <p style={{ color: 'red' }}>{error}</p>}
+      {!loading && error && (
+        <p className="text-red-100 text-base text-center font-bold mt-4">{error}</p>
+      )}
 
-      <div>
-        {paaQuestions.length === 0 && !loading && !error && (
-          <p>No People Also Ask questions found. Try a different search.</p>
-        )}
-
-        {paaQuestions.length > 0 && (
-          <table>
-            <thead>
-              <tr>
-                <th>Source</th>
-                <th>Title</th>
-              </tr>
-            </thead>
-            <tbody>
-              {paaQuestions.map((question, index) => (
+      <div className="paa-table-container m-0 p-0 w-full">
+        <table
+          className={clsx(
+            'w-full my-[20px] mx-auto border-collapse',
+            'table-fixed shadow-[0_4px_6px_rgba(0, 0, 0, 0.1)]'
+          )}>
+          <thead>
+            <tr>
+              <th>Source</th>
+              <th>Question</th>
+            </tr>
+          </thead>
+          <tbody>
+            {displayedQuestions.length > 0 ? (
+              displayedQuestions.map((question, index) => (
                 <tr key={index}>
                   <td>Google</td>
                   <td>{question}</td>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
+              ))
+            ) : (
+              <tr>
+                <td colSpan={2} className="text-center py-4 text-gray-500 italic">
+                  {!loading ? 'No People Also Ask questions to show. Try a search above.' : ''}
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
       </div>
+
+      {paaQuestions.length > 0 && !loading && (
+        <Button onClick={handleGenerateMore} disabled={loading} btnType={IBtnType.GENERATE}>
+          {loading ? 'Generating...' : 'Generate More Questions'}
+        </Button>
+      )}
     </div>
   );
 };

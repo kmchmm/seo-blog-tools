@@ -21,11 +21,18 @@ const primaryHoverStyle = clsx(
 );
 
 const focusStyle = 'focus:outline-0';
-const paginationStyle =
-  'bg-transparent text-yellow-100 border border-yellow-100 font-bold';
-const paginationHoverStyle = 'cursor-pointer hover:bg-blue-200';
 
-const searchStyle = 'bg-transparent text-yellow-100 border border-yellow-100 font-bold';
+const paginationStyle =
+  'bg-transparent text-black-100 border-black-100 dark:text-yellow-100 border dark:border-yellow-100 font-bold';
+const paginationHoverStyle = 'cursor-pointer hover:bg-blue-200 hover:text-white-100';
+
+const searchStyle = 'bg-transparent border-black-100 text-black-100 dark:text-yellow-100 border dark:border-yellow-100 font-bold';
+const searchHoverStyle = 'cursor-pointer hover:bg-blue-200 hover:text-white-100';
+
+// NEW: Add button style
+const generateStyle =
+  'text-white-100 border font-bold dark:text-white-100 !bg-blue-100 border-blue-100';
+const generateHoverStyle = 'cursor-pointer hover:!bg-blue-300 hover:border-blue-300';
 
 export const Button = (btnProps: ButtonProps) => {
   const {
@@ -37,11 +44,13 @@ export const Button = (btnProps: ButtonProps) => {
   } = btnProps;
 
   const padding =
-    btnType === IBtnType.SEARCH ? 'py-[13px] px-[30px]' : 'py-[6px] px-[12px]';
+    btnType === IBtnType.SEARCH || btnType === IBtnType.GENERATE
+      ? 'py-[13px] px-[30px]'
+      : 'py-[6px] px-[12px]';
 
   const btnStyle = clsx(
     'font-medium text-base font-normal leading-[1.5]',
-    'rounded-md py-[6px] px-[12px] border bg-transparent',
+    'rounded-md border bg-transparent',
     padding,
     'transition-colors duration-150 ease-in-out',
     focusStyle,
@@ -49,9 +58,19 @@ export const Button = (btnProps: ButtonProps) => {
       ? primaryStyle
       : btnType === IBtnType.PAGINATION
         ? paginationStyle
-        : searchStyle,
+        : btnType === IBtnType.SEARCH
+          ? searchStyle
+          : generateStyle, // use addStyle if btnType is ADD
     !disabled &&
-      (btnType === IBtnType.PRIMARY ? primaryHoverStyle : paginationHoverStyle),
+      (btnType === IBtnType.PRIMARY
+        ? primaryHoverStyle
+        : btnType === IBtnType.PAGINATION
+          ? paginationHoverStyle
+            :btnType === IBtnType.SEARCH
+            ? searchHoverStyle
+              : btnType === IBtnType.GENERATE
+                ? generateHoverStyle
+                : ''),
     disabled && 'cursor-not-allowed opacity-50'
   );
 
