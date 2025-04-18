@@ -24,10 +24,10 @@ const focusStyle = 'focus:outline-0';
 
 const paginationStyle =
   'bg-transparent text-black-100 border-black-100 dark:text-yellow-100 border dark:border-yellow-100 font-bold';
-const paginationHoverStyle = 'cursor-pointer hover:bg-black hover:text-white-100 dark:hover:bg-yellow-100';
+const paginationHoverStyle = 'cursor-pointer hover:bg-black hover:text-white-100 dark:hover:text-blue-900 dark:hover:bg-yellow-100';
 
 const searchStyle = 'bg-transparent border-black-100 text-black-100 dark:text-yellow-100 border dark:border-yellow-100 font-bold';
-const searchHoverStyle = 'cursor-pointer hover:bg-black hover:text-white-100 dark:hover:bg-yellow-100';
+const searchHoverStyle = 'cursor-pointer hover:bg-black hover:text-white-100 dark:hover:text-blue-900 dark:hover:bg-yellow-100';
 
 // NEW: Add button style
 const generateStyle =

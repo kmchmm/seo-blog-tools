@@ -10,6 +10,16 @@ import JediInsightsIcon from '../assets/icons/insights.svg?react';
 import SERPRankIcon from '../assets/icons/serp.svg?react';
 import HunterIcon from '../assets/icons/hunter.svg?react';
 import P1HarvesterIcon from '../assets/icons/harvester.svg?react';
+import CrossSite from '../assets/icons/cross-site.svg?react';
+import Kompass from '../assets/icons/kompass.svg?react';
+import Loom from '../assets/icons/loom.svg?react';
+import Chronos from '../assets/icons/chronos.svg?react';
+import AKPHub from '../assets/icons/akphub.svg?react';
+import ChatWidget from '../assets/icons/chat-widget.svg?react';
+import TitleTweak from '../assets/icons/title-tweak.svg?react';
+import HTMLCleaner from '../assets/icons/html-cleaner.svg?react';
+import DupeKiller from '../assets/icons/dupe-killer.svg?react';
+
 
 interface RaketMenuItemProps extends React.LiHTMLAttributes<HTMLButtonElement> {
   children?: React.ReactNode;
@@ -158,51 +168,81 @@ const Sidebar: FC = () => {
           </li>
           <li>
             <h3 className="p-1 dark:text-yellow-100">PUBLISHING TOOLS</h3>
-            <ul>
+            <ul className="p-2">
               <RaketMenuItem>
-                <Link to="">CrossSite Poster</Link>
+                <Link to="">
+                  <CrossSite />
+                  <span>CrossSite Poster</span>
+                </Link>
               </RaketMenuItem>
               <RaketMenuItem>
-                <Link to="">Kompass</Link>
+                <Link to="">
+                  <Kompass />
+                  <span>Kompass</span>
+                </Link>
               </RaketMenuItem>
               <RaketMenuItem>
-                <Link to="">Loom</Link>
+                <Link to="">
+                  <Loom />
+                  <span>Loom</span>
+                </Link>
               </RaketMenuItem>
             </ul>
           </li>
           <li>
             <h3 className="p-1 dark:text-yellow-100">HR MANAGEMENT</h3>
-            <ul>
+            <ul className="p-2">
               <RaketMenuItem>
-                <Link to="">Chronos</Link>
+                <Link to="">
+                  <Chronos />
+                  <span>Chronos</span>
+                </Link>
               </RaketMenuItem>
               <RaketMenuItem>
-                <Link to="">AKPHub Monitoring</Link>
+                <Link to="">
+                  <AKPHub />
+                  <span>AKPHub Monitoring</span>
+                </Link>
               </RaketMenuItem>
             </ul>
           </li>
           <li>
             <h3 className="p-1 dark:text-yellow-100">EXTENSIONS</h3>
-            <ul>
+            <ul className="p-2">
               <RaketMenuItem>
-                <Link to="">CHAT WIDGET</Link>
+                <Link to="">
+                  <ChatWidget />
+                  <span>CHAT WIDGET</span>
+                </Link>
               </RaketMenuItem>
             </ul>
           </li>
           <li>
             <h3 className="p-1 dark:text-yellow-100">PBN's HQ</h3>
+            <ul className="p-2">
+
+            </ul>
           </li>
           <li>
             <h3 className="p-1 dark:text-yellow-100">FREE TOOLS</h3>
-            <ul>
+            <ul className="p-2">
               <RaketMenuItem>
-                <Link to="">Title Tweak</Link>
+                <Link to="">
+                  <TitleTweak />
+                  <span>Title Tweak</span>
+                </Link>
               </RaketMenuItem>
               <RaketMenuItem>
-                <Link to="">HTML Cleaner</Link>
+                <Link to="">
+                  <HTMLCleaner />
+                  <span>HTML Cleaner</span>
+                </Link>
               </RaketMenuItem>
               <RaketMenuItem>
-                <Link to="">Dupe Killer</Link>
+                <Link to="">
+                  <DupeKiller />
+                  <span>Dupe Killer</span>
+                </Link>
               </RaketMenuItem>
             </ul>
           </li>

@@ -68,22 +68,22 @@ const JediInsights: FC = () => {
           )}>
           <thead>
             <tr>
-              <th className="w-1/2">Page</th>
-              <th className="w-1/3">Keywords</th>
-              <th className="w-[120px] !text-center">MOZ</th>
-              <th className="w-[120px] !text-center">WINCHER</th>
-              <th className="w-1/5">Requested By</th>
-              <th className="w-1/5"></th>
+              <th className="w-1/2 border border-amber-200">Page</th>
+              <th className="w-1/3 border border-amber-200">Keywords</th>
+              <th className="w-[120px] !text-center border border-amber-200">MOZ</th>
+              <th className="w-[120px] !text-center border border-amber-200">WINCHER</th>
+              <th className="w-1/5 border border-amber-200">Requested By</th>
+              <th className="w-1/5 border border-amber-200"></th>
             </tr>
           </thead>
           <tbody>
             <tr>
-              <td></td>
-              <td></td>
-              <td></td>
-              <td></td>
-              <td></td>
-              <td></td>
+              <td className="border border-amber-200">Test</td>
+              <td className="border border-amber-200">Test</td>
+              <td className="border border-amber-200 !text-center">00</td>
+              <td className="border border-amber-200 !text-center ">00</td>
+              <td className="border border-amber-200">Test</td>
+              <td className="border border-amber-200">Test</td>
             </tr>
           </tbody>
         </table>
