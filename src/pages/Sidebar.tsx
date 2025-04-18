@@ -158,18 +158,53 @@ const Sidebar: FC = () => {
           </li>
           <li>
             <h3 className="p-1 dark:text-yellow-100">PUBLISHING TOOLS</h3>
+            <ul>
+              <RaketMenuItem>
+                <Link to="">CrossSite Poster</Link>
+              </RaketMenuItem>
+              <RaketMenuItem>
+                <Link to="">Kompass</Link>
+              </RaketMenuItem>
+              <RaketMenuItem>
+                <Link to="">Loom</Link>
+              </RaketMenuItem>
+            </ul>
           </li>
           <li>
             <h3 className="p-1 dark:text-yellow-100">HR MANAGEMENT</h3>
+            <ul>
+              <RaketMenuItem>
+                <Link to="">Chronos</Link>
+              </RaketMenuItem>
+              <RaketMenuItem>
+                <Link to="">AKPHub Monitoring</Link>
+              </RaketMenuItem>
+            </ul>
           </li>
           <li>
             <h3 className="p-1 dark:text-yellow-100">EXTENSIONS</h3>
+            <ul>
+              <RaketMenuItem>
+                <Link to="">CHAT WIDGET</Link>
+              </RaketMenuItem>
+            </ul>
           </li>
           <li>
             <h3 className="p-1 dark:text-yellow-100">PBN's HQ</h3>
           </li>
           <li>
             <h3 className="p-1 dark:text-yellow-100">FREE TOOLS</h3>
+            <ul>
+              <RaketMenuItem>
+                <Link to="">Title Tweak</Link>
+              </RaketMenuItem>
+              <RaketMenuItem>
+                <Link to="">HTML Cleaner</Link>
+              </RaketMenuItem>
+              <RaketMenuItem>
+                <Link to="">Dupe Killer</Link>
+              </RaketMenuItem>
+            </ul>
           </li>
         </ul>
       </div>
