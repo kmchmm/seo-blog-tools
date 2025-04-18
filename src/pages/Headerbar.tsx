@@ -133,6 +133,7 @@ const Headerbar: FC = () => {
               'max-w-[calc(100%-32px)] max-h-[calc(100%-32px)]',
               'transition-[opacity,transform] duration-[207ms, 138ms]',
               'ease-[cubic-bezier(0.4,0,0.2,1),cubic-bezier(0.4,0,0.2,1)]',
+              'w-[120px] text-center',
               profileBoxShadow
             )}
             ref={profileMenuRef}>
@@ -140,25 +141,26 @@ const Headerbar: FC = () => {
               <li
                 className={clsx(
                   'relative inline-flex items-center justify-center overflow-hidden',
-                  'underline text-blue-300 hover:bg-shadow-200/4',
-                  'cursor-pointer select-none active:[&_span]:transform-[scale(2)]'
+                  'underline text-blue-300 hover:bg-shadow-200/8',
+                  'cursor-pointer select-none active:[&_span]:transform-[scale(2)]',
+                  '!no-underline text-gray-800 !tracking-widest font-black',
                 )}
                 onClick={onLogClick}>
                 {userData.id ? (
                   <label
-                    className="cursor-pointer py-2 px-4 "
+                    className="cursor-pointer py-2 px-4"
                     data-href="/logout"
                     tabIndex={0}
                     role="link">
-                    Logout
+                    Sign Out
                   </label>
                 ) : (
                   <label
-                    className="cursor-pointer py-2 px-4 "
+                    className="cursor-pointer py-2 px-4"
                     data-href="/login"
                     tabIndex={0}
                     role="link">
-                    Login
+                    Sign In
                   </label>
                 )}
 
