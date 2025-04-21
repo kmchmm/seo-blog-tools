@@ -19,7 +19,7 @@ export enum TOOL_ROUTES {
   KOMPASS = '/publishing/text-kompass',
   LOOM = '/publishing/link-loom',
 
-  CHRONOS = 'hr/chronos/admin',
+  CHRONOS = '/hr/chronos/admin',
   MONITORING = '/hr/hub/monitoring',
 
   CHAT = '/extra/chat-app',
