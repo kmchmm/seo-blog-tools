@@ -9,7 +9,7 @@ const Logout: FC = () => {
 
   useEffect(() => {
     logout();
-  });
+  }, []);
 
   return (
     <div

@@ -143,7 +143,7 @@ const Headerbar: FC = () => {
                   'relative inline-flex items-center justify-center overflow-hidden',
                   'underline text-blue-300 hover:bg-shadow-200/8',
                   'cursor-pointer select-none active:[&_span]:transform-[scale(2)]',
-                  '!no-underline text-gray-800 !tracking-widest font-black',
+                  '!no-underline text-gray-800 !tracking-widest font-black'
                 )}
                 onClick={onLogClick}>
                 {userData.id ? (

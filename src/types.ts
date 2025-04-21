@@ -4,3 +4,27 @@ export enum IBtnType {
   SEARCH = 'search',
   GENERATE = 'generate',
 }
+
+export enum TOOL_ROUTES {
+  NEWS = '/scrape/news',
+  PAA = '/scrape/paa',
+  GMAP = '/scrape/gmap',
+
+  JEDI_INSIGHTS = '/seo/jedi-insights',
+  SERP_RANK = '/seo/serp-checker',
+  HUNTER = '/seo/hunter',
+  HARVESTER = '/seo/harvester',
+
+  CROSS_SITE_POSTING = '/publishing/cross-site-posting',
+  KOMPASS = '/publishing/text-kompass',
+  LOOM = '/publishing/link-loom',
+
+  CHRONOS = 'hr/chronos/admin',
+  MONITORING = '/hr/hub/monitoring',
+
+  CHAT = '/extra/chat-app',
+
+  TITLE_TWEAK = '/publishing/lexi-tweak',
+  HTML_CLEANER = '/publishing/html-cleaner',
+  DUPE_KILLER = '/publishing/dupe-killer',
+}

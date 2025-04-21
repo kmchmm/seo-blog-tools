@@ -7,16 +7,13 @@ import clsx from 'clsx';
 const JediInsights: FC = () => {
   return (
     <div
-      className={clsx(
-        'flex flex-col w-full pt-4 px-3',
-        'bg-white-100 dark:bg-blue-600'
-      )}>
-      <h1 className="text-black-100 dark:text-white-100 text-5xl">AK JEDI INSIGHTS</h1>
+      className={clsx('flex flex-col w-full pt-4 px-3', 'bg-white-100 dark:bg-blue-600')}>
+      <h1 className="text-black-100 dark:text-white-100 text-5xl">AK Jedi Insights</h1>
       <h6 className="italic">Combined On-Page SEO Checker from Wincher and MOZ</h6>
       <div className="flex justify-center items-center w-full gap-4 flex-row">
         <div className="flex items-center justify-center w-1/2 gap-4">
           <input
-           className="!border-gray-700"
+            className="!border-gray-700"
             type="text"
             // value={keywords}
             // onChange={(e) => setKeywords(e.target.value)}
@@ -26,7 +23,7 @@ const JediInsights: FC = () => {
             // }}
           />
           <input
-          className="!border-gray-700"
+            className="!border-gray-700"
             type="text"
             // value={keywords}
             // onChange={(e) => setKeywords(e.target.value)}
@@ -38,7 +35,9 @@ const JediInsights: FC = () => {
           {/* <Button onClick={handleSearch} disabled={loading} btnType={IBtnType.SEARCH}>
             {loading ? 'Searching...' : 'Search'}
           </Button> */}
-          <Button btnType={IBtnType.SEARCH} className="!bg-black-200 !text-white hover:!bg-black dark:!bg-transparent dark:hover:!bg-yellow-100 dark:hover:!text-black-100">
+          <Button
+            btnType={IBtnType.SEARCH}
+            className="!bg-black-200 !text-white hover:!bg-black dark:!bg-transparent dark:hover:!bg-yellow-100 dark:hover:!text-black-100">
             {'Analyze'}
           </Button>
         </div>
@@ -46,19 +45,21 @@ const JediInsights: FC = () => {
 
       <div className="flex items-center w-1/2 gap-4 mt-5">
         <input
-           className="!border-gray-700"
-            type="text"
-            // value={keywords}
-            // onChange={(e) => setKeywords(e.target.value)}
-            placeholder="Search URL"
-            // onKeyDown={(e) => {
-            // // if (e.key === 'Enter') handleSearch();
-            // }}
-          />
-          <Button btnType={IBtnType.SEARCH} className="!bg-black-200 !text-white hover:!bg-black dark:!bg-transparent dark:hover:!bg-yellow-100 dark:hover:!text-black-100">
-            {'Search'}
-          </Button>
-        </div>
+          className="!border-gray-700"
+          type="text"
+          // value={keywords}
+          // onChange={(e) => setKeywords(e.target.value)}
+          placeholder="Search URL"
+          // onKeyDown={(e) => {
+          // // if (e.key === 'Enter') handleSearch();
+          // }}
+        />
+        <Button
+          btnType={IBtnType.SEARCH}
+          className="!bg-black-200 !text-white hover:!bg-black dark:!bg-transparent dark:hover:!bg-yellow-100 dark:hover:!text-black-100">
+          {'Search'}
+        </Button>
+      </div>
 
       <div className="paa-table-container m-0 p-0 w-full">
         <table
