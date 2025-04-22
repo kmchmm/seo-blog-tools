@@ -3,6 +3,9 @@ import { IBtnType } from '../types';
 import { Button } from '../components/Button';
 import clsx from 'clsx';
 
+import RefreshScore from '../assets/icons/refresh-score.svg?react';
+
+
 const SERPRank: FC = () => {
   return (
     <div
@@ -50,12 +53,12 @@ const SERPRank: FC = () => {
           )}>
           <thead>
             <tr>
-              <th className="w-1/2 border border-amber-200">Page</th>
-              <th className="w-1/3 border border-amber-200">Keywords</th>
-              <th className="w-[120px] !text-center border border-amber-200">MOZ</th>
-              <th className="w-[120px] !text-center border border-amber-200">WINCHER</th>
-              <th className="w-1/5 border border-amber-200">Requested By</th>
-              <th className="w-1/5 border border-amber-200"></th>
+              <th className="w-1/4 border border-amber-200">Keyword</th>
+              <th className="w-1/2 border border-amber-200">Link</th>
+              <th className="w-[150px] !text-center border border-amber-200">MOZ</th>
+              <th className="w-[150px] !text-center border border-amber-200">AK</th>
+              <th className="w-1/3 border border-amber-200">Requested By</th>
+              <th className="w-[120px] border border-amber-200 !text-center">Action</th>
             </tr>
           </thead>
           <tbody>
@@ -65,7 +68,18 @@ const SERPRank: FC = () => {
               <td className="border border-amber-200 !text-center">00</td>
               <td className="border border-amber-200 !text-center ">00</td>
               <td className="border border-amber-200">Test</td>
-              <td className="border border-amber-200">Test</td>
+              <td className="border border-amber-200 !text-center">
+                <div className="relative group inline-block">
+                  <Button className="p-2 bg-transparent border !border-transparent hover:!border-yellow-100 rounded cursor-pointer hover:!bg-transparent hover:!shadow-none">
+                    <RefreshScore className="w-6 h-6 !text-black-200 dark:!text-white" />
+                  </Button>
+                
+                  <span className="absolute top-full mt-2 left-1/2 -translate-x-1/2 whitespace-nowrap rounded bg-gray-800 px-2 py-1 text-xs text-white opacity-0 group-hover:opacity-100 transition">
+                    Refresh Score
+                  </span>
+                </div>
+
+              </td>
             </tr>
           </tbody>
         </table>

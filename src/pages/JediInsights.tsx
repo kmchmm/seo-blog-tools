@@ -4,6 +4,11 @@ import { Button } from '../components/Button';
 // import { Loading } from '../components/Loading';
 import clsx from 'clsx';
 
+import StackedLine from '../assets/icons/stacked-line.svg?react';
+import RefreshScore from '../assets/icons/refresh-score.svg?react';
+import Archive from '../assets/icons/archive.svg?react';
+
+
 const JediInsights: FC = () => {
   return (
     <div
@@ -84,7 +89,38 @@ const JediInsights: FC = () => {
               <td className="border border-amber-200 !text-center">00</td>
               <td className="border border-amber-200 !text-center ">00</td>
               <td className="border border-amber-200">Test</td>
-              <td className="border border-amber-200">Test</td>
+              <td className="border border-amber-200 !text-center">
+                <div className="relative group inline-block">
+                  <Button className="p-2 bg-transparent border !border-transparent hover:!border-yellow-100 rounded cursor-pointer hover:!bg-transparent hover:!shadow-none">
+                    <StackedLine className="w-6 h-6 !text-black-200 dark:!text-white" />
+                  </Button>
+
+                  <span className="absolute top-full mt-2 left-1/2 -translate-x-1/2 whitespace-nowrap rounded bg-gray-800 px-2 py-1 text-xs text-white opacity-0 group-hover:opacity-100 transition">
+                    View Result
+                  </span>
+                </div>
+
+                <div className="relative group inline-block">
+                  <Button className="p-2 bg-transparent border !border-transparent hover:!border-yellow-100 rounded cursor-pointer hover:!bg-transparent hover:!shadow-none">
+                    <RefreshScore className="w-6 h-6 !text-black-200 dark:!text-white" />
+                  </Button>
+
+                  <span className="absolute top-full mt-2 left-1/2 -translate-x-1/2 whitespace-nowrap rounded bg-gray-800 px-2 py-1 text-xs text-white opacity-0 group-hover:opacity-100 transition">
+                    Refresh Score
+                  </span>
+                </div>
+
+                <div className="relative group inline-block">
+                  <Button className="p-2 bg-transparent border !border-transparent hover:!border-yellow-100 rounded cursor-pointer hover:!bg-transparent hover:!shadow-none">
+                    <Archive className="w-6 h-6 !text-black-200 dark:!text-white" />
+                  </Button>
+
+                  <span className="absolute top-full mt-2 left-1/2 -translate-x-1/2 whitespace-nowrap rounded bg-gray-800 px-2 py-1 text-xs text-white opacity-0 group-hover:opacity-100 transition">
+                    Archive
+                  </span>
+                </div>
+
+              </td>
             </tr>
           </tbody>
         </table>
