@@ -5,6 +5,13 @@ import { Button } from '../components/Button';
 import { Loading } from '../components/Loading';
 import clsx from 'clsx';
 
+// Ensure environment URLs are correctly loaded from the .env file
+const isDev = import.meta.env.MODE === 'development';
+
+const apiUrl = isDev
+  ? import.meta.env.VITE_LOCAL_GPAA_API
+  : import.meta.env.VITE_PROD_GPAA_API;
+
 const PAAScraper: React.FC = () => {
   const [paaQuestions, setPaaQuestions] = useState<string[]>([]);
   const [displayedQuestions, setDisplayedQuestions] = useState<string[]>([]);
@@ -17,7 +24,7 @@ const PAAScraper: React.FC = () => {
     setLoading(true);
     setError('');
     try {
-      const url = `http://localhost:8002/paa/${encodeURIComponent(query)}/${page}`;
+      const url = `${apiUrl}/paa/${encodeURIComponent(query)}/${page}`;
       const response = await axios.get(url);
 
       if (
