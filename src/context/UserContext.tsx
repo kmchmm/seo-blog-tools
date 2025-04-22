@@ -1,4 +1,5 @@
 import { createContext, useEffect, useState } from 'react';
+import supabase from '../utils/supabaseInit.js';
 
 const LOCAL_STORAGE_USER_KEY = 'ak_ph_user_data';
 
@@ -54,20 +55,35 @@ interface UserContextProps {
   userData: UserData;
   setUserData: Function;
   logout: Function;
+  toolsAccess: String[];
+  setToolsAccess: Function;
+}
+
+interface ToolsResults {
+  id: number;
+  created_at: string;
+  department: string;
+  tool_access: {
+    access: String[];
+  };
 }
 
 export const UserContext = createContext<UserContextProps>({
   userData: initUserData,
   setUserData: () => {},
   logout: () => {},
+  toolsAccess: [],
+  setToolsAccess: () => {},
 });
 
 //@todo: remove any, use proper typing for children
 export const Provider = ({ children }: any) => {
   const [userData, setUserData] = useState<UserData>(initUserData);
+  const [toolsAccess, setToolsAccess] = useState<String[]>([]);
 
   const logout = () => {
     setUserData(initUserData);
+    setToolsAccess([]);
   };
 
   useEffect(() => {
@@ -83,13 +99,43 @@ export const Provider = ({ children }: any) => {
     }
   }, []);
 
+  const fetchTools = async (department: string) => {
+    try {
+      if (department) {
+        const toolsResult = await supabase
+          .from('department_access')
+          .select('*')
+          .eq('department', department.toLowerCase().replace(/\s+/g, '-'));
+
+        const toolsData = toolsResult?.data;
+        if (toolsData && toolsData[0]) {
+          const tools: String[] = (toolsData[0] as ToolsResults)['tool_access']['access'];
+          setToolsAccess(tools);
+        }
+
+        return;
+      }
+      setToolsAccess([]);
+    } catch (e) {
+      setToolsAccess([]);
+      console.log('ERROR FETCHING TOOLS ACCESS');
+    }
+  };
+
   useEffect(() => {
-    console.log(userData);
     localStorage.setItem(LOCAL_STORAGE_USER_KEY, JSON.stringify(userData));
+    fetchTools(userData.department);
   }, [userData]);
 
   return (
-    <UserContext.Provider value={{ userData, setUserData, logout }}>
+    <UserContext.Provider
+      value={{
+        userData,
+        setUserData,
+        logout,
+        toolsAccess,
+        setToolsAccess,
+      }}>
       {children}
     </UserContext.Provider>
   );

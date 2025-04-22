@@ -20,17 +20,21 @@ const PAAScraper: React.FC = () => {
       const url = `http://localhost:8002/paa/${encodeURIComponent(query)}/${page}`;
       const response = await axios.get(url);
 
-      if (response.data && Array.isArray(response.data.questions) && response.data.questions.length > 0) {
+      if (
+        response.data &&
+        Array.isArray(response.data.questions) &&
+        response.data.questions.length > 0
+      ) {
         const newQuestions = response.data.questions;
 
         setPaaQuestions(prev =>
-          append
-            ? Array.from(new Set([...prev, ...newQuestions]))
-            : newQuestions
+          append ? Array.from(new Set([...prev, ...newQuestions])) : newQuestions
         );
 
         // Show new questions at the top
-        setDisplayedQuestions(prev => append ? [...newQuestions, ...prev] : newQuestions.slice(0, 4));
+        setDisplayedQuestions(prev =>
+          append ? [...newQuestions, ...prev] : newQuestions.slice(0, 4)
+        );
       } else {
         setError(response.data.message || 'No People Also Ask questions found.');
         if (!append) setPaaQuestions([]);
@@ -75,9 +79,9 @@ const PAAScraper: React.FC = () => {
           <input
             type="text"
             value={keywords}
-            onChange={(e) => setKeywords(e.target.value)}
+            onChange={e => setKeywords(e.target.value)}
             placeholder="Enter keywords"
-            onKeyDown={(e) => {
+            onKeyDown={e => {
               if (e.key === 'Enter') handleSearch();
             }}
           />
@@ -120,7 +124,9 @@ const PAAScraper: React.FC = () => {
             ) : (
               <tr>
                 <td colSpan={2} className="text-center py-4 text-gray-500 italic">
-                  {!loading ? 'No People Also Ask questions to show. Try a search above.' : ''}
+                  {!loading
+                    ? 'No People Also Ask questions to show. Try a search above.'
+                    : ''}
                 </td>
               </tr>
             )}
@@ -129,7 +135,10 @@ const PAAScraper: React.FC = () => {
       </div>
 
       {paaQuestions.length > 0 && !loading && (
-        <Button onClick={handleGenerateMore} disabled={loading} btnType={IBtnType.GENERATE}>
+        <Button
+          onClick={handleGenerateMore}
+          disabled={loading}
+          btnType={IBtnType.GENERATE}>
           {loading ? 'Generating...' : 'Generate More Questions'}
         </Button>
       )}

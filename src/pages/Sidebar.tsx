@@ -1,7 +1,8 @@
-import { FC, useState, useEffect, useRef } from 'react';
+import { FC, use, useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import clsx from 'clsx';
 
+import { UserContext } from '../context/UserContext';
 import MenuIcon from '../assets/icons/menu.svg?react';
 import NewsIcon from '../assets/icons/news.svg?react';
 import GoogleIcon from '../assets/icons/google.svg?react';
@@ -20,6 +21,7 @@ import TitleTweak from '../assets/icons/title-tweak.svg?react';
 import HTMLCleaner from '../assets/icons/html-cleaner.svg?react';
 import DupeKiller from '../assets/icons/dupe-killer.svg?react';
 
+import { TOOL_ROUTES } from '../types';
 
 interface RaketMenuItemProps extends React.LiHTMLAttributes<HTMLButtonElement> {
   children?: React.ReactNode;
@@ -27,7 +29,7 @@ interface RaketMenuItemProps extends React.LiHTMLAttributes<HTMLButtonElement> {
 }
 
 const sidebarStyle = clsx(
-  'fixed top-0 w-[250px] h-full p-0 z-10',
+  'fixed top-0 w-[250px] h-full p-0 z-10 overflow-auto',
   'transition-[left] duration-300 ease-ease',
   'bg-white-100 text-black-100',
   'shadow-[0_8px_10px_-5px_theme(color-shadow-200/.20),0_16px_24px_2px_theme(color-shadow-200/.14),0_6px_30px_5px_theme(color-shadow-200/.12)]',
@@ -57,6 +59,7 @@ const RaketMenuItem = (itemProps: RaketMenuItemProps) => {
 
 const Sidebar: FC = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const { toolsAccess } = use(UserContext);
   const sidebarRef = useRef<HTMLDivElement>(null); // Create a reference for the sidebar
 
   // Toggle sidebar visibility
@@ -117,129 +120,153 @@ const Sidebar: FC = () => {
           <li>
             <h3 className="p-1 dark:text-yellow-100">OCTO TOOLS</h3>
             <ul className="p-2">
-              <RaketMenuItem>
-                <Link to="/scrape/news">
-                  <NewsIcon />
-                  <span>NEWS Scraper</span>
-                </Link>
-              </RaketMenuItem>
-              <RaketMenuItem>
-                <Link to="/scrape/paa">
-                  <GoogleIcon />
-                  <span>GPAA Scraper</span>
-                </Link>
-              </RaketMenuItem>
-              <RaketMenuItem>
-                <Link to="/scrape/gmap">
-                  <MapsIcon />
-                  <span>GMAP Scraper</span>
-                </Link>
-              </RaketMenuItem>
+              {toolsAccess.includes('octo-news-scraper') && (
+                <RaketMenuItem>
+                  <Link to={TOOL_ROUTES.NEWS}>
+                    <NewsIcon />
+                    <span>NEWS Scraper</span>
+                  </Link>
+                </RaketMenuItem>
+              )}
+              {toolsAccess.includes('octo-gpaa-scraper') && (
+                <RaketMenuItem>
+                  <Link to={TOOL_ROUTES.PAA}>
+                    <GoogleIcon />
+                    <span>GPAA Scraper</span>
+                  </Link>
+                </RaketMenuItem>
+              )}
+              {toolsAccess.includes('octo-gmaps-scraper') && (
+                <RaketMenuItem>
+                  <Link to={TOOL_ROUTES.GMAP}>
+                    <MapsIcon />
+                    <span>GMAP Scraper</span>
+                  </Link>
+                </RaketMenuItem>
+              )}
             </ul>
           </li>
           <li>
             <h3 className="p-1 dark:text-yellow-100">SEO TOOLS</h3>
             <ul className="p-2">
-              <RaketMenuItem>
-                <Link to="/seo/jedi-insights">
-                  <JediInsightsIcon />
-                  <span>Jedi Insights</span>
-                </Link>
-              </RaketMenuItem>
-              <RaketMenuItem>
-                <Link to="/seo/serp-checker">
-                  <SERPRankIcon />
-                  <span>SERP Rank</span>
-                </Link>
-              </RaketMenuItem>
-              <RaketMenuItem>
-                <Link to="/seo/hunter">
-                  <HunterIcon />
-                  <span>Hunter</span>
-                </Link>
-              </RaketMenuItem>
-              <RaketMenuItem>
-                <Link to="/seo/harvester">
-                  <P1HarvesterIcon />
-                  <span>P1 Harvester</span>
-                </Link>
-              </RaketMenuItem>
+              {toolsAccess.includes('jedi-insights') && (
+                <RaketMenuItem>
+                  <Link to={TOOL_ROUTES.JEDI_INSIGHTS}>
+                    <JediInsightsIcon />
+                    <span>Jedi Insights</span>
+                  </Link>
+                </RaketMenuItem>
+              )}
+              {toolsAccess.includes('clair') && (
+                <RaketMenuItem>
+                  <Link to={TOOL_ROUTES.SERP_RANK}>
+                    <SERPRankIcon />
+                    <span>SERP Rank</span>
+                  </Link>
+                </RaketMenuItem>
+              )}
+              {toolsAccess.includes('hunter') && (
+                <RaketMenuItem>
+                  <Link to={TOOL_ROUTES.HUNTER}>
+                    <HunterIcon />
+                    <span>Hunter</span>
+                  </Link>
+                </RaketMenuItem>
+              )}
+              {toolsAccess.includes('harvester') && (
+                <RaketMenuItem>
+                  <Link to={TOOL_ROUTES.HARVESTER}>
+                    <P1HarvesterIcon />
+                    <span>P1 Harvester</span>
+                  </Link>
+                </RaketMenuItem>
+              )}
             </ul>
           </li>
           <li>
             <h3 className="p-1 dark:text-yellow-100">PUBLISHING TOOLS</h3>
             <ul className="p-2">
-              <RaketMenuItem>
-                <Link to="">
-                  <CrossSite />
-                  <span>CrossSite Poster</span>
-                </Link>
-              </RaketMenuItem>
-              <RaketMenuItem>
-                <Link to="">
-                  <Kompass />
-                  <span>Kompass</span>
-                </Link>
-              </RaketMenuItem>
-              <RaketMenuItem>
-                <Link to="">
-                  <Loom />
-                  <span>Loom</span>
-                </Link>
-              </RaketMenuItem>
+              {toolsAccess.includes('cross-site-poster') && (
+                <RaketMenuItem>
+                  <Link to={TOOL_ROUTES.CROSS_SITE_POSTING}>
+                    <CrossSite />
+                    <span>CrossSite Poster</span>
+                  </Link>
+                </RaketMenuItem>
+              )}
+              {toolsAccess.includes('kompass') && (
+                <RaketMenuItem>
+                  <Link to={TOOL_ROUTES.KOMPASS}>
+                    <Kompass />
+                    <span>Kompass</span>
+                  </Link>
+                </RaketMenuItem>
+              )}
+              {toolsAccess.includes('loom') && (
+                <RaketMenuItem>
+                  <Link to={TOOL_ROUTES.LOOM}>
+                    <Loom />
+                    <span>Loom</span>
+                  </Link>
+                </RaketMenuItem>
+              )}
             </ul>
           </li>
           <li>
             <h3 className="p-1 dark:text-yellow-100">HR MANAGEMENT</h3>
             <ul className="p-2">
-              <RaketMenuItem>
-                <Link to="">
-                  <Chronos />
-                  <span>Chronos</span>
-                </Link>
-              </RaketMenuItem>
-              <RaketMenuItem>
-                <Link to="">
-                  <AKPHub />
-                  <span>AKPHub Monitoring</span>
-                </Link>
-              </RaketMenuItem>
+              {toolsAccess.includes('hr-chronos-admin') && (
+                <RaketMenuItem>
+                  <Link to={TOOL_ROUTES.CHRONOS}>
+                    <Chronos />
+                    <span>Chronos</span>
+                  </Link>
+                </RaketMenuItem>
+              )}
+              {toolsAccess.includes('hr-hub-monitoring') && (
+                <RaketMenuItem>
+                  <Link to={TOOL_ROUTES.MONITORING}>
+                    <AKPHub />
+                    <span>AKPHub Monitoring</span>
+                  </Link>
+                </RaketMenuItem>
+              )}
             </ul>
           </li>
           <li>
             <h3 className="p-1 dark:text-yellow-100">EXTENSIONS</h3>
             <ul className="p-2">
-              <RaketMenuItem>
-                <Link to="">
-                  <ChatWidget />
-                  <span>CHAT WIDGET</span>
-                </Link>
-              </RaketMenuItem>
+              {toolsAccess.includes('chat-app') && (
+                <RaketMenuItem>
+                  <Link to={TOOL_ROUTES.CHAT}>
+                    <ChatWidget />
+                    <span>CHAT WIDGET</span>
+                  </Link>
+                </RaketMenuItem>
+              )}
             </ul>
           </li>
           <li>
             <h3 className="p-1 dark:text-yellow-100">PBN's HQ</h3>
-            <ul className="p-2">
-
-            </ul>
+            <ul className="p-2"></ul>
           </li>
           <li>
             <h3 className="p-1 dark:text-yellow-100">FREE TOOLS</h3>
             <ul className="p-2">
               <RaketMenuItem>
-                <Link to="">
+                <Link to={TOOL_ROUTES.TITLE_TWEAK}>
                   <TitleTweak />
                   <span>Title Tweak</span>
                 </Link>
               </RaketMenuItem>
               <RaketMenuItem>
-                <Link to="">
+                <Link to={TOOL_ROUTES.HTML_CLEANER}>
                   <HTMLCleaner />
                   <span>HTML Cleaner</span>
                 </Link>
               </RaketMenuItem>
               <RaketMenuItem>
-                <Link to="">
+                <Link to={TOOL_ROUTES.DUPE_KILLER}>
                   <DupeKiller />
                   <span>Dupe Killer</span>
                 </Link>
