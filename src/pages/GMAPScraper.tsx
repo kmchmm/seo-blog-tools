@@ -1,6 +1,5 @@
 import {
   FC,
-  HTMLAttributes,
   KeyboardEvent,
   use,
   useCallback,
@@ -14,6 +13,8 @@ import clsx from 'clsx';
 import pb from '../utils/pocketbaseInit.js';
 import { Button } from '../components/Button';
 import { Loading } from '../components/Loading';
+import { OctoBitRecord } from '../components/OctoBitRecord';
+import { MapRecord, scrapeData, modifiedScrapeData } from '../components/MapRecord';
 import { UserContext } from '../context/UserContext';
 import BackArrow from '../assets/icons/back.svg?react';
 
@@ -70,22 +71,6 @@ const COUNTIES = [
   'yolo',
 ];
 
-interface scrapeData {
-  address: string;
-  county: string;
-  details: string;
-  phone_number: string;
-  rating: string;
-  rating_count: string;
-  title: string;
-  type: string;
-  website: string;
-}
-
-interface modifiedScrapeData extends scrapeData {
-  id: string;
-}
-
 interface scrapeRecord {
   collectionId: string;
   collectionName: string;
@@ -123,77 +108,6 @@ export enum IGMap {
 }
 
 type gmapMode = IGMap;
-
-interface OctoBitsPanelProps extends HTMLAttributes<HTMLDivElement> {
-  recordId: string;
-  desc: string;
-  requester: string;
-  status: string;
-  date: string;
-  workerId: string;
-  showMapResults: Function;
-  deleteAkOctobit: Function;
-  loading: boolean;
-}
-
-const OctoBitRecord = (octoBitsProps: OctoBitsPanelProps) => {
-  return (
-    <div
-      onClick={() => {
-        octoBitsProps.showMapResults(
-          octoBitsProps.workerId,
-          octoBitsProps.status.trim().toUpperCase() === 'DONE'
-        );
-      }}
-      className={clsx(
-        'p-2 w-full cursor-pointer hover:scale-115',
-        'ease-in transition-transform duration-200'
-      )}>
-      <div
-        className={clsx(
-          'grid text-center p-4 rounded-md border-yellow-100 border',
-          isDev
-            ? 'grid-cols-[2fr_3fr_3fr_2fr_2fr_1fr]'
-            : 'grid-cols-[2fr_3fr_3fr_2fr_2fr]'
-        )}>
-        <div className="border-r">
-          <div>ID</div>
-          <div className="font-bold">{octoBitsProps.recordId}</div>
-        </div>
-
-        <div className="border-r">
-          <div>Description</div>
-          <div>{octoBitsProps.desc}</div>
-        </div>
-
-        <div className="border-r">
-          <div>Order by</div>
-          <div className="font-bold">{octoBitsProps.requester}</div>
-        </div>
-
-        <div className="font-bold flex items-center justify-center">
-          {octoBitsProps.status}
-        </div>
-
-        <div className="font-bold flex items-center justify-center">
-          {octoBitsProps.date.split(' ')[0]}
-        </div>
-        {isDev && (
-          <button
-            disabled={octoBitsProps.loading}
-            className={
-              octoBitsProps.loading ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'
-            }
-            onClick={async () => {
-              octoBitsProps.deleteAkOctobit(octoBitsProps.recordId);
-            }}>
-            DELETE
-          </button>
-        )}
-      </div>
-    </div>
-  );
-};
 
 const GMAPScraper: FC = () => {
   const [mapResults, setMapResults] = useState<modifiedScrapeData[]>([]);
@@ -354,7 +268,6 @@ const GMAPScraper: FC = () => {
   }, []);
 
   const fetchCollections = async () => {
-    // const collection = await pb.collection(GMAPS_REQUESTS_COLLECTION).getFullList({})
     const collection = await pb.collection(AK_OCTOBITS_COLLECTION).getList(1, 50, {
       sort: '-created',
       filter: `tool="${GMAPS_TOOL}"`,
@@ -435,10 +348,10 @@ const GMAPScraper: FC = () => {
               <tr>
                 <th>TITLE</th>
                 <th>TYPE</th>
-                <th>ADDRESS</th>
                 <th>COUNTY</th>
-                <th>PHONE NUMBER</th>
-                <th>RATING</th>
+                <th>ADDRESS</th>
+                <th>CONTACT</th>
+                <th>DETAILS</th>
                 <th>WEBSITE</th>
                 {isDev && (
                   <th>
@@ -463,38 +376,21 @@ const GMAPScraper: FC = () => {
               {mapResults.length > 0 &&
                 mapResults.map(result => {
                   return (
-                    <tr key={`${result.title}_${result.website}`}>
-                      <td>{result.title}</td>
-                      <td>{result.type}</td>
-                      <td>{result.address}</td>
-                      <td className="capitalize">{result.county}</td>
-                      <td>{result.phone_number}</td>
-                      <td>
-                        {result.rating} {result.rating_count}
-                      </td>
-                      <td>
-                        <a
-                          href={result.website}
-                          target="_blank"
-                          rel="noopener noreferrer">
-                          {result.website}
-                        </a>
-                      </td>
-                      {isDev && (
-                        <td>
-                          <button
-                            disabled={loading}
-                            className={
-                              loading ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'
-                            }
-                            onClick={async () => {
-                              deleteGMapRequest(result.id);
-                            }}>
-                            DELETE {result.id}
-                          </button>
-                        </td>
-                      )}
-                    </tr>
+                    <MapRecord 
+                      key={`${result.title}_${result.address}`}
+                      id={result.id}
+                      title={result.title}
+                      address={result.address}
+                      type={result.type}
+                      county={result.county}
+                      phone_number={result.phone_number}
+                      details={result.details}
+                      website={result.website}
+                      rating={result.rating}
+                      rating_count={result.rating_count}
+                      loading={loading}
+                      deleteGMapRequest={deleteGMapRequest}
+                    />
                   );
                 })}
             </tbody>
