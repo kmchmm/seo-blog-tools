@@ -1,8 +1,11 @@
-import { FC, useState } from 'react';
+import { FC, use, useCallback, useEffect, useRef, useState } from 'react';
 import axios from 'axios';
 import clsx from 'clsx';
+
+import pb from '../utils/pocketbaseInit.js';
 import { Button } from '../components/Button';
 import { Loading } from '../components/Loading';
+import { UserContext } from '../context/UserContext';
 
 const COUNTIES = [
   'alameda',
@@ -49,45 +52,89 @@ const COUNTIES = [
   'yolo',
 ];
 
+interface scrapeData {
+  address: string;
+  county: string;
+  details: string;
+  phone_number: string;
+  rating: string;
+  rating_count: string;
+  title: string;
+  type: string;
+  website: string;
+}
+
+interface scrapeRecord {
+  collectionId: string;
+  collectionName: string;
+  created: string;
+  id: string;
+  keyword: string;
+  requested_by: string;
+  updated: string;
+  worker_id:string;
+  scraped_data: scrapeData
+}
+
+interface scrapeMsg {
+  action: string;
+  record: scrapeRecord;
+}
+
 const GMAPScraper: FC = () => {
   const [mapResults, setMapResults] = useState<any[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string>('');
   const [keywords, setKeywords] = useState<string>('');
   const [location, setLocation] = useState<string>('any');
+  const fetchWorkerId = useRef<string>('');
+  const currentResults = useRef<any[]>([]);
+  const { userData } = use(UserContext);
 
-  const fetchMaps = async (keywords: string) => {
+  const receiveResults = useCallback((e: scrapeMsg) => {
+    if (e.record.worker_id === fetchWorkerId.current) {
+      const newResult = [...currentResults.current];
+      newResult.push(e.record.scraped_data);
+
+      currentResults.current = [...new Set(newResult)];
+      
+      setMapResults(currentResults.current);
+    }
+  }, [])
+
+  const fetchMaps = useCallback(async (keywords: string) => {
     setLoading(true);
     setError('');
     try {
-      const response = await axios.get(`http://localhost:8003`, {
-        headers: {
-          'X-Keywords': keywords,
-        },
-      });
 
-      console.log('API Response:', response.data);
+      const response = await axios.post(`http://localhost:8003`, {
+        'keyword' : keywords,
+        'requested_by' : userData.full_name
+      }, {});
 
       const data = response.data;
-      if (data.results && data.results.length > 0) {
-        setMapResults(data.results);
-      } else {
-        setError('No articles found for your search.');
-      }
+      fetchWorkerId.current = data.worker_id;
+      pb.realtime.unsubscribe('gmaps_requests');
+      pb.realtime.subscribe('gmaps_requests', receiveResults)
+
     } catch (err) {
       console.error('Error during API call:', err);
       setError('An error occurred while fetching results.');
-    } finally {
       setLoading(false);
+    } finally {
+      
     }
-  };
+  }, [receiveResults, userData]);
 
   const handleSearch = () => {
     if (keywords.trim() === '') {
       setError('Please enter a search keyword.');
+      currentResults.current = [];
       setMapResults([]); // Clear any previous articles
     } else {
       setError(''); // Clear previous error if any
+      currentResults.current = [];
+      setMapResults([]);
       fetchMaps(keywords);
     }
   };
@@ -97,6 +144,29 @@ const GMAPScraper: FC = () => {
       handleSearch();
     }
   };
+
+  useEffect(() => {
+    pb.autoCancellation(false);
+    pb.realtime.subscribe('ak_octobits', async (e) => {
+      if (e.action === 'update' && e.record.worker_id === fetchWorkerId.current) {
+        // unsubscribe
+        pb.realtime.unsubscribe('gmaps_requests');  
+        // fetch complete collection
+        const collection = await pb.collection('gmaps_requests').getFullList({
+          filter: `worker_id="${fetchWorkerId.current}"`
+        })
+
+        const totalResult = collection.map(result => result.scraped_data)
+        setMapResults(totalResult)
+        setLoading(false);
+      }
+    })
+
+    return () => {
+      pb.realtime.unsubscribe('gmaps_requests');
+      pb.realtime.unsubscribe('ak_octobits');
+    }
+  }, [])
 
   return (
     <div
@@ -168,7 +238,7 @@ const GMAPScraper: FC = () => {
             {mapResults.length > 0 &&
               mapResults.map((result, index) => {
                 return location === 'any' || location === result.county ? (
-                  <tr key={index}>
+                  <tr key={`${result.title}_${result.website}`}>
                     <td>{result.title}</td>
                     <td>{result.type}</td>
                     <td>{result.address}</td>
