@@ -249,15 +249,16 @@ const GMAPScraper: FC = () => {
   );
 
   const fetchMaps = useCallback(
-    async (keywords: string) => {
+    async (keywords: string, location: string) => {
       setLoading(true);
       setError('');
       setMode(IGMap.SPEC);
+      const locationString = location === 'any' ? '' : location;
       try {
         const response = await axios.post(
           apiUrl,
           {
-            keyword: keywords,
+            keyword: `${keywords} ${locationString}`,
             requested_by: userData.full_name,
           },
           {}
@@ -286,7 +287,7 @@ const GMAPScraper: FC = () => {
       setError(''); // Clear previous error if any
       currentResults.current = [];
       setMapResults([]);
-      fetchMaps(keywords);
+      fetchMaps(keywords, location);
     }
   };
 
@@ -461,7 +462,7 @@ const GMAPScraper: FC = () => {
               )}
               {mapResults.length > 0 &&
                 mapResults.map(result => {
-                  return location === 'any' || location === result.county ? (
+                  return (
                     <tr key={`${result.title}_${result.website}`}>
                       <td>{result.title}</td>
                       <td>{result.type}</td>
@@ -494,7 +495,7 @@ const GMAPScraper: FC = () => {
                         </td>
                       )}
                     </tr>
-                  ) : null;
+                  );
                 })}
             </tbody>
           </table>
