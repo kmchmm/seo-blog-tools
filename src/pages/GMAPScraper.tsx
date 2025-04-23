@@ -6,7 +6,7 @@ import {
   useCallback,
   useEffect,
   useRef,
-  useState
+  useState,
 } from 'react';
 import axios from 'axios';
 import clsx from 'clsx';
@@ -24,7 +24,7 @@ const apiUrl = isDev
 
 const GMAPS_TOOL = 'AK OCTO GMAPS SCRAPER';
 const GMAPS_REQUESTS_COLLECTION = 'gmaps_requests';
-const AK_OCTOBITS_COLLECTION = 'ak_octobits'
+const AK_OCTOBITS_COLLECTION = 'ak_octobits';
 const COUNTIES = [
   'alameda',
   'amador',
@@ -129,58 +129,71 @@ interface OctoBitsPanelProps extends HTMLAttributes<HTMLDivElement> {
   desc: string;
   requester: string;
   status: string;
-  date: string
+  date: string;
   workerId: string;
   showMapResults: Function;
   deleteAkOctobit: Function;
   loading: boolean;
 }
 
-const OctoBitRecord = (octoBitsProps : OctoBitsPanelProps) => {
+const OctoBitRecord = (octoBitsProps: OctoBitsPanelProps) => {
   return (
-  <div
-    onClick={() => {octoBitsProps.showMapResults(
-      octoBitsProps.workerId,
-      octoBitsProps.status.trim().toUpperCase() === 'DONE'
-    )}}
-    className={clsx(
-      'p-2 w-full cursor-pointer hover:scale-115',
-      'ease-in transition-transform duration-200'
-    )}
-  >
-    <div className={clsx(
-      'grid text-center p-4 rounded-md border-yellow-100 border',
-      isDev ? 'grid-cols-[2fr_3fr_3fr_2fr_2fr_1fr]' : 'grid-cols-[2fr_3fr_3fr_2fr_2fr]'
-    )}>
-      <div className='border-r'>
-        <div>ID</div>
-        <div className='font-bold'>{octoBitsProps.recordId}</div>
+    <div
+      onClick={() => {
+        octoBitsProps.showMapResults(
+          octoBitsProps.workerId,
+          octoBitsProps.status.trim().toUpperCase() === 'DONE'
+        );
+      }}
+      className={clsx(
+        'p-2 w-full cursor-pointer hover:scale-115',
+        'ease-in transition-transform duration-200'
+      )}>
+      <div
+        className={clsx(
+          'grid text-center p-4 rounded-md border-yellow-100 border',
+          isDev
+            ? 'grid-cols-[2fr_3fr_3fr_2fr_2fr_1fr]'
+            : 'grid-cols-[2fr_3fr_3fr_2fr_2fr]'
+        )}>
+        <div className="border-r">
+          <div>ID</div>
+          <div className="font-bold">{octoBitsProps.recordId}</div>
+        </div>
+
+        <div className="border-r">
+          <div>Description</div>
+          <div>{octoBitsProps.desc}</div>
+        </div>
+
+        <div className="border-r">
+          <div>Order by</div>
+          <div className="font-bold">{octoBitsProps.requester}</div>
+        </div>
+
+        <div className="font-bold flex items-center justify-center">
+          {octoBitsProps.status}
+        </div>
+
+        <div className="font-bold flex items-center justify-center">
+          {octoBitsProps.date.split(' ')[0]}
+        </div>
+        {isDev && (
+          <button
+            disabled={octoBitsProps.loading}
+            className={
+              octoBitsProps.loading ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'
+            }
+            onClick={async () => {
+              octoBitsProps.deleteAkOctobit(octoBitsProps.recordId);
+            }}>
+            DELETE
+          </button>
+        )}
       </div>
-
-      <div className='border-r'>
-        <div>Description</div>
-        <div>{octoBitsProps.desc}</div>
-      </div>
-
-      <div className='border-r'>
-        <div>Order by</div>
-        <div className='font-bold'>{octoBitsProps.requester}</div>
-      </div>
-
-      <div className='font-bold flex items-center justify-center'>{octoBitsProps.status}</div>
-
-      <div className='font-bold flex items-center justify-center'>{octoBitsProps.date.split(' ')[0]}</div>
-      {isDev && <button
-        disabled={octoBitsProps.loading}
-        className={octoBitsProps.loading ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}
-        onClick={async () => {
-          octoBitsProps.deleteAkOctobit(octoBitsProps.recordId)
-        }}
-      >DELETE</button>}
     </div>
-  </div>
-  )
-}
+  );
+};
 
 const GMAPScraper: FC = () => {
   const [mapResults, setMapResults] = useState<modifiedScrapeData[]>([]);
@@ -197,7 +210,7 @@ const GMAPScraper: FC = () => {
   const receiveResults = useCallback((e: scrapeMsg) => {
     if (e.record.worker_id === fetchWorkerId.current) {
       const newResult = [...currentResults.current];
-      newResult.push({...e.record.scraped_data, 'id': e.record.id, });
+      newResult.push({ ...e.record.scraped_data, id: e.record.id });
 
       currentResults.current = [...new Set(newResult)];
 
@@ -212,31 +225,34 @@ const GMAPScraper: FC = () => {
     });
 
     const totalResult = collection.map(result => {
-      return { ...result.scraped_data, 'id': result.id}
+      return { ...result.scraped_data, id: result.id };
     });
     setMapResults(totalResult);
     setLoading(false);
-  }
+  };
 
-  const showMapResults = useCallback((worker_id: string, isDone: boolean) => {
-    setLoading(true);
-    setError('');
-    setMapResults([]);
-    setMode(IGMap.SPEC)
-    fetchWorkerId.current = worker_id;
-    pb.realtime.unsubscribe(GMAPS_REQUESTS_COLLECTION);
-    if (isDone) {
-      fetchCompleteCollection();
-    } else {
-      pb.realtime.subscribe(GMAPS_REQUESTS_COLLECTION, receiveResults);
-    }
-  }, [receiveResults])
+  const showMapResults = useCallback(
+    (worker_id: string, isDone: boolean) => {
+      setLoading(true);
+      setError('');
+      setMapResults([]);
+      setMode(IGMap.SPEC);
+      fetchWorkerId.current = worker_id;
+      pb.realtime.unsubscribe(GMAPS_REQUESTS_COLLECTION);
+      if (isDone) {
+        fetchCompleteCollection();
+      } else {
+        pb.realtime.subscribe(GMAPS_REQUESTS_COLLECTION, receiveResults);
+      }
+    },
+    [receiveResults]
+  );
 
   const fetchMaps = useCallback(
     async (keywords: string) => {
       setLoading(true);
       setError('');
-      setMode(IGMap.SPEC)
+      setMode(IGMap.SPEC);
       try {
         const response = await axios.post(
           apiUrl,
@@ -280,39 +296,45 @@ const GMAPScraper: FC = () => {
     }
   };
 
-  const deleteAkOctobit = useCallback(async (recordId:string) => {
-    setLoading(true);
-    await pb.collection(AK_OCTOBITS_COLLECTION).delete(recordId);
-    const newOctobits = [...octoBitsResults];
-    const indexOfDeleted = newOctobits.findIndex(octoBit => {
-      return octoBit.id === recordId
-    })
-    newOctobits.splice(indexOfDeleted, 1);
-    setOctoBitsResults(newOctobits);
-    setLoading(false);
-  }, [mapResults])
+  const deleteAkOctobit = useCallback(
+    async (recordId: string) => {
+      setLoading(true);
+      await pb.collection(AK_OCTOBITS_COLLECTION).delete(recordId);
+      const newOctobits = [...octoBitsResults];
+      const indexOfDeleted = newOctobits.findIndex(octoBit => {
+        return octoBit.id === recordId;
+      });
+      newOctobits.splice(indexOfDeleted, 1);
+      setOctoBitsResults(newOctobits);
+      setLoading(false);
+    },
+    [mapResults]
+  );
 
-  const deleteGMapRequest = useCallback(async (recordId:string) => {
-    setLoading(true);
-    await pb.collection(GMAPS_REQUESTS_COLLECTION).delete(recordId);
-    const newMapResults = [...mapResults];
-    const indexOfDeleted = newMapResults.findIndex(mapRequest => {
-      return mapRequest.id === recordId
-    })
-    newMapResults.splice(indexOfDeleted, 1);
-    setMapResults(newMapResults);
-    setLoading(false);
-  }, [mapResults])
+  const deleteGMapRequest = useCallback(
+    async (recordId: string) => {
+      setLoading(true);
+      await pb.collection(GMAPS_REQUESTS_COLLECTION).delete(recordId);
+      const newMapResults = [...mapResults];
+      const indexOfDeleted = newMapResults.findIndex(mapRequest => {
+        return mapRequest.id === recordId;
+      });
+      newMapResults.splice(indexOfDeleted, 1);
+      setMapResults(newMapResults);
+      setLoading(false);
+    },
+    [mapResults]
+  );
 
   const deleteAllMapRequests = useCallback(async () => {
     setLoading(true);
     for (let x = 0; x < mapResults.length; x++) {
       const element = mapResults[x];
-      await pb.collection(GMAPS_REQUESTS_COLLECTION).delete(element.id);  
+      await pb.collection(GMAPS_REQUESTS_COLLECTION).delete(element.id);
     }
     setMapResults([]);
     setLoading(false);
-  }, [mapResults])
+  }, [mapResults]);
 
   useEffect(() => {
     pb.autoCancellation(false);
@@ -337,16 +359,16 @@ const GMAPScraper: FC = () => {
       filter: `tool="${GMAPS_TOOL}"`,
     });
     const collectionItems = collection['items'];
-    setOctoBitsResults(collectionItems as octoBitsRecord[])
+    setOctoBitsResults(collectionItems as octoBitsRecord[]);
     setLoading(false);
-  }
+  };
 
   useEffect(() => {
     if (mode === IGMap.COLLECTION) {
       pb.realtime.unsubscribe(GMAPS_REQUESTS_COLLECTION);
       fetchCollections();
     }
-  }, [mode])
+  }, [mode]);
 
   return (
     <div
@@ -394,23 +416,20 @@ const GMAPScraper: FC = () => {
 
       {mode === IGMap.SPEC && (
         <div className="m-0 p-0">
-          <div className='flex justify-between' >
+          <div className="flex justify-between">
             <button
               title="Back to GMAP Scraper"
-              className='fill-yellow-100 cursor-pointer w-10'
-              onClick={() => setMode(IGMap.COLLECTION)}
-            >
+              className="fill-yellow-100 cursor-pointer w-10"
+              onClick={() => setMode(IGMap.COLLECTION)}>
               <BackArrow />
             </button>
-            <Button disabled={loading}>
-              Export as CSV
-            </Button>
+            <Button disabled={loading}>Export as CSV</Button>
           </div>
           <table
             className={clsx(
               'w-full my-[20px] mx-auto border-collapse',
               'table-fixed shadow-[0_4px_6px_rgba(0, 0, 0, 0.1)]'
-          )}>
+            )}>
             <thead>
               <tr>
                 <th>TITLE</th>
@@ -420,12 +439,18 @@ const GMAPScraper: FC = () => {
                 <th>PHONE NUMBER</th>
                 <th>RATING</th>
                 <th>WEBSITE</th>
-                {isDev && <th>
-                  <button disabled={loading}
-                    className={loading ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}
-                    onClick={deleteAllMapRequests}
-                  >DELETE ALL</button>
-                </th>}
+                {isDev && (
+                  <th>
+                    <button
+                      disabled={loading}
+                      className={
+                        loading ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'
+                      }
+                      onClick={deleteAllMapRequests}>
+                      DELETE ALL
+                    </button>
+                  </th>
+                )}
               </tr>
             </thead>
             <tbody>
@@ -435,7 +460,7 @@ const GMAPScraper: FC = () => {
                 </tr>
               )}
               {mapResults.length > 0 &&
-                mapResults.map((result) => {
+                mapResults.map(result => {
                   return location === 'any' || location === result.county ? (
                     <tr key={`${result.title}_${result.website}`}>
                       <td>{result.title}</td>
@@ -447,43 +472,52 @@ const GMAPScraper: FC = () => {
                         {result.rating} {result.rating_count}
                       </td>
                       <td>
-                        <a href={result.website} target="_blank" rel="noopener noreferrer">
+                        <a
+                          href={result.website}
+                          target="_blank"
+                          rel="noopener noreferrer">
                           {result.website}
                         </a>
                       </td>
-                      {isDev && <td>
-                        <button
-                          disabled={loading}
-                          className={loading ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}
-                          onClick={async () => {
-                            deleteGMapRequest(result.id)
-                          }}
-                        >DELETE {result.id}</button>
-                      </td>}
+                      {isDev && (
+                        <td>
+                          <button
+                            disabled={loading}
+                            className={
+                              loading ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'
+                            }
+                            onClick={async () => {
+                              deleteGMapRequest(result.id);
+                            }}>
+                            DELETE {result.id}
+                          </button>
+                        </td>
+                      )}
                     </tr>
                   ) : null;
-              })}
+                })}
             </tbody>
           </table>
         </div>
       )}
 
-      {mode === IGMap.COLLECTION && (
-          octoBitsResults.map(octoBitResult => {
-            return <OctoBitRecord
+      {mode === IGMap.COLLECTION &&
+        octoBitsResults.map(octoBitResult => {
+          return (
+            <OctoBitRecord
               recordId={octoBitResult.id}
-              desc = {octoBitResult.job}
-              requester = {octoBitResult.job_requested_by}
-              status = {octoBitResult.status}
-              date = {octoBitResult.created}
+              desc={octoBitResult.job}
+              requester={octoBitResult.job_requested_by}
+              status={octoBitResult.status}
+              date={octoBitResult.created}
               workerId={octoBitResult.worker_id}
               showMapResults={showMapResults}
               key={octoBitResult.id}
               deleteAkOctobit={deleteAkOctobit}
               loading={loading}
             />
-          })
-        )}
+          );
+        })}
     </div>
   );
 };
