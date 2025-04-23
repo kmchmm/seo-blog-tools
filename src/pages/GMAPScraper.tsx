@@ -72,8 +72,8 @@ interface scrapeRecord {
   keyword: string;
   requested_by: string;
   updated: string;
-  worker_id:string;
-  scraped_data: scrapeData
+  worker_id: string;
+  scraped_data: scrapeData;
 }
 
 interface scrapeMsg {
@@ -97,34 +97,38 @@ const GMAPScraper: FC = () => {
       newResult.push(e.record.scraped_data);
 
       currentResults.current = [...new Set(newResult)];
-      
+
       setMapResults(currentResults.current);
     }
-  }, [])
+  }, []);
 
-  const fetchMaps = useCallback(async (keywords: string) => {
-    setLoading(true);
-    setError('');
-    try {
+  const fetchMaps = useCallback(
+    async (keywords: string) => {
+      setLoading(true);
+      setError('');
+      try {
+        const response = await axios.post(
+          `http://localhost:8003`,
+          {
+            keyword: keywords,
+            requested_by: userData.full_name,
+          },
+          {}
+        );
 
-      const response = await axios.post(`http://localhost:8003`, {
-        'keyword' : keywords,
-        'requested_by' : userData.full_name
-      }, {});
-
-      const data = response.data;
-      fetchWorkerId.current = data.worker_id;
-      pb.realtime.unsubscribe('gmaps_requests');
-      pb.realtime.subscribe('gmaps_requests', receiveResults)
-
-    } catch (err) {
-      console.error('Error during API call:', err);
-      setError('An error occurred while fetching results.');
-      setLoading(false);
-    } finally {
-      
-    }
-  }, [receiveResults, userData]);
+        const data = response.data;
+        fetchWorkerId.current = data.worker_id;
+        pb.realtime.unsubscribe('gmaps_requests');
+        pb.realtime.subscribe('gmaps_requests', receiveResults);
+      } catch (err) {
+        console.error('Error during API call:', err);
+        setError('An error occurred while fetching results.');
+        setLoading(false);
+      } finally {
+      }
+    },
+    [receiveResults, userData]
+  );
 
   const handleSearch = () => {
     if (keywords.trim() === '') {
@@ -147,26 +151,26 @@ const GMAPScraper: FC = () => {
 
   useEffect(() => {
     pb.autoCancellation(false);
-    pb.realtime.subscribe('ak_octobits', async (e) => {
+    pb.realtime.subscribe('ak_octobits', async e => {
       if (e.action === 'update' && e.record.worker_id === fetchWorkerId.current) {
         // unsubscribe
-        pb.realtime.unsubscribe('gmaps_requests');  
+        pb.realtime.unsubscribe('gmaps_requests');
         // fetch complete collection
         const collection = await pb.collection('gmaps_requests').getFullList({
-          filter: `worker_id="${fetchWorkerId.current}"`
-        })
+          filter: `worker_id="${fetchWorkerId.current}"`,
+        });
 
-        const totalResult = collection.map(result => result.scraped_data)
-        setMapResults(totalResult)
+        const totalResult = collection.map(result => result.scraped_data);
+        setMapResults(totalResult);
         setLoading(false);
       }
-    })
+    });
 
     return () => {
       pb.realtime.unsubscribe('gmaps_requests');
       pb.realtime.unsubscribe('ak_octobits');
-    }
-  }, [])
+    };
+  }, []);
 
   return (
     <div
