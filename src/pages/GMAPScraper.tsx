@@ -240,7 +240,7 @@ const GMAPScraper: FC = () => {
               </tr>
             )}
             {mapResults.length > 0 &&
-              mapResults.map((result, index) => {
+              mapResults.map((result) => {
                 return location === 'any' || location === result.county ? (
                   <tr key={`${result.title}_${result.website}`}>
                     <td>{result.title}</td>
