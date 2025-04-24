@@ -1,4 +1,4 @@
-import { scrapeData, modifiedScrapeData } from '../types.js';
+import { MapRecordProps } from '../types';
 
 const isDev = import.meta.env.MODE === 'development';
 

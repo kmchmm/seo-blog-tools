@@ -95,7 +95,7 @@ interface octoBitsRecord {
   worker_id: string;
 }
 
-export enum IGMap {
+enum IGMap {
   COLLECTION = 'collection',
   SPEC = 'spec',
 }
@@ -253,7 +253,7 @@ const GMAPScraper: FC = () => {
     pb.autoCancellation(false);
     pb.realtime.subscribe(AK_OCTOBITS_COLLECTION, async e => {
       console.log(e);
-      if (e.tool !== '${GMAPS_TOOL}') return;
+      if (e.tool !== GMAPS_TOOL) return;
       if (e.action === 'update') {
         if (e.record.worker_id === fetchWorkerId.current) {
           pb.realtime.unsubscribe(GMAPS_REQUESTS_COLLECTION);
@@ -278,7 +278,7 @@ const GMAPScraper: FC = () => {
         return;
       }
 
-      // add in collection
+      // delete in collection
       if (e.action === 'delete') {
         const newCollection = deleteFromCollection(octoBitsResults, e.record.id);
         setOctoBitsResults(newCollection);
@@ -344,7 +344,7 @@ const GMAPScraper: FC = () => {
       </div>
 
       {loading && (
-        <div className="loading">
+        <div>
           <Loading />
         </div>
       )}
