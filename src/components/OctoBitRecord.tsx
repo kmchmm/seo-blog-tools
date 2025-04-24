@@ -1,6 +1,4 @@
-import {
-    HTMLAttributes,
-  } from 'react';
+import { HTMLAttributes } from 'react';
 import clsx from 'clsx';
 
 const isDev = import.meta.env.MODE === 'development';

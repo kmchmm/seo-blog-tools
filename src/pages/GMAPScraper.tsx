@@ -1,20 +1,13 @@
-import {
-  FC,
-  KeyboardEvent,
-  use,
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-} from 'react';
+import { FC, KeyboardEvent, use, useCallback, useEffect, useRef, useState } from 'react';
 import axios from 'axios';
 import clsx from 'clsx';
 
 import pb from '../utils/pocketbaseInit.js';
+import { scrapeData, modifiedScrapeData } from '../types.js';
 import { Button } from '../components/Button';
 import { Loading } from '../components/Loading';
 import { OctoBitRecord } from '../components/OctoBitRecord';
-import { MapRecord, scrapeData, modifiedScrapeData } from '../components/MapRecord';
+import { MapRecord } from '../components/MapRecord';
 import { UserContext } from '../context/UserContext';
 import BackArrow from '../assets/icons/back.svg?react';
 
@@ -108,6 +101,15 @@ export enum IGMap {
 }
 
 type gmapMode = IGMap;
+
+const deleteFromCollection = (collection: octoBitsRecord[], recordId: string) => {
+  const newCollection = [...collection];
+  const indexOfDeleted = newCollection.findIndex(octoBit => {
+    return octoBit.id === recordId;
+  });
+  newCollection.splice(indexOfDeleted, 1);
+  return newCollection;
+};
 
 const GMAPScraper: FC = () => {
   const [mapResults, setMapResults] = useState<modifiedScrapeData[]>([]);
@@ -215,11 +217,7 @@ const GMAPScraper: FC = () => {
     async (recordId: string) => {
       setLoading(true);
       await pb.collection(AK_OCTOBITS_COLLECTION).delete(recordId);
-      const newOctobits = [...octoBitsResults];
-      const indexOfDeleted = newOctobits.findIndex(octoBit => {
-        return octoBit.id === recordId;
-      });
-      newOctobits.splice(indexOfDeleted, 1);
+      const newOctobits = deleteFromCollection(octoBitsResults, recordId);
       setOctoBitsResults(newOctobits);
       setLoading(false);
     },
@@ -254,10 +252,35 @@ const GMAPScraper: FC = () => {
   useEffect(() => {
     pb.autoCancellation(false);
     pb.realtime.subscribe(AK_OCTOBITS_COLLECTION, async e => {
-      if (e.action === 'update' && e.record.worker_id === fetchWorkerId.current) {
-        // unsubscribe
-        pb.realtime.unsubscribe(GMAPS_REQUESTS_COLLECTION);
-        fetchCompleteCollection();
+      if (e.action === 'update') {
+        if (e.record.worker_id === fetchWorkerId.current) {
+          pb.realtime.unsubscribe(GMAPS_REQUESTS_COLLECTION);
+          fetchCompleteCollection();
+        } else {
+          // search in collection, then update in state
+          const newCollection = [...octoBitsResults];
+          const indexOfUpdated = newCollection.findIndex(octoBit => {
+            return octoBit.id === e.record.id;
+          });
+          newCollection[indexOfUpdated] = e.record;
+          setOctoBitsResults(newCollection);
+        }
+        return;
+      }
+
+      // add in collection
+      if (e.action === 'create') {
+        const newOctoBitResults = [...octoBitsResults];
+        newOctoBitResults.unshift(e.record);
+        setOctoBitsResults(newOctoBitResults);
+        return;
+      }
+
+      // add in collection
+      if (e.action === 'delete') {
+        const newCollection = deleteFromCollection(octoBitsResults, e.record.id);
+        setOctoBitsResults(newCollection);
+        return;
       }
     });
 
@@ -265,7 +288,7 @@ const GMAPScraper: FC = () => {
       pb.realtime.unsubscribe(GMAPS_REQUESTS_COLLECTION);
       pb.realtime.unsubscribe(AK_OCTOBITS_COLLECTION);
     };
-  }, []);
+  }, [octoBitsResults]);
 
   const fetchCollections = async () => {
     const collection = await pb.collection(AK_OCTOBITS_COLLECTION).getList(1, 50, {
@@ -376,7 +399,7 @@ const GMAPScraper: FC = () => {
               {mapResults.length > 0 &&
                 mapResults.map(result => {
                   return (
-                    <MapRecord 
+                    <MapRecord
                       key={`${result.title}_${result.address}`}
                       id={result.id}
                       title={result.title}

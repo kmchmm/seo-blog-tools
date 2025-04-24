@@ -5,7 +5,6 @@ import clsx from 'clsx';
 
 import RefreshScore from '../assets/icons/refresh-score.svg?react';
 
-
 const SERPRank: FC = () => {
   return (
     <div
@@ -73,12 +72,11 @@ const SERPRank: FC = () => {
                   <Button className="p-2 bg-transparent border !border-transparent hover:!border-yellow-100 rounded cursor-pointer hover:!bg-transparent hover:!shadow-none">
                     <RefreshScore className="w-6 h-6 !text-black-200 dark:!text-white" />
                   </Button>
-                
+
                   <span className="absolute top-full mt-2 left-1/2 -translate-x-1/2 whitespace-nowrap rounded bg-gray-800 px-2 py-1 text-xs text-white opacity-0 group-hover:opacity-100 transition">
                     Refresh Score
                   </span>
                 </div>
-
               </td>
             </tr>
           </tbody>

@@ -28,3 +28,24 @@ export enum TOOL_ROUTES {
   HTML_CLEANER = '/publishing/html-cleaner',
   DUPE_KILLER = '/publishing/dupe-killer',
 }
+
+export interface scrapeData {
+  address: string;
+  county: string;
+  details: string;
+  phone_number: string;
+  rating: string;
+  rating_count: string;
+  title: string;
+  type: string;
+  website: string;
+}
+
+export interface modifiedScrapeData extends scrapeData {
+  id: string;
+}
+
+export interface MapRecordProps extends modifiedScrapeData {
+  loading: boolean;
+  deleteGMapRequest: Function;
+}
