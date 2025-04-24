@@ -13,8 +13,8 @@ interface Insight {
   id: string;
   url: string;
   keywords: string;
-  moz_result: string;
-  wincher_result: string;
+  moz_result: string | any;
+  wincher_result: string | any;
   moz_status: string;
   wincher_status: string;
   status: string;
@@ -70,7 +70,7 @@ const JediInsights: FC = () => {
   const fetchInsights = async () => {
     try {
       const response = await axios.get('http://localhost:8011/insights');
-      setInsights(response.data);
+      setInsights(response.data.reverse());
     } catch (err) {
       console.error('Error fetching insights:', err);
       setError('Failed to load insights.');
@@ -164,82 +164,88 @@ const JediInsights: FC = () => {
         <p className="text-red-100 text-base text-center font-bold mt-4">{error}</p>
       )}
 
-        <div className="paa-table-container m-0 p-0 w-full">
-          <table
-            className={clsx(
-              'w-full my-[20px] mx-auto border-collapse',
-              'table-fixed shadow-[0_4px_6px_rgba(0, 0, 0, 0.1)]'
-            )}>
-            <thead>
-              <tr>
-                <th className="w-1/2 border border-black-200 dark:border-amber-200 ">Page</th>
-                <th className="w-1/3 border border-black-200 dark:border-amber-200">Keywords</th>
-                <th className="w-[120px] !text-center border border-black-200 dark:border-amber-200">MOZ</th>
-                <th className="w-[120px] !text-center border border-black-200 dark:border-amber-200">WINCHER</th>
-                <th className="w-1/5 border border-black-200 dark:border-amber-200">Requested By</th>
-                <th className="w-1/5 border border-black-200 dark:border-amber-200"></th>
-              </tr>
-            </thead>
-            <tbody>
-              {currentInsights.map((item, index) => {
-                const moz = tryParseJson<any>(item.moz_result);
-                const wincher = tryParseJson<any>(item.wincher_result);
+      <div className="paa-table-container m-0 p-0 w-full">
+        <table
+          className={clsx(
+            'w-full my-[20px] mx-auto border-collapse',
+            'table-fixed shadow-[0_4px_6px_rgba(0, 0, 0, 0.1)]'
+          )}>
+          <thead>
+            <tr>
+              <th className="w-1/2 border border-black-200 dark:border-amber-200 ">Page</th>
+              <th className="w-1/3 border border-black-200 dark:border-amber-200">Keywords</th>
+              <th className="w-[120px] !text-center border border-black-200 dark:border-amber-200">MOZ</th>
+              <th className="w-[120px] !text-center border border-black-200 dark:border-amber-200">WINCHER</th>
+              <th className="w-1/5 border border-black-200 dark:border-amber-200">Requested By</th>
+              <th className="w-1/5 border border-black-200 dark:border-amber-200"></th>
+            </tr>
+          </thead>
+          <tbody>
+            {currentInsights.map((item, index) => {
+              const moz = typeof item.moz_result === 'string' ? tryParseJson<any>(item.moz_result) : item.moz_result;
+              const wincher = typeof item.wincher_result === 'string' ? tryParseJson<any>(item.wincher_result) : item.wincher_result;
 
-                return (
-                  <tr key={index}>
-                    <td className="border border-gray-500 dark:border-amber-200">
-                      <a href={item.url} className="!text-black-200 hover:!text-blue-800 !underline !underline-offset-4 dark:!text-white dark:hover:!text-yellow-100">{item.url}</a>
-                    </td>
-                    <td className="border border-gray-500 dark:border-amber-200">{item.keywords}</td>
-                    <td className="border border-gray-500 dark:border-amber-200 !text-center">
-                      {item.moz_status === 'pending'
-                        ? 'Pending'
-                        : moz?.page_score
-                          ? `${moz.page_score}%`
-                          : 'N/A'}
-                    </td>
-                    <td className="border border-gray-500 dark:border-amber-200 !text-center">
+              return (
+                <tr key={index}>
+                  <td className="border border-gray-500 dark:border-amber-200">
+                    <a href={item.url} className="!text-black-200 hover:!text-blue-800 !underline !underline-offset-4 dark:!text-white dark:hover:!text-yellow-100">{item.url}</a>
+                  </td>
+                  <td className="border border-gray-500 dark:border-amber-200">{item.keywords}</td>
+                  <td className="border border-gray-500 dark:border-amber-200 !text-center font-extrabold text-2xl">
+                    {item.moz_status === 'pending'
+                      ? 'Pending'
+                      : moz?.page_score
+                        ? `${moz.page_score}`
+                        : '---'}
+                  </td>
+                  <td className="border border-gray-500 dark:border-amber-200 !text-center">
+                    <a 
+                      href={wincher?.result_url || '#'}  
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="!text-black-200 dark:!text-white !font-extrabold !text-2xl hover:!text-blue-800 dark:hover:!text-yellow-100">
                       {item.wincher_status === 'pending'
                         ? 'Pending'
                         : wincher?.page_score
-                          ? `${wincher.page_score}%`
-                          : 'N/A'}
-                    </td>
-                    <td className="border border-gray-500 dark:border-amber-200">{item.requested_by}</td>
-                    <td className="border border-gray-500 dark:border-amber-200 !text-center">
-                      <div className="relative group inline-block">
-                        <Button className="p-2 bg-transparent border !border-transparent hover:!border-black-200 dark:hover:!border-yellow-100 rounded cursor-pointer hover:!bg-transparent hover:!shadow-none">
-                          <StackedLine className="w-6 h-6 !text-black-200 dark:!text-white" />
-                        </Button>
-                        <span className="absolute top-full mt-2 left-1/2 -translate-x-1/2 whitespace-nowrap rounded bg-gray-800 px-2 py-1 text-xs text-white opacity-0 group-hover:opacity-100 transition">
-                          View Result
-                        </span>
-                      </div>
+                          ? `${wincher.page_score}`
+                          : '---'}
+                    </a>
+                  </td>
+                  <td className="border border-gray-500 dark:border-amber-200">{item.requested_by}</td>
+                  <td className="border border-gray-500 dark:border-amber-200 !text-center">
+                    <div className="relative group inline-block">
+                      <Button className="p-2 bg-transparent border !border-transparent hover:!border-black-200 dark:hover:!border-yellow-100 rounded cursor-pointer hover:!bg-transparent hover:!shadow-none">
+                        <StackedLine className="w-6 h-6 !text-black-200 dark:!text-white" />
+                      </Button>
+                      <span className="absolute top-full mt-2 left-1/2 -translate-x-1/2 whitespace-nowrap rounded bg-gray-800 px-2 py-1 text-xs text-white opacity-0 group-hover:opacity-100 transition">
+                        View Result
+                      </span>
+                    </div>
 
-                      <div className="relative group inline-block">
-                        <Button className="p-2 bg-transparent border !border-transparent hover:!border-black-200 dark:hover:!border-yellow-100 rounded cursor-pointer hover:!bg-transparent hover:!shadow-none">
-                          <RefreshScore className="w-6 h-6 !text-black-200 dark:!text-white" />
-                        </Button>
-                        <span className="absolute top-full mt-2 left-1/2 -translate-x-1/2 whitespace-nowrap rounded bg-gray-800 px-2 py-1 text-xs text-white opacity-0 group-hover:opacity-100 transition">
-                          Refresh Score
-                        </span>
-                      </div>
+                    <div className="relative group inline-block">
+                      <Button className="p-2 bg-transparent border !border-transparent hover:!border-black-200 dark:hover:!border-yellow-100 rounded cursor-pointer hover:!bg-transparent hover:!shadow-none">
+                        <RefreshScore className="w-6 h-6 !text-black-200 dark:!text-white" />
+                      </Button>
+                      <span className="absolute top-full mt-2 left-1/2 -translate-x-1/2 whitespace-nowrap rounded bg-gray-800 px-2 py-1 text-xs text-white opacity-0 group-hover:opacity-100 transition">
+                        Refresh Score
+                      </span>
+                    </div>
 
-                      <div className="relative group inline-block">
-                        <Button className="p-2 bg-transparent border !border-transparent hover:!border-black-200 dark:hover:!border-yellow-100 rounded cursor-pointer hover:!bg-transparent hover:!shadow-none">
-                          <Archive className="w-6 h-6 !text-black-200 dark:!text-white" />
-                        </Button>
-                        <span className="absolute top-full mt-2 left-1/2 -translate-x-1/2 whitespace-nowrap rounded bg-gray-800 px-2 py-1 text-xs text-white opacity-0 group-hover:opacity-100 transition">
-                          Archive
-                        </span>
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+                    <div className="relative group inline-block">
+                      <Button className="p-2 bg-transparent border !border-transparent hover:!border-black-200 dark:hover:!border-yellow-100 rounded cursor-pointer hover:!bg-transparent hover:!shadow-none">
+                        <Archive className="w-6 h-6 !text-black-200 dark:!text-white" />
+                      </Button>
+                      <span className="absolute top-full mt-2 left-1/2 -translate-x-1/2 whitespace-nowrap rounded bg-gray-800 px-2 py-1 text-xs text-white opacity-0 group-hover:opacity-100 transition">
+                        Archive
+                      </span>
+                    </div>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 };
