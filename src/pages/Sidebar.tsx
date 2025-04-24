@@ -21,7 +21,7 @@ import TitleTweak from '../assets/icons/title-tweak.svg?react';
 import HTMLCleaner from '../assets/icons/html-cleaner.svg?react';
 import DupeKiller from '../assets/icons/dupe-killer.svg?react';
 
-import { TOOL_ROUTES } from '../types';
+import { TOOLS, TOOL_ROUTES } from '../types';
 
 interface RaketMenuItemProps extends React.LiHTMLAttributes<HTMLButtonElement> {
   children?: React.ReactNode;
@@ -120,7 +120,7 @@ const Sidebar: FC = () => {
           <li>
             <h3 className="p-1 dark:text-yellow-100">OCTO TOOLS</h3>
             <ul className="p-2">
-              {toolsAccess.includes('octo-news-scraper') && (
+              {toolsAccess.includes(TOOLS.NEWS) && (
                 <RaketMenuItem>
                   <Link to={TOOL_ROUTES.NEWS}>
                     <NewsIcon />
@@ -128,7 +128,7 @@ const Sidebar: FC = () => {
                   </Link>
                 </RaketMenuItem>
               )}
-              {toolsAccess.includes('octo-gpaa-scraper') && (
+              {toolsAccess.includes(TOOLS.PAA) && (
                 <RaketMenuItem>
                   <Link to={TOOL_ROUTES.PAA}>
                     <GoogleIcon />
@@ -136,7 +136,7 @@ const Sidebar: FC = () => {
                   </Link>
                 </RaketMenuItem>
               )}
-              {toolsAccess.includes('octo-gmaps-scraper') && (
+              {toolsAccess.includes(TOOLS.GMAP) && (
                 <RaketMenuItem>
                   <Link to={TOOL_ROUTES.GMAP}>
                     <MapsIcon />
@@ -149,7 +149,7 @@ const Sidebar: FC = () => {
           <li>
             <h3 className="p-1 dark:text-yellow-100">SEO TOOLS</h3>
             <ul className="p-2">
-              {toolsAccess.includes('jedi-insights') && (
+              {toolsAccess.includes(TOOLS.JEDI_INSIGHTS) && (
                 <RaketMenuItem>
                   <Link to={TOOL_ROUTES.JEDI_INSIGHTS}>
                     <JediInsightsIcon />
@@ -157,7 +157,7 @@ const Sidebar: FC = () => {
                   </Link>
                 </RaketMenuItem>
               )}
-              {toolsAccess.includes('clair') && (
+              {toolsAccess.includes(TOOLS.SERP_RANK) && (
                 <RaketMenuItem>
                   <Link to={TOOL_ROUTES.SERP_RANK}>
                     <SERPRankIcon />
@@ -165,7 +165,7 @@ const Sidebar: FC = () => {
                   </Link>
                 </RaketMenuItem>
               )}
-              {toolsAccess.includes('hunter') && (
+              {toolsAccess.includes(TOOLS.HUNTER) && (
                 <RaketMenuItem>
                   <Link to={TOOL_ROUTES.HUNTER}>
                     <HunterIcon />
@@ -173,7 +173,7 @@ const Sidebar: FC = () => {
                   </Link>
                 </RaketMenuItem>
               )}
-              {toolsAccess.includes('harvester') && (
+              {toolsAccess.includes(TOOLS.HARVESTER) && (
                 <RaketMenuItem>
                   <Link to={TOOL_ROUTES.HARVESTER}>
                     <P1HarvesterIcon />
@@ -186,7 +186,7 @@ const Sidebar: FC = () => {
           <li>
             <h3 className="p-1 dark:text-yellow-100">PUBLISHING TOOLS</h3>
             <ul className="p-2">
-              {toolsAccess.includes('cross-site-poster') && (
+              {toolsAccess.includes(TOOLS.CROSS_SITE_POSTING) && (
                 <RaketMenuItem>
                   <Link to={TOOL_ROUTES.CROSS_SITE_POSTING}>
                     <CrossSite />
@@ -194,7 +194,7 @@ const Sidebar: FC = () => {
                   </Link>
                 </RaketMenuItem>
               )}
-              {toolsAccess.includes('kompass') && (
+              {toolsAccess.includes(TOOLS.KOMPASS) && (
                 <RaketMenuItem>
                   <Link to={TOOL_ROUTES.KOMPASS}>
                     <Kompass />
@@ -202,7 +202,7 @@ const Sidebar: FC = () => {
                   </Link>
                 </RaketMenuItem>
               )}
-              {toolsAccess.includes('loom') && (
+              {toolsAccess.includes(TOOLS.LOOM) && (
                 <RaketMenuItem>
                   <Link to={TOOL_ROUTES.LOOM}>
                     <Loom />
@@ -215,7 +215,7 @@ const Sidebar: FC = () => {
           <li>
             <h3 className="p-1 dark:text-yellow-100">HR MANAGEMENT</h3>
             <ul className="p-2">
-              {toolsAccess.includes('hr-chronos-admin') && (
+              {toolsAccess.includes(TOOLS.CHRONOS) && (
                 <RaketMenuItem>
                   <Link to={TOOL_ROUTES.CHRONOS}>
                     <Chronos />
@@ -223,7 +223,7 @@ const Sidebar: FC = () => {
                   </Link>
                 </RaketMenuItem>
               )}
-              {toolsAccess.includes('hr-hub-monitoring') && (
+              {toolsAccess.includes(TOOLS.MONITORING) && (
                 <RaketMenuItem>
                   <Link to={TOOL_ROUTES.MONITORING}>
                     <AKPHub />
@@ -236,7 +236,7 @@ const Sidebar: FC = () => {
           <li>
             <h3 className="p-1 dark:text-yellow-100">EXTENSIONS</h3>
             <ul className="p-2">
-              {toolsAccess.includes('chat-app') && (
+              {toolsAccess.includes(TOOLS.CHAT) && (
                 <RaketMenuItem>
                   <Link to={TOOL_ROUTES.CHAT}>
                     <ChatWidget />
