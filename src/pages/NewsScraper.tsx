@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import axios from 'axios';
 import { IBtnType } from '../types';
 import { Button } from '../components/Button';
@@ -11,28 +11,36 @@ const NewsScraper: React.FC = () => {
   const [error, setError] = useState<string>('');
   const [keywords, setKeywords] = useState<string>('');
   const [timeFilter, setTimeFilter] = useState<string>('a');
-
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [itemsPerPage] = useState<number>(6);
 
+  // AbortController reference for cancellation
+  const abortControllerRef = useRef<AbortController | null>(null);
+
   const fetchNews = async (query: string, timeFilter: string) => {
+    // Cancel any ongoing request
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+
     setLoading(true);
     setError('');
     setNewsArticles([]);
 
-    // Safe environment detection
     const isDev = import.meta.env.MODE === 'development';
-
     const apiUrl = isDev
       ? import.meta.env.VITE_LOCAL_NEWS_API || 'http://localhost:3000/news'
-      : import.meta.env.VITE_PROD_NEWS_API ||
-        'http://raket.arashlaw.ph:8001/news';
+      : import.meta.env.VITE_PROD_NEWS_API || 'http://raket.arashlaw.ph:8001/news';
 
     try {
       const response = await axios.get(`${apiUrl}/${query}`, {
         headers: {
           'X-Time': timeFilter,
         },
+        signal: controller.signal,
       });
 
       const data = response.data;
@@ -44,9 +52,13 @@ const NewsScraper: React.FC = () => {
       } else {
         setError('No articles found for your search.');
       }
-    } catch (err) {
-      console.error('Error fetching news:', err);
-      setError('An error occurred while fetching news.');
+    } catch (err: any) {
+      if (axios.isCancel(err) || err.name === 'CanceledError') {
+        console.log('Request cancelled.');
+      } else {
+        console.error('Error fetching news:', err);
+        setError('An error occurred while fetching news.');
+      }
     } finally {
       setLoading(false);
     }
@@ -62,6 +74,15 @@ const NewsScraper: React.FC = () => {
       fetchNews(keywords, timeFilter);
     }
   };
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+    };
+  }, []);
 
   const indexOfLastArticle = currentPage * itemsPerPage;
   const indexOfFirstArticle = indexOfLastArticle - itemsPerPage;
@@ -118,8 +139,9 @@ const NewsScraper: React.FC = () => {
       </div>
 
       {loading && (
-        <div className="loading">
+        <div className="loading flex flex-col justify-center items-center gap-4">
           <Loading />
+          <div className="italic">This may take a while...</div>
         </div>
       )}
 

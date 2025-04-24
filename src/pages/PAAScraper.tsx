@@ -99,8 +99,9 @@ const PAAScraper: React.FC = () => {
       </div>
 
       {loading && (
-        <div className="loading">
+        <div className="loading flex flex-col justify-center items-center gap-4">
           <Loading />
+          <div className="italic">Searching for questions. Don't close the pop up Google page...</div>
         </div>
       )}
 
