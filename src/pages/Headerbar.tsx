@@ -84,7 +84,7 @@ const Headerbar: FC = () => {
           lightModeStyle,
           darkModeStyle
         )}>
-        <h2 className="ml-10 text-3xl">Hello {userData.nickname}</h2>
+        <h2 className="ml-10 text-3xl">Hello, {userData.full_name ? userData.full_name : 'guest'}</h2>
         <div className="ml-auto">
           <ReactSwitch
             className="top-1"

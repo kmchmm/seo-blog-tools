@@ -1,25 +1,6 @@
+import { MapRecordProps } from '../types';
+
 const isDev = import.meta.env.MODE === 'development';
-
-export interface scrapeData {
-  address: string;
-  county: string;
-  details: string;
-  phone_number: string;
-  rating: string;
-  rating_count: string;
-  title: string;
-  type: string;
-  website: string;
-}
-
-export interface modifiedScrapeData extends scrapeData {
-  id: string;
-}
-
-export interface MapRecordProps extends modifiedScrapeData {
-  loading: boolean;
-  deleteGMapRequest: Function;
-}
 
 export const MapRecord = (mapProps: MapRecordProps) => {
   return (
@@ -29,25 +10,31 @@ export const MapRecord = (mapProps: MapRecordProps) => {
       <td className="capitalize">{mapProps.county}</td>
       <td>{mapProps.address}</td>
 
-      <td>{(mapProps.phone_number.trim().toLowerCase() !== 'no contact number') ?
-        <a
-          href={`tel:${mapProps.phone_number}`}
-          target="_blank"
-          rel="noopener noreferrer">
-          {mapProps.phone_number}
-        </a> : '-----'          
-        }
+      <td>
+        {mapProps.phone_number.trim().toLowerCase() !== 'no contact number' ? (
+          <a
+            href={`tel:${mapProps.phone_number}`}
+            target="_blank"
+            rel="noopener noreferrer">
+            {mapProps.phone_number}
+          </a>
+        ) : (
+          '-----'
+        )}
       </td>
       <td>{mapProps.details}</td>
-      <td>{(mapProps.website.trim().toLowerCase() !== 'no links') ?
-        <a
-          className="line-clamp-3"
-          href={mapProps.website}
-          target="_blank"
-          rel="noopener noreferrer">
-          {mapProps.website}
-        </a> : '-----'          
-        }
+      <td>
+        {mapProps.website.trim().toLowerCase() !== 'no links' ? (
+          <a
+            className="line-clamp-3"
+            href={mapProps.website}
+            target="_blank"
+            rel="noopener noreferrer">
+            {mapProps.website}
+          </a>
+        ) : (
+          '-----'
+        )}
       </td>
       {isDev && (
         <td>
