@@ -1,5 +1,6 @@
-import { HTMLAttributes } from 'react';
+import { HTMLAttributes, useMemo } from 'react';
 import clsx from 'clsx';
+import { Loading } from '../components/Loading';
 
 const isDev = import.meta.env.MODE === 'development';
 
@@ -16,6 +17,9 @@ interface OctoBitsPanelProps extends HTMLAttributes<HTMLDivElement> {
 }
 
 export const OctoBitRecord = (octoBitsProps: OctoBitsPanelProps) => {
+  const isActive = useMemo(() => octoBitsProps.status.toUpperCase() === 'ACTIVE',
+  [octoBitsProps.status])
+
   return (
     <div
       onClick={() => {
@@ -50,8 +54,11 @@ export const OctoBitRecord = (octoBitsProps: OctoBitsPanelProps) => {
           <div className="font-bold">{octoBitsProps.requester}</div>
         </div>
 
-        <div className="font-bold flex items-center justify-center">
-          {octoBitsProps.status}
+        <div className={clsx(
+          'font-bold items-center justify-center',
+          isActive ? 'block align-middle [&>div]:h-5 [&>div]:w-5' : 'flex'
+        )}>
+          {isActive ? <Loading /> : octoBitsProps.status}
         </div>
 
         <div className="font-bold flex items-center justify-center">

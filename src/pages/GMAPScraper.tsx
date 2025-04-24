@@ -252,6 +252,8 @@ const GMAPScraper: FC = () => {
   useEffect(() => {
     pb.autoCancellation(false);
     pb.realtime.subscribe(AK_OCTOBITS_COLLECTION, async e => {
+      console.log(e);
+      if (e.tool !== '${GMAPS_TOOL}') return;
       if (e.action === 'update') {
         if (e.record.worker_id === fetchWorkerId.current) {
           pb.realtime.unsubscribe(GMAPS_REQUESTS_COLLECTION);
