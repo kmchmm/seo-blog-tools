@@ -74,6 +74,7 @@ const Sidebar: FC = () => {
     }
   };
 
+  // fix: elements behind sidebar are getting tab focus
   const trapTabFocus = useCallback((event: KeyboardEvent) => {
     if (event.key === 'Tab') {
       const focusableEls = (sidebarRef.current as HTMLDivElement).querySelectorAll('a');
@@ -110,6 +111,14 @@ const Sidebar: FC = () => {
       document.removeEventListener('keydown', trapTabFocus);
     }
   }, [isSidebarOpen, trapTabFocus])
+
+  useEffect(() => {
+    if (isSidebarOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+  }, [isSidebarOpen])
 
   useEffect(() => {
     // Add event listener for click outside the sidebar
