@@ -1,4 +1,4 @@
-import { FC, use, useState, useEffect, useRef } from 'react';
+import { FC, use, useCallback, useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import clsx from 'clsx';
 
@@ -74,7 +74,7 @@ const Sidebar: FC = () => {
     }
   };
 
-  const trapTabFocus = (event: KeyboardEvent) => {
+  const trapTabFocus = useCallback((event: KeyboardEvent) => {
     if (event.key === 'Tab') {
       const focusableEls = (sidebarRef.current as HTMLDivElement).querySelectorAll('a');
       
@@ -92,8 +92,12 @@ const Sidebar: FC = () => {
           event.preventDefault();
         }
       }
+      return;
     }
-  }
+    if (event.key === 'Escape') {
+      setIsSidebarOpen(false);
+    }
+  }, [])
 
   useEffect(() => {
     if (isSidebarOpen) {
@@ -105,7 +109,7 @@ const Sidebar: FC = () => {
     () => {
       document.removeEventListener('keydown', trapTabFocus);
     }
-  }, [isSidebarOpen])
+  }, [isSidebarOpen, trapTabFocus])
 
   useEffect(() => {
     // Add event listener for click outside the sidebar
