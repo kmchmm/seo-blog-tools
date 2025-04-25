@@ -103,6 +103,7 @@ enum IGMap {
 
 type gmapMode = IGMap;
 
+// automatically remove request from list
 const deleteFromCollection = (collection: octoBitsRecord[], recordId: string) => {
   const newCollection = [...collection];
   const indexOfDeleted = newCollection.findIndex(octoBit => {
@@ -147,17 +148,19 @@ const GMAPScraper: FC = () => {
   const { userData } = use(UserContext);
   const navigate = useNavigate();
 
+  // function handler for listening to new map results
   const receiveResults = useCallback((e: scrapeMsg) => {
     if (e.record.worker_id === fetchWorkerId.current) {
+      // we use a ref for memoizing the current results
+      // using mapResults state for this one will cause many subscribe/unsubscribe calls
       const newResult = [...currentResults.current];
       newResult.push({ ...e.record.scraped_data, id: e.record.id });
-
       currentResults.current = [...new Set(newResult)];
-
       setMapResults(currentResults.current);
     }
   }, []);
 
+  // fetch map scraping requests
   const fetchCompleteCollection = async () => {
     // fetch complete collection
     const collection = await pb.collection(GMAPS_REQUESTS_COLLECTION).getFullList({
@@ -171,12 +174,14 @@ const GMAPScraper: FC = () => {
     setLoading(false);
   };
 
+  // show the map results from a given request (as identified from the worker id)
   const showMapResults = useCallback(
     (worker_id: string, collectionId: string, isDone: boolean) => {
       setLoading(true);
       setError('');
       setMapResults([]);
       setMode(IGMap.SPEC);
+      // change url to show the request id
       navigate(`${TOOL_ROUTES.GMAP}/${collectionId}`, { replace: true });
       fetchWorkerId.current = worker_id;
       pb.realtime.unsubscribe(GMAPS_REQUESTS_COLLECTION);
@@ -206,6 +211,7 @@ const GMAPScraper: FC = () => {
         );
 
         const data = response.data;
+        // change url to show the request id
         navigate(`${TOOL_ROUTES.GMAP}/${data.octobit_id}`, { replace: true });
         fetchWorkerId.current = data.worker_id;
         pb.realtime.unsubscribe(GMAPS_REQUESTS_COLLECTION);
@@ -224,9 +230,9 @@ const GMAPScraper: FC = () => {
     if (keywords.trim() === '') {
       setError('Please enter a search keyword.');
       currentResults.current = [];
-      setMapResults([]); // Clear any previous articles
+      setMapResults([]);
     } else {
-      setError(''); // Clear previous error if any
+      setError('');
       currentResults.current = [];
       setMapResults([]);
       fetchMaps(keywords, location);
@@ -276,15 +282,19 @@ const GMAPScraper: FC = () => {
   }, [mapResults]);
 
   useEffect(() => {
+    // globally disable auto cancellation
     pb.autoCancellation(false);
+    // subscribe to SSE from pocketbase, 
     pb.realtime.subscribe(AK_OCTOBITS_COLLECTION, async e => {
       console.log(e);
       if (e.record.tool !== GMAPS_TOOL) return;
+      // scraping is completed
       if (e.action === 'update') {
         if (e.record.worker_id === fetchWorkerId.current) {
           pb.realtime.unsubscribe(GMAPS_REQUESTS_COLLECTION);
           fetchCompleteCollection();
         } else {
+          // a previous request (not current one) was completed
           // search in collection, then update in state
           const newCollection = [...octoBitsResults];
           const indexOfUpdated = newCollection.findIndex(octoBit => {
