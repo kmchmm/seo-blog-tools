@@ -125,55 +125,54 @@ const Headerbar: FC = () => {
           </button>
         </div>
 
-        {showProfileMenu && (
-          <div
-            className={clsx(
-              'absolute top-20 right-5 bg-white-100 opacity-100 transform-none',
-              'origin-[10px 0px] min-w-[16px] min-h-[16px] rounded-sm',
-              'max-w-[calc(100%-32px)] max-h-[calc(100%-32px)]',
-              'transition-[opacity,transform] duration-[207ms, 138ms]',
-              'ease-[cubic-bezier(0.4,0,0.2,1),cubic-bezier(0.4,0,0.2,1)]',
-              'w-[120px] text-center',
-              profileBoxShadow
-            )}
-            ref={profileMenuRef}>
-            <ul className="py-3 px-0">
-              <li
-                className={clsx(
-                  'relative inline-flex items-center justify-center overflow-hidden',
-                  'underline text-blue-300 hover:bg-shadow-200/8',
-                  'cursor-pointer select-none active:[&_span]:transform-[scale(2)]',
-                  '!no-underline text-gray-800 !tracking-widest font-black'
-                )}
-                onClick={onLogClick}>
-                {userData.id ? (
-                  <label
-                    className="cursor-pointer py-2 px-4"
-                    data-href="/logout"
-                    tabIndex={0}
-                    role="link">
-                    Sign Out
-                  </label>
-                ) : (
-                  <label
-                    className="cursor-pointer py-2 px-4"
-                    data-href="/login"
-                    tabIndex={0}
-                    role="link">
-                    Sign In
-                  </label>
-                )}
+        <div
+          className={clsx(
+            'absolute top-20 right-5 bg-white-100 transform-none',
+            'origin-[10px 0px] min-w-[16px] min-h-[16px] rounded-sm',
+            'max-w-[calc(100%-32px)] max-h-[calc(100%-32px)]',
+            'transition-[visibility,opacity,transform] duration-[200ms,207ms,138ms]',
+            'ease-[cubic-bezier(0.4,0,0.2,1),cubic-bezier(0.4,0,0.2,1),cubic-bezier(0.4,0,0.2,1)]',
+            'w-[120px] text-center',
+            profileBoxShadow,
+            showProfileMenu ? 'opacity-100' : 'invisible opacity-0'
+          )}
+          ref={profileMenuRef}>
+          <ul className="py-3 px-0">
+            <li
+              className={clsx(
+                'relative inline-flex items-center justify-center overflow-hidden',
+                'underline text-blue-300 hover:bg-shadow-200/8',
+                'cursor-pointer select-none active:[&_span]:transform-[scale(2)]',
+                '!no-underline text-gray-800 !tracking-widest font-black'
+              )}
+              onClick={onLogClick}>
+              {userData.id ? (
+                <label
+                  className="cursor-pointer py-2 px-4"
+                  data-href="/logout"
+                  tabIndex={0}
+                  role="link">
+                  Sign Out
+                </label>
+              ) : (
+                <label
+                  className="cursor-pointer py-2 px-4"
+                  data-href="/login"
+                  tabIndex={0}
+                  role="link">
+                  Sign In
+                </label>
+              )}
 
-                <span
-                  className={clsx(
-                    'absolute pointer-events-none w-full h-full',
-                    'rounded-[50%] bg-blue-300/20',
-                    rippleEffectStyle
-                  )}></span>
-              </li>
-            </ul>
-          </div>
-        )}
+              <span
+                className={clsx(
+                  'absolute pointer-events-none w-full h-full',
+                  'rounded-[50%] bg-blue-300/20',
+                  rippleEffectStyle
+                )}></span>
+            </li>
+          </ul>
+        </div>
       </div>
     </div>
   );
