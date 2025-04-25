@@ -50,6 +50,11 @@ const App: FC = () => {
             <GMAPScraper /> :
             <Unauthorized/>
           } />
+          <Route path={`${TOOL_ROUTES.GMAP}/:recordId`} element={
+            toolsAccess.includes(TOOLS.GMAP) ?
+            <GMAPScraper /> :
+            <Unauthorized/>
+          } />
 
           <Route path={TOOL_ROUTES.JEDI_INSIGHTS} element={
             toolsAccess.includes(TOOLS.JEDI_INSIGHTS) ?

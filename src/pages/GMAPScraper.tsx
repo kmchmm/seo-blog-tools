@@ -1,9 +1,10 @@
 import { FC, KeyboardEvent, use, useCallback, useEffect, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import clsx from 'clsx';
 
 import pb from '../utils/pocketbaseInit.js';
-import { scrapeData, modifiedScrapeData } from '../types.js';
+import { scrapeData, modifiedScrapeData, TOOL_ROUTES } from '../types.js';
 import { Button } from '../components/Button';
 import { Loading } from '../components/Loading';
 import { OctoBitRecord } from '../components/OctoBitRecord';
@@ -111,6 +112,28 @@ const deleteFromCollection = (collection: octoBitsRecord[], recordId: string) =>
   return newCollection;
 };
 
+const handleExportCSV = () => {
+  const table = document.getElementById('mapResults') as HTMLTableElement;
+  if (!table) return;
+
+  let tableData = "";
+  for (let i = 0; i < table.rows.length; i++) {
+    for (let j = 0; j < table.rows[i].cells.length; j++) {
+      tableData += table.rows[i].cells[j].innerText + (j < table.rows[i].cells.length - 1 ? ',' : '');
+    }
+    tableData += "\n";
+  }
+  const blob = new Blob([tableData], { type: 'text/csv' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'maps-data.csv';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+};
+
 const GMAPScraper: FC = () => {
   const [mapResults, setMapResults] = useState<modifiedScrapeData[]>([]);
   const [octoBitsResults, setOctoBitsResults] = useState<octoBitsRecord[]>([]);
@@ -122,6 +145,7 @@ const GMAPScraper: FC = () => {
   const fetchWorkerId = useRef<string>('');
   const currentResults = useRef<modifiedScrapeData[]>([]);
   const { userData } = use(UserContext);
+  const navigate = useNavigate();
 
   const receiveResults = useCallback((e: scrapeMsg) => {
     if (e.record.worker_id === fetchWorkerId.current) {
@@ -148,11 +172,12 @@ const GMAPScraper: FC = () => {
   };
 
   const showMapResults = useCallback(
-    (worker_id: string, isDone: boolean) => {
+    (worker_id: string, collectionId: string, isDone: boolean) => {
       setLoading(true);
       setError('');
       setMapResults([]);
       setMode(IGMap.SPEC);
+      navigate(`${TOOL_ROUTES.GMAP}/${collectionId}`, { replace: true });
       fetchWorkerId.current = worker_id;
       pb.realtime.unsubscribe(GMAPS_REQUESTS_COLLECTION);
       if (isDone) {
@@ -181,6 +206,7 @@ const GMAPScraper: FC = () => {
         );
 
         const data = response.data;
+        navigate(`${TOOL_ROUTES.GMAP}/${data.octobit_id}`, { replace: true });
         fetchWorkerId.current = data.worker_id;
         pb.realtime.unsubscribe(GMAPS_REQUESTS_COLLECTION);
         pb.realtime.subscribe(GMAPS_REQUESTS_COLLECTION, receiveResults);
@@ -253,7 +279,7 @@ const GMAPScraper: FC = () => {
     pb.autoCancellation(false);
     pb.realtime.subscribe(AK_OCTOBITS_COLLECTION, async e => {
       console.log(e);
-      if (e.tool !== GMAPS_TOOL) return;
+      if (e.record.tool !== GMAPS_TOOL) return;
       if (e.action === 'update') {
         if (e.record.worker_id === fetchWorkerId.current) {
           pb.realtime.unsubscribe(GMAPS_REQUESTS_COLLECTION);
@@ -359,12 +385,21 @@ const GMAPScraper: FC = () => {
             <button
               title="Back to GMAP Scraper"
               className="fill-yellow-100 cursor-pointer w-10"
-              onClick={() => setMode(IGMap.COLLECTION)}>
+              onClick={() => {
+                navigate(`${TOOL_ROUTES.GMAP}`);
+                setError('');
+                setMode(IGMap.COLLECTION)
+              }}>
               <BackArrow />
             </button>
-            <Button disabled={loading}>Export as CSV</Button>
+            <Button
+              onClick={handleExportCSV}
+              disabled={loading}>
+              Export as CSV
+            </Button>
           </div>
           <table
+            id="mapResults"
             className={clsx(
               'w-full my-[20px] mx-auto border-collapse',
               'table-fixed shadow-[0_4px_6px_rgba(0, 0, 0, 0.1)]'

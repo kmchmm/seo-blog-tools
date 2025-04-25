@@ -25,6 +25,7 @@ export const OctoBitRecord = (octoBitsProps: OctoBitsPanelProps) => {
       onClick={() => {
         octoBitsProps.showMapResults(
           octoBitsProps.workerId,
+          octoBitsProps.recordId,
           octoBitsProps.status.trim().toUpperCase() === 'DONE'
         );
       }}
