@@ -74,6 +74,39 @@ const Sidebar: FC = () => {
     }
   };
 
+  const trapTabFocus = (event: KeyboardEvent) => {
+    if (event.key === 'Tab') {
+      const focusableEls = (sidebarRef.current as HTMLDivElement).querySelectorAll('a');
+      
+      const firstFocusableEl = focusableEls[0];  
+      const lastFocusableEl = focusableEls[focusableEls.length - 1];
+
+      if ( event.shiftKey ) /* shift + tab */ {
+        if (document.activeElement === firstFocusableEl) {
+          lastFocusableEl.focus();
+          event.preventDefault();
+        }
+      } else /* tab */ {
+        if (document.activeElement === lastFocusableEl) {
+          firstFocusableEl.focus();
+          event.preventDefault();
+        }
+      }
+    }
+  }
+
+  useEffect(() => {
+    if (isSidebarOpen) {
+      document.addEventListener('keydown', trapTabFocus);
+    } else {
+      document.removeEventListener('keydown', trapTabFocus);
+    }
+
+    () => {
+      document.removeEventListener('keydown', trapTabFocus);
+    }
+  }, [isSidebarOpen])
+
   useEffect(() => {
     // Add event listener for click outside the sidebar
     document.addEventListener('mousedown', handleClickOutside);
@@ -112,7 +145,7 @@ const Sidebar: FC = () => {
         ref={sidebarRef} // Attach the ref to the sidebar div
         className={clsx(isSidebarOpen ? 'left-0' : '-left-[350px]', sidebarStyle)}>
         <h2 className="p-2 font-bold text-3xl mb-3">
-          <Link to="/">
+          <Link tabIndex={isSidebarOpen ? 0 : -1} to="/">
             <span>AK RAKET</span>
           </Link>
         </h2>
@@ -122,7 +155,7 @@ const Sidebar: FC = () => {
             <ul className="p-2">
               {toolsAccess.includes(TOOLS.NEWS) && (
                 <RaketMenuItem>
-                  <Link to={TOOL_ROUTES.NEWS}>
+                  <Link tabIndex={isSidebarOpen ? 0 : -1} to={TOOL_ROUTES.NEWS}>
                     <NewsIcon />
                     <span>NEWS Scraper</span>
                   </Link>
@@ -130,7 +163,7 @@ const Sidebar: FC = () => {
               )}
               {toolsAccess.includes(TOOLS.PAA) && (
                 <RaketMenuItem>
-                  <Link to={TOOL_ROUTES.PAA}>
+                  <Link tabIndex={isSidebarOpen ? 0 : -1} to={TOOL_ROUTES.PAA}>
                     <GoogleIcon />
                     <span>GPAA Scraper</span>
                   </Link>
@@ -138,7 +171,7 @@ const Sidebar: FC = () => {
               )}
               {toolsAccess.includes(TOOLS.GMAP) && (
                 <RaketMenuItem>
-                  <Link to={TOOL_ROUTES.GMAP}>
+                  <Link tabIndex={isSidebarOpen ? 0 : -1} to={TOOL_ROUTES.GMAP}>
                     <MapsIcon />
                     <span>GMAP Scraper</span>
                   </Link>
@@ -151,7 +184,7 @@ const Sidebar: FC = () => {
             <ul className="p-2">
               {toolsAccess.includes(TOOLS.JEDI_INSIGHTS) && (
                 <RaketMenuItem>
-                  <Link to={TOOL_ROUTES.JEDI_INSIGHTS}>
+                  <Link tabIndex={isSidebarOpen ? 0 : -1} to={TOOL_ROUTES.JEDI_INSIGHTS}>
                     <JediInsightsIcon />
                     <span>Jedi Insights</span>
                   </Link>
@@ -159,7 +192,7 @@ const Sidebar: FC = () => {
               )}
               {toolsAccess.includes(TOOLS.SERP_RANK) && (
                 <RaketMenuItem>
-                  <Link to={TOOL_ROUTES.SERP_RANK}>
+                  <Link tabIndex={isSidebarOpen ? 0 : -1} to={TOOL_ROUTES.SERP_RANK}>
                     <SERPRankIcon />
                     <span>SERP Rank</span>
                   </Link>
@@ -167,7 +200,7 @@ const Sidebar: FC = () => {
               )}
               {toolsAccess.includes(TOOLS.HUNTER) && (
                 <RaketMenuItem>
-                  <Link to={TOOL_ROUTES.HUNTER}>
+                  <Link tabIndex={isSidebarOpen ? 0 : -1} to={TOOL_ROUTES.HUNTER}>
                     <HunterIcon />
                     <span>Hunter</span>
                   </Link>
@@ -175,7 +208,7 @@ const Sidebar: FC = () => {
               )}
               {toolsAccess.includes(TOOLS.HARVESTER) && (
                 <RaketMenuItem>
-                  <Link to={TOOL_ROUTES.HARVESTER}>
+                  <Link tabIndex={isSidebarOpen ? 0 : -1} to={TOOL_ROUTES.HARVESTER}>
                     <P1HarvesterIcon />
                     <span>P1 Harvester</span>
                   </Link>
@@ -188,7 +221,7 @@ const Sidebar: FC = () => {
             <ul className="p-2">
               {toolsAccess.includes(TOOLS.CROSS_SITE_POSTING) && (
                 <RaketMenuItem>
-                  <Link to={TOOL_ROUTES.CROSS_SITE_POSTING}>
+                  <Link tabIndex={isSidebarOpen ? 0 : -1} to={TOOL_ROUTES.CROSS_SITE_POSTING}>
                     <CrossSite />
                     <span>CrossSite Poster</span>
                   </Link>
@@ -196,7 +229,7 @@ const Sidebar: FC = () => {
               )}
               {toolsAccess.includes(TOOLS.KOMPASS) && (
                 <RaketMenuItem>
-                  <Link to={TOOL_ROUTES.KOMPASS}>
+                  <Link tabIndex={isSidebarOpen ? 0 : -1} to={TOOL_ROUTES.KOMPASS}>
                     <Kompass />
                     <span>Kompass</span>
                   </Link>
@@ -204,7 +237,7 @@ const Sidebar: FC = () => {
               )}
               {toolsAccess.includes(TOOLS.LOOM) && (
                 <RaketMenuItem>
-                  <Link to={TOOL_ROUTES.LOOM}>
+                  <Link tabIndex={isSidebarOpen ? 0 : -1} to={TOOL_ROUTES.LOOM}>
                     <Loom />
                     <span>Loom</span>
                   </Link>
@@ -217,7 +250,7 @@ const Sidebar: FC = () => {
             <ul className="p-2">
               {toolsAccess.includes(TOOLS.CHRONOS) && (
                 <RaketMenuItem>
-                  <Link to={TOOL_ROUTES.CHRONOS}>
+                  <Link tabIndex={isSidebarOpen ? 0 : -1} to={TOOL_ROUTES.CHRONOS}>
                     <Chronos />
                     <span>Chronos</span>
                   </Link>
@@ -225,7 +258,7 @@ const Sidebar: FC = () => {
               )}
               {toolsAccess.includes(TOOLS.MONITORING) && (
                 <RaketMenuItem>
-                  <Link to={TOOL_ROUTES.MONITORING}>
+                  <Link tabIndex={isSidebarOpen ? 0 : -1} to={TOOL_ROUTES.MONITORING}>
                     <AKPHub />
                     <span>AKPHub Monitoring</span>
                   </Link>
@@ -238,7 +271,7 @@ const Sidebar: FC = () => {
             <ul className="p-2">
               {toolsAccess.includes(TOOLS.CHAT) && (
                 <RaketMenuItem>
-                  <Link to={TOOL_ROUTES.CHAT}>
+                  <Link tabIndex={isSidebarOpen ? 0 : -1} to={TOOL_ROUTES.CHAT}>
                     <ChatWidget />
                     <span>CHAT WIDGET</span>
                   </Link>
@@ -254,19 +287,19 @@ const Sidebar: FC = () => {
             <h3 className="p-1 dark:text-yellow-100">FREE TOOLS</h3>
             <ul className="p-2">
               <RaketMenuItem>
-                <Link to={TOOL_ROUTES.TITLE_TWEAK}>
+                <Link tabIndex={isSidebarOpen ? 0 : -1} to={TOOL_ROUTES.TITLE_TWEAK}>
                   <TitleTweak />
                   <span>Title Tweak</span>
                 </Link>
               </RaketMenuItem>
               <RaketMenuItem>
-                <Link to={TOOL_ROUTES.HTML_CLEANER}>
+                <Link tabIndex={isSidebarOpen ? 0 : -1} to={TOOL_ROUTES.HTML_CLEANER}>
                   <HTMLCleaner />
                   <span>HTML Cleaner</span>
                 </Link>
               </RaketMenuItem>
               <RaketMenuItem>
-                <Link to={TOOL_ROUTES.DUPE_KILLER}>
+                <Link tabIndex={isSidebarOpen ? 0 : -1} to={TOOL_ROUTES.DUPE_KILLER}>
                   <DupeKiller />
                   <span>Dupe Killer</span>
                 </Link>
