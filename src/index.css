@@ -12,11 +12,14 @@
   --color-blue-600: var(--dark-bg);
   --color-blue-700: #060f1d;
   --color-blue-800: #0d6efd;
+  --color-blue-900: #86b7fe;
   --color-white-100: var(--white-bg);
   --color-black-100: #151724;
   --color-black-200: #212529;
   --color-gray-100: #f3f3f3;
   --color-gray-200: #bdbdbd;
+  --color-gray-300: #dee2e6;
+  --color-gray-400: #e9ecef;
   --color-red-100: #ff0000;
   --color-red-200: #dc3545;
   --color-shadow-100: #c7c7c7;
