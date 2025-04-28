@@ -13,6 +13,7 @@ import { UserContext } from '../context/UserContext';
 import BackArrow from '../assets/icons/back.svg?react';
 
 const isDev = import.meta.env.MODE === 'development';
+
 const apiUrl = isDev
   ? import.meta.env.VITE_LOCAL_GMAPS_API_URL
   : import.meta.env.VITE_PROD_GMAPS_API_URL;
