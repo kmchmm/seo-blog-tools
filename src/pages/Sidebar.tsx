@@ -11,6 +11,7 @@ import JediInsightsIcon from '../assets/icons/insights.svg?react';
 import SERPRankIcon from '../assets/icons/serp.svg?react';
 import HunterIcon from '../assets/icons/hunter.svg?react';
 import P1HarvesterIcon from '../assets/icons/harvester.svg?react';
+import GeoTaggerIcon from '../assets/icons/geo-fill.svg?react';
 import CrossSite from '../assets/icons/cross-site.svg?react';
 import Kompass from '../assets/icons/kompass.svg?react';
 import Loom from '../assets/icons/loom.svg?react';
@@ -227,6 +228,13 @@ const Sidebar: FC = () => {
                   </Link>
                 </RaketMenuItem>
               )}
+
+              <RaketMenuItem>
+                <Link tabIndex={isSidebarOpen ? 0 : -1} to={TOOL_ROUTES.GEO_TAGGER}>
+                  <GeoTaggerIcon />
+                  <span>Geo Tagger</span>
+                </Link>
+              </RaketMenuItem>
             </ul>
           </li>
           <li>

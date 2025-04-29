@@ -41,9 +41,9 @@ export const Provider = ({ children }: any) => {
   }, []);
 
   return (
-    <DarkModeContext.Provider value={{ darkMode, setSaveDarkMode }}>
+    <DarkModeContext value={{ darkMode, setSaveDarkMode }}>
       {children}
-    </DarkModeContext.Provider>
+    </DarkModeContext>
   );
 };
 

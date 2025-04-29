@@ -11,6 +11,7 @@ import JediInsights from './pages/JediInsights';
 import SERPRank from './pages/SERPRank';
 import Hunter from './pages/Hunter';
 import P1Harvester from './pages/P1Harvester';
+import GeoTagger from './pages/GeoTagger';
 import CrossSitePosting from './pages/CrossSitePosting';
 import Kompass from './pages/Kompass';
 import Loom from './pages/Loom';
@@ -75,7 +76,8 @@ const App: FC = () => {
             toolsAccess.includes(TOOLS.HARVESTER) ?
             <P1Harvester /> :
             <Unauthorized/>
-          } />           
+          } />
+          <Route path={TOOL_ROUTES.GEO_TAGGER} element={<GeoTagger />} /> 
 
           <Route path={TOOL_ROUTES.CROSS_SITE_POSTING} element={
             toolsAccess.includes(TOOLS.CROSS_SITE_POSTING) ?

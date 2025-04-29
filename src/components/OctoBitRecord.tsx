@@ -30,7 +30,7 @@ export const OctoBitRecord = (octoBitsProps: OctoBitsPanelProps) => {
         );
       }}
       className={clsx(
-        'p-2 w-full cursor-pointer hover:scale-115',
+        'p-2 w-full cursor-pointer',
         'ease-in transition-transform duration-200'
       )}>
       <div
