@@ -14,6 +14,7 @@ export enum TOOL_ROUTES {
   SERP_RANK = '/seo/serp-checker',
   HUNTER = '/seo/hunter',
   HARVESTER = '/seo/harvester',
+  GEO_TAGGER = '/seo/geo-tagger',
 
   CROSS_SITE_POSTING = '/publishing/cross-site-posting',
   KOMPASS = '/publishing/text-kompass',

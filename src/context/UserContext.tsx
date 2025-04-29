@@ -128,7 +128,7 @@ export const Provider = ({ children }: any) => {
   }, [userData]);
 
   return (
-    <UserContext.Provider
+    <UserContext
       value={{
         userData,
         setUserData,
@@ -137,7 +137,7 @@ export const Provider = ({ children }: any) => {
         setToolsAccess,
       }}>
       {children}
-    </UserContext.Provider>
+    </UserContext>
   );
 };
 
