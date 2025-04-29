@@ -1,4 +1,4 @@
-import { ChangeEvent, FC, useCallback, useState } from 'react';
+import { ChangeEvent, FC, useCallback, useEffect, useRef, useState } from 'react';
 import clsx from 'clsx';
 
 import { Button } from '../components/Button';
@@ -11,26 +11,50 @@ enum ILexiTweakMode {
 
 const tweak = (text: string, mode: ILexiTweakMode) => {
   if (mode === ILexiTweakMode.SENTENCE) {
-    const textArr = text.split(' ');
+    const textArr = text.toLowerCase().split(' ');
     //capitalize first letter of fragment/word
     return textArr.map(fragment => {
       return fragment.charAt(0).toUpperCase() + String(fragment).slice(1)
     }).join(' ');
   }
 
+  if (mode === ILexiTweakMode.UPPERCASE) {
+    return text.toUpperCase()
+  }
+
+  if (mode === ILexiTweakMode.LOWERCASE) {
+    return text.toLowerCase()
+  }
+
   return text;
+}
+
+const copyToClipboard = async (copyText: string) => {
+  try {
+    navigator.clipboard.writeText(copyText)
+  } catch(e) {
+    console.log(e);
+  }
 }
 
 const TitleTweak: FC = () => {
   const [mode, setMode] = useState<ILexiTweakMode>(ILexiTweakMode.SENTENCE);
-  const [tweaked, setTweaked] = useState<String>('')
+  const [tweaked, setTweaked] = useState<string>('')
+  const textAreaInput = useRef<HTMLTextAreaElement>(null)
 
   const handleChange = useCallback((event: ChangeEvent) => {
     const baseText = (event.target as HTMLTextAreaElement).value;
     const tweakedText = tweak(baseText, mode)
-    console.log(tweakedText);
+    copyToClipboard(tweakedText);
     setTweaked(tweakedText);
   },[mode]);
+
+  useEffect(() => {
+    const baseText = textAreaInput.current?.value || '';
+    const tweakedText = tweak(baseText, mode)
+    copyToClipboard(tweakedText);
+    setTweaked(tweakedText);
+  }, [mode])
 
   return (
     <div
@@ -61,6 +85,7 @@ const TitleTweak: FC = () => {
             rows={8}
             placeholder='Input text here'
             onChange={handleChange}
+            ref={textAreaInput}
           />
         </div>
         <div className='flex flex-1 flex-col gap-2 p-2'>
