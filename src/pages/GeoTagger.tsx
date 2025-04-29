@@ -1,5 +1,5 @@
-import { ChangeEvent, FC, useEffect, useRef, useState } from 'react';
-import piexif, { ExifIFD, TAGS } from 'piexifjs';
+import { ChangeEvent, DragEvent, FC, useEffect, useRef, useState } from 'react';
+import piexif from 'piexifjs';
 import clsx from 'clsx';
 import { Button } from '../components/Button';
 
@@ -11,6 +11,8 @@ interface ICoordArray {
   2: [number, number];
 }
 
+const acceptedFiles = '.jpg,.jpeg';
+
 const computeCoordinate = (rawCoords: ICoordArray) => {
   if (rawCoords) {
     return (rawCoords[0][0] / rawCoords[0][1]) + // degrees
@@ -18,6 +20,11 @@ const computeCoordinate = (rawCoords: ICoordArray) => {
     (rawCoords[2][0] / rawCoords[2][1] / 3600) // seconds
   }
   return '';
+}
+
+const isAccepted = (filename: string) => {
+  const extensionsArr = acceptedFiles.split(',');
+  return extensionsArr.some(extension => filename.endsWith(extension))
 }
 
 const GeoTagger: FC = () => {
@@ -43,6 +50,7 @@ const GeoTagger: FC = () => {
   const handleFileSelect = (event: ChangeEvent<HTMLInputElement>) => {
     const target = event.target;
     if (!target.files || !target.files.length) return;
+    if (!isAccepted(target.files[0].name)) return;
     setFile(target.files[0]);
   }
 
@@ -85,6 +93,18 @@ const GeoTagger: FC = () => {
     };
     reader.readAsDataURL(file);
   }
+
+  const handleDrop = (event: DragEvent) => {
+    event.preventDefault();
+    const droppedFiles = event.dataTransfer?.files;
+
+    if (droppedFiles && droppedFiles.length > 0) {
+      const newFiles = Array.from(droppedFiles);
+      if (newFiles && newFiles[0] && isAccepted(newFiles[0].name)) {
+        setFile(newFiles[0]);
+      }
+    }
+  };
 
   useEffect(() => {
     if (!file) {
@@ -164,6 +184,8 @@ const GeoTagger: FC = () => {
             onClick={() => {
               fileSelectRef.current?.click()
             }}
+            onDrop={handleDrop}
+            onDragOver={(event) => event.preventDefault()}
           >
             <FaUpload/>
             Drop your JPG file here or click to browse
@@ -171,7 +193,7 @@ const GeoTagger: FC = () => {
           <input
             type="file"
             onChange={handleFileSelect}
-            accept=".jpg,.jpeg"
+            accept={acceptedFiles}
             ref={fileSelectRef}
             hidden
           />
