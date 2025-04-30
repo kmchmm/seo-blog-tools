@@ -1,5 +1,6 @@
 import { ChangeEvent, DragEvent, FC, useEffect, useRef, useState } from 'react';
 import piexif from 'piexifjs';
+import axios from 'axios';
 import clsx from 'clsx';
 import { Button } from '../components/Button';
 
@@ -11,7 +12,13 @@ interface ICoordArray {
   2: [number, number];
 }
 
-const acceptedFiles = '.jpg,.jpeg';
+const IS_DEV = import.meta.env.MODE === 'development';
+
+const API_URL = IS_DEV
+  ? import.meta.env.VITE_LOCAL_EXIF_API_URL
+  : import.meta.env.VITE_PROD_EXIF_API_URL;
+
+const ACCEPTED_FILES = '.jpg,.jpeg,.png,.webp';
 
 const computeCoordinate = (rawCoords: ICoordArray) => {
   if (rawCoords) {
@@ -23,7 +30,7 @@ const computeCoordinate = (rawCoords: ICoordArray) => {
 }
 
 const isAccepted = (filename: string) => {
-  const extensionsArr = acceptedFiles.split(',');
+  const extensionsArr = ACCEPTED_FILES.split(',');
   return extensionsArr.some(extension => filename.endsWith(extension))
 }
 
@@ -106,32 +113,61 @@ const GeoTagger: FC = () => {
     }
   };
 
+  const uploadFile = async (file: File) => {
+
+    try {
+      const response = await axios.post(
+        API_URL,
+        {
+          file: file
+        },
+        {
+          headers: {
+            'Content-Type': 'multipart/form-data'
+          }          
+        }
+      );
+
+      const data = response.data;
+      setEXIFName(data.DocumentName);
+      setEXIFDesc(data.ImageDescription);
+      setEXIFLatitude(data.GPSLatitude)
+      setEXIFLongitude(data.GPSLongitude)
+      console.log('UPLOADED!!!')
+      console.log(data);
+    } catch (err) {
+      console.error('Error during API call:', err);
+
+    } finally {}
+  }
+
   useEffect(() => {
     if (!file) {
       if (imgRef.current) imgRef.current.src = '';
       return;
     }
-    // Encode the file using the FileReader API
+    uploadFile(file);
 
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      // Logs data:<type>;base64,wL2dvYWwgbW9yZ...
-      const dataURI = reader.result as string;
-      const exifObj = piexif.load(dataURI);
-      if (imgRef.current) imgRef.current.src = dataURI;
+    // // Encode the file using the FileReader API
+    // const reader = new FileReader();
+    // reader.onloadend = () => {
+    //   // Logs data:<type>;base64,wL2dvYWwgbW9yZ...
+    //   const dataURI = reader.result as string;
+    //   const exifObj = piexif.load(dataURI);
+    //   if (imgRef.current) imgRef.current.src = dataURI;
       
-      if (exifObj) {
-        setEXIFName(exifObj['0th'] && exifObj['0th'][269] ? exifObj['0th'][269] : '');
-        setEXIFDesc(exifObj['0th'] && exifObj['0th'][270] ? exifObj['0th'][270] : '');
-        const latitudeObj = exifObj['GPS'] && exifObj['GPS'][2];
-        const latitude = String(computeCoordinate(latitudeObj));
-        const longitudeObj = exifObj['GPS'] && exifObj['GPS'][4];
-        const longitude = String(computeCoordinate(longitudeObj));
-        setEXIFLatitude(latitude);
-        setEXIFLongitude(longitude);
-      }
-    };
-    reader.readAsDataURL(file as File);    
+    //   if (exifObj) {
+    //     setEXIFName(exifObj['0th'] && exifObj['0th'][269] ? exifObj['0th'][269] : '');
+    //     setEXIFDesc(exifObj['0th'] && exifObj['0th'][270] ? exifObj['0th'][270] : '');
+    //     const latitudeObj = exifObj['GPS'] && exifObj['GPS'][2];
+    //     const latitude = String(computeCoordinate(latitudeObj));
+    //     const longitudeObj = exifObj['GPS'] && exifObj['GPS'][4];
+    //     const longitude = String(computeCoordinate(longitudeObj));
+    //     setEXIFLatitude(latitude);
+    //     setEXIFLongitude(longitude);
+    //   }
+    // };
+    // reader.readAsDataURL(file as File);    
   }, [file])
 
   return (
@@ -193,7 +229,7 @@ const GeoTagger: FC = () => {
           <input
             type="file"
             onChange={handleFileSelect}
-            accept={acceptedFiles}
+            accept={ACCEPTED_FILES}
             ref={fileSelectRef}
             hidden
           />
