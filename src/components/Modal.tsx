@@ -14,8 +14,7 @@ export const Modal: FC<ModalProps> = ({ isOpen, onClose, children }) => {
       <div className="bg-white p-6 rounded-md w-full h-full max-w-screen max-h-screen overflow-auto shadow-lg relative text-black-200">
         <button
           onClick={onClose}
-          className="absolute top-5 right-5 text-3xl text-red-500 cursor-pointer z-10"
-        >
+          className="absolute top-5 right-5 text-3xl text-red-500 cursor-pointer z-10">
           &times;
         </button>
         {children}

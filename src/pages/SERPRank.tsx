@@ -65,7 +65,8 @@ const SERPRank: FC = () => {
   };
 
   return (
-    <div className={clsx('flex flex-col w-full pt-4 px-3', 'bg-white-100 dark:bg-blue-600')}>
+    <div
+      className={clsx('flex flex-col w-full pt-4 px-3', 'bg-white-100 dark:bg-blue-600')}>
       <h1 className="text-black-100 dark:text-white-100 text-5xl">AK SERP Checker</h1>
       <h6 className="italic">Our SERPChecker TOOL. (RANKING TOOL)</h6>
 
@@ -75,22 +76,21 @@ const SERPRank: FC = () => {
             className="!border-gray-700 !w-1/2 border p-2 rounded"
             type="text"
             value={keyword}
-            onChange={(e) => setKeyword(e.target.value)}
+            onChange={e => setKeyword(e.target.value)}
             placeholder="Enter Keyword"
           />
           <input
             className="!border-gray-700 !w-1/2 border p-2 rounded"
             type="text"
             value={url}
-            onChange={(e) => setUrl(e.target.value)}
+            onChange={e => setUrl(e.target.value)}
             placeholder="URL (Don't put HTTPS — e.g. arashlaw.com)"
           />
           <Button
             onClick={handleSearch}
             disabled={loading}
             btnType={IBtnType.SEARCH}
-            className="!bg-black-200 !text-white hover:!bg-black dark:!bg-transparent dark:hover:!bg-yellow-100 dark:hover:!text-black-100"
-          >
+            className="!bg-black-200 !text-white hover:!bg-black dark:!bg-transparent dark:hover:!bg-yellow-100 dark:hover:!text-black-100">
             {loading ? 'Checking...' : 'Check'}
           </Button>
         </div>
@@ -103,15 +103,16 @@ const SERPRank: FC = () => {
       ) : error ? (
         <p className="text-red-100 text-base text-center font-bold mt-4">{error}</p>
       ) : records.length === 0 ? (
-        <p className="text-center text-gray-700 dark:text-white mt-6">No records found. Try submitting a keyword and URL.</p>
+        <p className="text-center text-gray-700 dark:text-white mt-6">
+          No records found. Try submitting a keyword and URL.
+        </p>
       ) : (
         <div className="paa-table-container m-0 p-0 w-full">
           <table
             className={clsx(
               'w-full my-[20px] mx-auto border-collapse',
               'table-fixed shadow-[0_4px_6px_rgba(0, 0, 0, 0.1)]'
-            )}
-          >
+            )}>
             <thead>
               <tr>
                 <th className="w-1/4 border border-amber-200">Keyword</th>
@@ -123,12 +124,16 @@ const SERPRank: FC = () => {
               </tr>
             </thead>
             <tbody>
-              {records.map((record) => (
+              {records.map(record => (
                 <tr key={record.id}>
                   <td className="border border-amber-200">{record.keyword}</td>
                   <td className="border border-amber-200">{record.link || '---'}</td>
-                  <td className="border border-amber-200 !text-center">{record.moz_score ?? '---'}</td>
-                  <td className="border border-amber-200 !text-center">{record.ak_score ?? '---'}</td>
+                  <td className="border border-amber-200 !text-center">
+                    {record.moz_score ?? '---'}
+                  </td>
+                  <td className="border border-amber-200 !text-center">
+                    {record.ak_score ?? '---'}
+                  </td>
                   <td className="border border-amber-200">{record.requested_by}</td>
                   <td className="border border-amber-200 !text-center">
                     <div className="relative group inline-block">

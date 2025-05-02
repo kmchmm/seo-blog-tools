@@ -3,7 +3,7 @@ import axios from 'axios';
 import clsx from 'clsx';
 import { Button } from '../components/Button';
 
-import { FaUpload } from "react-icons/fa";
+import { FaUpload } from 'react-icons/fa';
 
 const IS_DEV = import.meta.env.MODE === 'development';
 
@@ -13,16 +13,16 @@ const API_URL = IS_DEV
 
 const ACCEPTED_FILES = '.jpg,.jpeg,.png,.webp';
 
-const IMAGE_WIDTHS = [ 1920, 650, 420 ];
+const IMAGE_WIDTHS = [1920, 650, 420];
 
 const FORM_DATA_HEADER = {
-  'Content-Type': 'multipart/form-data'
-}        
+  'Content-Type': 'multipart/form-data',
+};
 
 const DOWNLOAD_HEADERS = {
   'Content-Type': 'multipart/form-data',
-  Accept : 'application/json,image/webp,image/png,image/jpg,image/jpg'
-}
+  Accept: 'application/json,image/webp,image/png,image/jpg,image/jpg',
+};
 
 // convert deg-min-secs to purely degrees (from node-exiftool in api)
 const convertToDegrees = (rawCoords: string) => {
@@ -30,31 +30,32 @@ const convertToDegrees = (rawCoords: string) => {
     const coords = rawCoords.trim().toLowerCase();
     const degArr = rawCoords.split('deg');
     // const degValue = degArr[0].trim();
-    const [ degValue, minString ] = degArr;
+    const [degValue, minString] = degArr;
     const minArr = minString.split("'");
-    const [ minValue, secString ] = minArr;
+    const [minValue, secString] = minArr;
     const secArr = secString.split('"');
-    const [ secValue ] = secArr;
+    const [secValue] = secArr;
     const isNegative = coords.endsWith('s') || coords.endsWith('w');
-    
+
     return String(
-      (Number(degValue) + (Number(minValue)/60) + (Number(secValue)/3600) ) * (isNegative ? -1 : 1)
-    )
+      (Number(degValue) + Number(minValue) / 60 + Number(secValue) / 3600) *
+        (isNegative ? -1 : 1)
+    );
   }
   return '';
-}
+};
 
 const getFilename = (filename: string) => {
   const filenameArray = filename.split('.');
   // remove extension, pop since extension will always be last segment with .
   filenameArray.pop();
   return filenameArray.join('.');
-}
+};
 
 const isAccepted = (filename: string) => {
   const extensionsArr = ACCEPTED_FILES.split(',');
-  return extensionsArr.some(extension => filename.endsWith(extension))
-}
+  return extensionsArr.some(extension => filename.endsWith(extension));
+};
 
 const handleDownload = (blob: Blob, filename: string) => {
   // handle Download
@@ -71,18 +72,18 @@ const handleDownload = (blob: Blob, filename: string) => {
   // clean up "a" element & remove ObjectURL
   document.body.removeChild(link);
   URL.revokeObjectURL(href);
-}
+};
 
 const GeoTagger: FC = () => {
-  const [ exifName, setEXIFName ] = useState<string>('');
-  const [ exifDesc, setEXIFDesc ] = useState<string>('');
-  const [ exifLatitude, setEXIFLatitude ] = useState<string>('');
-  const [ exifLongitude, setEXIFLongitude ] = useState<string>('');
-  const [ file, setFile ] = useState<File>();
-  const [ optimize, setOptimize ] = useState<boolean>(false);
-  const [ imgWidth, setImgWidth ] = useState<number>(1920);
-  const [ quality, setQuality ] = useState<number>(80);
-  const [ preview, setPreview ] = useState<string>('');
+  const [exifName, setEXIFName] = useState<string>('');
+  const [exifDesc, setEXIFDesc] = useState<string>('');
+  const [exifLatitude, setEXIFLatitude] = useState<string>('');
+  const [exifLongitude, setEXIFLongitude] = useState<string>('');
+  const [file, setFile] = useState<File>();
+  const [optimize, setOptimize] = useState<boolean>(false);
+  const [imgWidth, setImgWidth] = useState<number>(1920);
+  const [quality, setQuality] = useState<number>(80);
+  const [preview, setPreview] = useState<string>('');
   const fileSelectRef = useRef<HTMLInputElement>(null);
   const imgRef = useRef<HTMLImageElement>(null);
 
@@ -97,7 +98,7 @@ const GeoTagger: FC = () => {
     if (fileSelectRef.current) {
       fileSelectRef.current.value = '';
     }
-  }
+  };
 
   // needed to recreate file from blob
   // to circumvent `ERR_UPLOAD_FILE_CHANGED`
@@ -106,24 +107,23 @@ const GeoTagger: FC = () => {
     // get blob
     const reader = new FileReader();
     reader.onload = () => {
-      const blob = new Blob(
-        [new Uint8Array(reader.result as ArrayBuffer)],
-        {type: file.type }
-      );
+      const blob = new Blob([new Uint8Array(reader.result as ArrayBuffer)], {
+        type: file.type,
+      });
       const myFile = new File([blob], file.name, {
         type: blob.type,
       });
       setFile(myFile);
     };
     reader.readAsArrayBuffer(file);
-  }
+  };
 
   const handleFileSelect = (event: ChangeEvent<HTMLInputElement>) => {
     const target = event.target;
     if (!target.files || !target.files.length) return;
     if (!isAccepted(target.files[0].name)) return;
     memoizeFile(target.files[0]);
-  }
+  };
 
   const previewImg = async () => {
     if (!file) return;
@@ -136,15 +136,15 @@ const GeoTagger: FC = () => {
           ImageDescription: exifDesc,
           GPSLatitude: exifLatitude,
           GPSLongitude: exifLongitude,
-          GPSLatitudeRef: (Number(exifLatitude) > 0) ? 'N' : 'S',
-          GPSLongitudeRef: (Number(exifLongitude) > 0) ? 'E' : 'W',
+          GPSLatitudeRef: Number(exifLatitude) > 0 ? 'N' : 'S',
+          GPSLongitudeRef: Number(exifLongitude) > 0 ? 'E' : 'W',
           optimize,
           imgWidth,
-          quality
+          quality,
         },
         {
           headers: DOWNLOAD_HEADERS,
-          responseType : 'blob'
+          responseType: 'blob',
         }
       );
       const urlCreator = window.URL || window.webkitURL;
@@ -154,8 +154,9 @@ const GeoTagger: FC = () => {
       setPreview(imageUrl);
     } catch (err) {
       console.error('Error during API call:', err);
-    } finally {}
-  }
+    } finally {
+    }
+  };
 
   const optimizeAndDL = async () => {
     if (!file) return;
@@ -168,26 +169,30 @@ const GeoTagger: FC = () => {
           ImageDescription: exifDesc,
           GPSLatitude: exifLatitude,
           GPSLongitude: exifLongitude,
-          GPSLatitudeRef: (Number(exifLatitude) > 0) ? 'N' : 'S',
-          GPSLongitudeRef: (Number(exifLongitude) > 0) ? 'E' : 'W',
+          GPSLatitudeRef: Number(exifLatitude) > 0 ? 'N' : 'S',
+          GPSLongitudeRef: Number(exifLongitude) > 0 ? 'E' : 'W',
           optimize,
           imgWidth,
-          quality
+          quality,
         },
         {
           headers: DOWNLOAD_HEADERS,
-          responseType : 'blob'
+          responseType: 'blob',
         }
       );
 
-      handleDownload(response.data, optimize ?
-        // if optimize is on, replace extension with webp
-        `${getFilename(file.name)}.webp`:
-        file.name);
+      handleDownload(
+        response.data,
+        optimize
+          ? // if optimize is on, replace extension with webp
+            `${getFilename(file.name)}.webp`
+          : file.name
+      );
     } catch (err) {
       console.error('Error during API call:', err);
-    } finally {}
-  }
+    } finally {
+    }
+  };
 
   const handleDrop = (event: DragEvent) => {
     event.preventDefault();
@@ -196,7 +201,7 @@ const GeoTagger: FC = () => {
     if (droppedFiles && droppedFiles.length > 0) {
       const newFiles = Array.from(droppedFiles);
       if (newFiles && newFiles[0] && isAccepted(newFiles[0].name)) {
-        memoizeFile(newFiles[0])
+        memoizeFile(newFiles[0]);
       }
     }
   };
@@ -206,48 +211,48 @@ const GeoTagger: FC = () => {
       const response = await axios.post(
         API_URL,
         {
-          file: file
+          file: file,
         },
         {
-          headers: FORM_DATA_HEADER  
+          headers: FORM_DATA_HEADER,
         }
       );
 
       const data = response.data;
       setEXIFName(data.DocumentName);
       setEXIFDesc(data.ImageDescription);
-      setEXIFLatitude(convertToDegrees(data.GPSLatitude))
-      setEXIFLongitude(convertToDegrees(data.GPSLongitude))
+      setEXIFLatitude(convertToDegrees(data.GPSLatitude));
+      setEXIFLongitude(convertToDegrees(data.GPSLongitude));
     } catch (err) {
       console.error('Error during API call:', err);
-
-    } finally {}
-  }
+    } finally {
+    }
+  };
 
   useEffect(() => {
     if (preview) URL.revokeObjectURL(preview);
     setPreview('');
     if (!file) {
       if (imgRef.current) imgRef.current.src = '';
-      
+
       return;
     }
     uploadFile(file);
-   
+
     // Encode the file using the FileReader API
     const reader = new FileReader();
     reader.onloadend = () => {
       const dataURI = reader.result as string;
       if (imgRef.current) imgRef.current.src = dataURI;
     };
-    reader.readAsDataURL(file as File);    
-  }, [file])
+    reader.readAsDataURL(file as File);
+  }, [file]);
 
   useEffect(() => {
     return () => {
       if (preview) URL.revokeObjectURL(preview);
-    }
-  }, [])
+    };
+  }, []);
 
   return (
     <div
@@ -263,12 +268,11 @@ const GeoTagger: FC = () => {
             'rounded-md border-dotted  cursor-pointer'
           )}
           onClick={() => {
-            fileSelectRef.current?.click()
+            fileSelectRef.current?.click();
           }}
           onDrop={handleDrop}
-          onDragOver={(event) => event.preventDefault()}
-        >
-          <FaUpload/>
+          onDragOver={event => event.preventDefault()}>
+          <FaUpload />
           Drop your JPG/PNG/WEBP file here or click to browse
         </Button>
         <input
@@ -299,7 +303,7 @@ const GeoTagger: FC = () => {
         </section>
         <section className="flex flex-col flex-1 items-center">
           <div className="flex flex-col items-center mt-3">
-            <label className="font-bold" >Geotags</label>
+            <label className="font-bold">Geotags</label>
             <label>Latitude</label>
             <input
               type="text"
@@ -318,63 +322,75 @@ const GeoTagger: FC = () => {
         </section>
       </div>
       <section>
-          <div className="my-2">
-            <input
-              className="m-1 cursor-pointer"
-              id="optimize"
-              type="checkbox"
-              checked={optimize}
-              onChange={e => setOptimize(e.target.checked)}
-            />
-            <label className="cursor-pointer" htmlFor="optimize">Optimize to WebP</label>
-          </div>
-          <div>
-            <label className="w-20 inline-block" >Width</label>
-            <select
-              disabled={!optimize}
-              value={imgWidth}
-              onChange={e => setImgWidth(Number(e.target.value))}
-              className={ !optimize ? 'cursor-not-allowed opacity-50 !w-75' : '!w-75' }
-            >
-              {IMAGE_WIDTHS.map(width => (
-                <option value={width} key={width}>
-                  {width}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div>
-          <label className="w-20 inline-block" >Quality</label>
-            <input
-              disabled={!optimize}
-              type="number"
-              value={quality}
-              step="5"
-              min="30"
-              max="100"
-              onChange={e => setQuality(Number(e.target.value))}
-              className={ !optimize ? 'cursor-not-allowed opacity-50' : '' }
-            />
-          </div>
-
-        </section>
+        <div className="my-2">
+          <input
+            className="m-1 cursor-pointer"
+            id="optimize"
+            type="checkbox"
+            checked={optimize}
+            onChange={e => setOptimize(e.target.checked)}
+          />
+          <label className="cursor-pointer" htmlFor="optimize">
+            Optimize to WebP
+          </label>
+        </div>
+        <div>
+          <label className="w-20 inline-block">Width</label>
+          <select
+            disabled={!optimize}
+            value={imgWidth}
+            onChange={e => setImgWidth(Number(e.target.value))}
+            className={!optimize ? 'cursor-not-allowed opacity-50 !w-75' : '!w-75'}>
+            {IMAGE_WIDTHS.map(width => (
+              <option value={width} key={width}>
+                {width}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label className="w-20 inline-block">Quality</label>
+          <input
+            disabled={!optimize}
+            type="number"
+            value={quality}
+            step="5"
+            min="30"
+            max="100"
+            onChange={e => setQuality(Number(e.target.value))}
+            className={!optimize ? 'cursor-not-allowed opacity-50' : ''}
+          />
+        </div>
+      </section>
       <section className="flex flex-row gap-3 m-3">
-        <Button disabled={!file} onClick={previewImg}>Preview</Button>
-        <Button disabled={!file} onClick={optimizeAndDL}>Optimize and Download</Button>
+        <Button disabled={!file} onClick={previewImg}>
+          Preview
+        </Button>
+        <Button disabled={!file} onClick={optimizeAndDL}>
+          Optimize and Download
+        </Button>
         <Button onClick={clearAll}>Clear All</Button>
       </section>
-      {file && <>
-        <label>Original Image</label>
-        <img ref={imgRef} className="maxw-full h-auto justify-self-center" alt="Preview of Original Image"/>
-      </>}
-      {preview && <>
-        <p>Optimized Image</p>
-        <img
-          className="maxw-full h-auto justify-self-center"
-          alt="Preview of Optimized Image"
-          src={preview}
-        />
-      </>}
+      {file && (
+        <>
+          <label>Original Image</label>
+          <img
+            ref={imgRef}
+            className="maxw-full h-auto justify-self-center"
+            alt="Preview of Original Image"
+          />
+        </>
+      )}
+      {preview && (
+        <>
+          <p>Optimized Image</p>
+          <img
+            className="maxw-full h-auto justify-self-center"
+            alt="Preview of Optimized Image"
+            src={preview}
+          />
+        </>
+      )}
     </div>
   );
 };

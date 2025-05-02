@@ -36,81 +36,91 @@ const App: FC = () => {
       <Routes>
         <Route element={<Layout />}>
           <Route path="/" element={<Home />} />
-          <Route path={TOOL_ROUTES.NEWS} element={
-            toolsAccess.includes(TOOLS.NEWS) ?
-            <NewsScraper /> :
-            <Unauthorized/>
-          } />
-          <Route path={TOOL_ROUTES.PAA} element={
-            toolsAccess.includes(TOOLS.PAA) ?
-            <PAAScraper /> :
-            <Unauthorized/>
-          } />
-          <Route path={TOOL_ROUTES.GMAP} element={
-            toolsAccess.includes(TOOLS.GMAP) ?
-            <GMAPScraper /> :
-            <Unauthorized/>
-          } />
-          <Route path={`${TOOL_ROUTES.GMAP}/:recordId`} element={
-            toolsAccess.includes(TOOLS.GMAP) ?
-            <GMAPScraper /> :
-            <Unauthorized/>
-          } />
+          <Route
+            path={TOOL_ROUTES.NEWS}
+            element={
+              toolsAccess.includes(TOOLS.NEWS) ? <NewsScraper /> : <Unauthorized />
+            }
+          />
+          <Route
+            path={TOOL_ROUTES.PAA}
+            element={toolsAccess.includes(TOOLS.PAA) ? <PAAScraper /> : <Unauthorized />}
+          />
+          <Route
+            path={TOOL_ROUTES.GMAP}
+            element={
+              toolsAccess.includes(TOOLS.GMAP) ? <GMAPScraper /> : <Unauthorized />
+            }
+          />
+          <Route
+            path={`${TOOL_ROUTES.GMAP}/:recordId`}
+            element={
+              toolsAccess.includes(TOOLS.GMAP) ? <GMAPScraper /> : <Unauthorized />
+            }
+          />
 
-          <Route path={TOOL_ROUTES.JEDI_INSIGHTS} element={
-            toolsAccess.includes(TOOLS.JEDI_INSIGHTS) ?
-            <JediInsights /> :
-            <Unauthorized/>
-          } />
-          <Route path={TOOL_ROUTES.SERP_RANK} element={
-            toolsAccess.includes(TOOLS.SERP_RANK) ?
-            <SERPRank /> :
-            <Unauthorized/>
-          } />
-          <Route path={TOOL_ROUTES.HUNTER} element={
-            toolsAccess.includes(TOOLS.HUNTER) ?
-            <Hunter /> :
-            <Unauthorized/>
-          } />          
-          <Route path={TOOL_ROUTES.HARVESTER} element={
-            toolsAccess.includes(TOOLS.HARVESTER) ?
-            <P1Harvester /> :
-            <Unauthorized/>
-          } />
-          <Route path={TOOL_ROUTES.GEO_TAGGER} element={<GeoTagger />} /> 
+          <Route
+            path={TOOL_ROUTES.JEDI_INSIGHTS}
+            element={
+              toolsAccess.includes(TOOLS.JEDI_INSIGHTS) ? (
+                <JediInsights />
+              ) : (
+                <Unauthorized />
+              )
+            }
+          />
+          <Route
+            path={TOOL_ROUTES.SERP_RANK}
+            element={
+              toolsAccess.includes(TOOLS.SERP_RANK) ? <SERPRank /> : <Unauthorized />
+            }
+          />
+          <Route
+            path={TOOL_ROUTES.HUNTER}
+            element={toolsAccess.includes(TOOLS.HUNTER) ? <Hunter /> : <Unauthorized />}
+          />
+          <Route
+            path={TOOL_ROUTES.HARVESTER}
+            element={
+              toolsAccess.includes(TOOLS.HARVESTER) ? <P1Harvester /> : <Unauthorized />
+            }
+          />
+          <Route path={TOOL_ROUTES.GEO_TAGGER} element={<GeoTagger />} />
 
-          <Route path={TOOL_ROUTES.CROSS_SITE_POSTING} element={
-            toolsAccess.includes(TOOLS.CROSS_SITE_POSTING) ?
-            <CrossSitePosting /> :
-            <Unauthorized/>
-          } />   
-          <Route path={TOOL_ROUTES.KOMPASS} element={
-            toolsAccess.includes(TOOLS.KOMPASS) ?
-            <Kompass /> :
-            <Unauthorized/>
-          } />
-          <Route path={TOOL_ROUTES.LOOM} element={
-            toolsAccess.includes(TOOLS.LOOM) ?
-            <Loom /> :
-            <Unauthorized/>
-          } />
+          <Route
+            path={TOOL_ROUTES.CROSS_SITE_POSTING}
+            element={
+              toolsAccess.includes(TOOLS.CROSS_SITE_POSTING) ? (
+                <CrossSitePosting />
+              ) : (
+                <Unauthorized />
+              )
+            }
+          />
+          <Route
+            path={TOOL_ROUTES.KOMPASS}
+            element={toolsAccess.includes(TOOLS.KOMPASS) ? <Kompass /> : <Unauthorized />}
+          />
+          <Route
+            path={TOOL_ROUTES.LOOM}
+            element={toolsAccess.includes(TOOLS.LOOM) ? <Loom /> : <Unauthorized />}
+          />
 
-          <Route path={TOOL_ROUTES.CHRONOS} element={
-            toolsAccess.includes(TOOLS.CHRONOS) ?
-            <Chronos /> :
-            <Unauthorized/>
-          } />
-          <Route path={TOOL_ROUTES.MONITORING} element={
-            toolsAccess.includes(TOOLS.MONITORING) ?
-            <Monitoring /> :
-            <Unauthorized/>
-          } />
+          <Route
+            path={TOOL_ROUTES.CHRONOS}
+            element={toolsAccess.includes(TOOLS.CHRONOS) ? <Chronos /> : <Unauthorized />}
+          />
+          <Route
+            path={TOOL_ROUTES.MONITORING}
+            element={
+              toolsAccess.includes(TOOLS.MONITORING) ? <Monitoring /> : <Unauthorized />
+            }
+          />
 
-          <Route path={TOOL_ROUTES.CHAT} element={
-            toolsAccess.includes(TOOLS.CHAT) ?
-            <Chat /> :
-            <Unauthorized/>
-          } />
+          <Route
+            path={TOOL_ROUTES.CHAT}
+            element={toolsAccess.includes(TOOLS.CHAT) ? <Chat /> : <Unauthorized />}
+          />
 
           <Route path={TOOL_ROUTES.TITLE_TWEAK} element={<TitleTweak />} />
           <Route path={TOOL_ROUTES.HTML_CLEANER} element={<HtmlCleaner />} />

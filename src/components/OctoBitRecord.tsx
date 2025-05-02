@@ -17,8 +17,10 @@ interface OctoBitsPanelProps extends HTMLAttributes<HTMLDivElement> {
 }
 
 export const OctoBitRecord = (octoBitsProps: OctoBitsPanelProps) => {
-  const isActive = useMemo(() => octoBitsProps.status.toUpperCase() === 'ACTIVE',
-  [octoBitsProps.status])
+  const isActive = useMemo(
+    () => octoBitsProps.status.toUpperCase() === 'ACTIVE',
+    [octoBitsProps.status]
+  );
 
   return (
     <div
@@ -55,10 +57,11 @@ export const OctoBitRecord = (octoBitsProps: OctoBitsPanelProps) => {
           <div className="font-bold">{octoBitsProps.requester}</div>
         </div>
 
-        <div className={clsx(
-          'font-bold items-center justify-center',
-          isActive ? 'block align-middle [&>div]:h-5 [&>div]:w-5' : 'flex'
-        )}>
+        <div
+          className={clsx(
+            'font-bold items-center justify-center',
+            isActive ? 'block align-middle [&>div]:h-5 [&>div]:w-5' : 'flex'
+          )}>
           {isActive ? <Loading /> : octoBitsProps.status}
         </div>
 
