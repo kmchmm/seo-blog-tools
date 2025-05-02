@@ -1,5 +1,4 @@
 import { ChangeEvent, DragEvent, FC, useEffect, useRef, useState } from 'react';
-import piexif from 'piexifjs';
 import axios from 'axios';
 import clsx from 'clsx';
 import { Button } from '../components/Button';
@@ -14,26 +13,7 @@ const API_URL = IS_DEV
 
 const ACCEPTED_FILES = '.jpg,.jpeg,.png,.webp';
 
-const convertToDMS = (totalValue:string, isLatitude: boolean) => {
-  const isNegative = parseInt(totalValue, 10) < 0;
-  const degValue = Math.abs(parseInt(totalValue, 10));
-  const minRemaining = (Math.abs(Number(totalValue)) - degValue) * 60;
-  const minValue = Math.trunc(minRemaining)
-  const secRemaining = (Number(minRemaining) - minValue) * 60;
-  let direction = 'N';
-  if (isLatitude && isNegative) {
-    direction = 'S'
-  } else if (!isLatitude && !isNegative) {
-    direction = 'E'
-  } else if (!isLatitude && isNegative) {
-    direction = 'W'
-  }
-  return (
-    `${degValue} deg ${minValue}' ${secRemaining}" ${direction}`
-  )
-}
-
-// convert deg-min-secs to purely degrees
+// convert deg-min-secs to purely degrees (from node-exiftool in api)
 const convertToDegrees = (rawCoords: string) => {
   if (rawCoords) {
     const coords = rawCoords.trim().toLowerCase();
@@ -78,28 +58,46 @@ const GeoTagger: FC = () => {
     }
   }
 
+  // needed to recreate file from blob
+  // to circumvent `ERR_UPLOAD_FILE_CHANGED`
+  // when resubmitting without changing file
+  const memoizeFile = (file: File) => {
+    // get blob
+    const reader = new FileReader();
+    reader.onload = () => {
+      const blob = new Blob(
+        [new Uint8Array(reader.result as ArrayBuffer)],
+        {type: file.type }
+      );
+      const myFile = new File([blob], file.name, {
+        type: blob.type,
+      });
+      setFile(myFile);
+    };
+    reader.readAsArrayBuffer(file);
+  }
+
   const handleFileSelect = (event: ChangeEvent<HTMLInputElement>) => {
     const target = event.target;
     if (!target.files || !target.files.length) return;
     if (!isAccepted(target.files[0].name)) return;
-    setFile(target.files[0]);
+    memoizeFile(target.files[0]);
   }
 
   const writeTags = async () => {
     if (!file) return;
 
     try {
-      const GPSLatitude = convertToDMS(exifLatitude, true);
-      const GPSLongitude = convertToDMS(exifLongitude, false);
-
       const response = await axios.post(
         `${API_URL}/write`,
         {
           file: file,
           DocumentName: exifName,
           ImageDescription: exifDesc,
-          GPSLatitude: GPSLatitude,
-          GPSLongitude: GPSLongitude,
+          GPSLatitude: exifLatitude,
+          GPSLongitude: exifLongitude,
+          GPSLatitudeRef: (Number(exifLatitude) > 0) ? 'N' : 'S',
+          GPSLongitudeRef: (Number(exifLongitude) > 0) ? 'E' : 'W',
         },
         {
           headers: {
@@ -113,6 +111,7 @@ const GeoTagger: FC = () => {
       const href = URL.createObjectURL(response.data);
 
       // create "a" HTML element with href to file & click
+      // trigger downloading
       const link = document.createElement('a');
       link.href = href;
       link.setAttribute('download', `${file.name}`); //or any other extension
@@ -124,7 +123,6 @@ const GeoTagger: FC = () => {
       URL.revokeObjectURL(href);
     } catch (err) {
       console.error('Error during API call:', err);
-
     } finally {}
   }
 
@@ -135,7 +133,7 @@ const GeoTagger: FC = () => {
     if (droppedFiles && droppedFiles.length > 0) {
       const newFiles = Array.from(droppedFiles);
       if (newFiles && newFiles[0] && isAccepted(newFiles[0].name)) {
-        setFile(newFiles[0]);
+        memoizeFile(newFiles[0])
       }
     }
   };
@@ -175,21 +173,8 @@ const GeoTagger: FC = () => {
     // Encode the file using the FileReader API
     const reader = new FileReader();
     reader.onloadend = () => {
-      // Logs data:<type>;base64,wL2dvYWwgbW9yZ...
       const dataURI = reader.result as string;
       if (imgRef.current) imgRef.current.src = dataURI;
-      
-      // const exifObj = piexif.load(dataURI);
-      // if (exifObj) {
-      //   setEXIFName(exifObj['0th'] && exifObj['0th'][269] ? exifObj['0th'][269] : '');
-      //   setEXIFDesc(exifObj['0th'] && exifObj['0th'][270] ? exifObj['0th'][270] : '');
-      //   const latitudeObj = exifObj['GPS'] && exifObj['GPS'][2];
-      //   const latitude = String(convertToDegrees(latitudeObj));
-      //   const longitudeObj = exifObj['GPS'] && exifObj['GPS'][4];
-      //   const longitude = String(convertToDegrees(longitudeObj));
-      //   setEXIFLatitude(latitude);
-      //   setEXIFLongitude(longitude);
-      // }
     };
     reader.readAsDataURL(file as File);    
   }, [file])
