@@ -13,6 +13,17 @@ const API_URL = IS_DEV
 
 const ACCEPTED_FILES = '.jpg,.jpeg,.png,.webp';
 
+const IMAGE_WIDTHS = [ 1920, 650, 420 ];
+
+const FORM_DATA_HEADER = {
+  'Content-Type': 'multipart/form-data'
+}        
+
+const DOWNLOAD_HEADERS = {
+  'Content-Type': 'multipart/form-data',
+  Accept : 'application/json,image/webp,image/png,image/jpg,image/jpg'
+}
+
 // convert deg-min-secs to purely degrees (from node-exiftool in api)
 const convertToDegrees = (rawCoords: string) => {
   if (rawCoords) {
@@ -33,17 +44,45 @@ const convertToDegrees = (rawCoords: string) => {
   return '';
 }
 
+const getFilename = (filename: string) => {
+  const filenameArray = filename.split('.');
+  // remove extension, pop since extension will always be last segment with .
+  filenameArray.pop();
+  return filenameArray.join('.');
+}
+
 const isAccepted = (filename: string) => {
   const extensionsArr = ACCEPTED_FILES.split(',');
   return extensionsArr.some(extension => filename.endsWith(extension))
 }
 
+const handleDownload = (blob: Blob, filename: string) => {
+  // handle Download
+  const href = URL.createObjectURL(blob);
+
+  // create "a" HTML element with href to file & click
+  // trigger downloading
+  const link = document.createElement('a');
+  link.href = href;
+  link.setAttribute('download', `${filename}`); //or any other extension
+  document.body.appendChild(link);
+  link.click();
+
+  // clean up "a" element & remove ObjectURL
+  document.body.removeChild(link);
+  URL.revokeObjectURL(href);
+}
+
 const GeoTagger: FC = () => {
-  const [exifName, setEXIFName ] = useState<string>('');
-  const [exifDesc, setEXIFDesc ] = useState<string>('');
-  const [exifLatitude, setEXIFLatitude ] = useState<string>('');
-  const [exifLongitude, setEXIFLongitude ] = useState<string>('');
-  const [file, setFile] = useState<File>();
+  const [ exifName, setEXIFName ] = useState<string>('');
+  const [ exifDesc, setEXIFDesc ] = useState<string>('');
+  const [ exifLatitude, setEXIFLatitude ] = useState<string>('');
+  const [ exifLongitude, setEXIFLongitude ] = useState<string>('');
+  const [ file, setFile ] = useState<File>();
+  const [ optimize, setOptimize ] = useState<boolean>(false);
+  const [ imgWidth, setImgWidth ] = useState<number>(1920);
+  const [ quality, setQuality ] = useState<number>(80);
+  const [ preview, setPreview ] = useState<string>('');
   const fileSelectRef = useRef<HTMLInputElement>(null);
   const imgRef = useRef<HTMLImageElement>(null);
 
@@ -53,6 +92,8 @@ const GeoTagger: FC = () => {
     setEXIFLatitude('');
     setEXIFLongitude('');
     setFile(undefined);
+    if (preview) URL.revokeObjectURL(preview);
+    setPreview('');
     if (fileSelectRef.current) {
       fileSelectRef.current.value = '';
     }
@@ -84,43 +125,65 @@ const GeoTagger: FC = () => {
     memoizeFile(target.files[0]);
   }
 
-  const writeTags = async () => {
+  const previewImg = async () => {
     if (!file) return;
-
     try {
       const response = await axios.post(
         `${API_URL}/write`,
         {
-          file: file,
+          file,
           DocumentName: exifName,
           ImageDescription: exifDesc,
           GPSLatitude: exifLatitude,
           GPSLongitude: exifLongitude,
           GPSLatitudeRef: (Number(exifLatitude) > 0) ? 'N' : 'S',
           GPSLongitudeRef: (Number(exifLongitude) > 0) ? 'E' : 'W',
+          optimize,
+          imgWidth,
+          quality
         },
         {
-          headers: {
-            'Content-Type': 'multipart/form-data',
-            Accept : 'application/json,image/webp,image/png,image/jpg,image/jpg'
-          },
+          headers: DOWNLOAD_HEADERS,
+          responseType : 'blob'
+        }
+      );
+      const urlCreator = window.URL || window.webkitURL;
+      const imageUrl = urlCreator.createObjectURL(response.data);
+      // always call revokeObjectURL to previous preview url
+      URL.revokeObjectURL(preview);
+      setPreview(imageUrl);
+    } catch (err) {
+      console.error('Error during API call:', err);
+    } finally {}
+  }
+
+  const optimizeAndDL = async () => {
+    if (!file) return;
+    try {
+      const response = await axios.post(
+        `${API_URL}/write`,
+        {
+          file,
+          DocumentName: exifName,
+          ImageDescription: exifDesc,
+          GPSLatitude: exifLatitude,
+          GPSLongitude: exifLongitude,
+          GPSLatitudeRef: (Number(exifLatitude) > 0) ? 'N' : 'S',
+          GPSLongitudeRef: (Number(exifLongitude) > 0) ? 'E' : 'W',
+          optimize,
+          imgWidth,
+          quality
+        },
+        {
+          headers: DOWNLOAD_HEADERS,
           responseType : 'blob'
         }
       );
 
-      const href = URL.createObjectURL(response.data);
-
-      // create "a" HTML element with href to file & click
-      // trigger downloading
-      const link = document.createElement('a');
-      link.href = href;
-      link.setAttribute('download', `${file.name}`); //or any other extension
-      document.body.appendChild(link);
-      link.click();
-  
-      // clean up "a" element & remove ObjectURL
-      document.body.removeChild(link);
-      URL.revokeObjectURL(href);
+      handleDownload(response.data, optimize ?
+        // if optimize is on, replace extension with webp
+        `${getFilename(file.name)}.webp`:
+        file.name);
     } catch (err) {
       console.error('Error during API call:', err);
     } finally {}
@@ -146,9 +209,7 @@ const GeoTagger: FC = () => {
           file: file
         },
         {
-          headers: {
-            'Content-Type': 'multipart/form-data'
-          }          
+          headers: FORM_DATA_HEADER  
         }
       );
 
@@ -164,8 +225,11 @@ const GeoTagger: FC = () => {
   }
 
   useEffect(() => {
+    if (preview) URL.revokeObjectURL(preview);
+    setPreview('');
     if (!file) {
       if (imgRef.current) imgRef.current.src = '';
+      
       return;
     }
     uploadFile(file);
@@ -179,6 +243,12 @@ const GeoTagger: FC = () => {
     reader.readAsDataURL(file as File);    
   }, [file])
 
+  useEffect(() => {
+    return () => {
+      if (preview) URL.revokeObjectURL(preview);
+    }
+  }, [])
+
   return (
     <div
       className={clsx(
@@ -186,8 +256,32 @@ const GeoTagger: FC = () => {
         'bg-white-100 dark:bg-blue-600'
       )}>
       <h1 className="text-black-100 dark:text-white-100 text-5xl">AK Geo Tagger</h1>
-      <div className='flex w-full mt-8 flex-1'>
-        <section className='flex flex-col flex-1 items-center'>
+      <section className="w-1/2 mt-8">
+        <Button
+          className={clsx(
+            'flex flex-col items-center justify-center h-15 w-full',
+            'rounded-md border-dotted  cursor-pointer'
+          )}
+          onClick={() => {
+            fileSelectRef.current?.click()
+          }}
+          onDrop={handleDrop}
+          onDragOver={(event) => event.preventDefault()}
+        >
+          <FaUpload/>
+          Drop your JPG/PNG/WEBP file here or click to browse
+        </Button>
+        <input
+          type="file"
+          onChange={handleFileSelect}
+          accept={ACCEPTED_FILES}
+          ref={fileSelectRef}
+          hidden
+        />
+        <label className="block text-center p-2">{file && file.name}</label>
+      </section>
+      <div className="flex w-full flex-1">
+        <section className="flex flex-col flex-1 items-center self-end">
           <label>EXIF Document Name</label>
           <input
             type="text"
@@ -202,8 +296,10 @@ const GeoTagger: FC = () => {
             onChange={e => setEXIFDesc(e.target.value)}
             placeholder="Description/Alternative Text"
           />
-          <div className='flex flex-col items-center mt-3'>
-            <label className='font-bold' >Geotags</label>
+        </section>
+        <section className="flex flex-col flex-1 items-center">
+          <div className="flex flex-col items-center mt-3">
+            <label className="font-bold" >Geotags</label>
             <label>Latitude</label>
             <input
               type="text"
@@ -220,36 +316,65 @@ const GeoTagger: FC = () => {
             />
           </div>
         </section>
-        <section className='w-1/2'>
-          <Button
-            className={clsx(
-              'flex flex-col items-center justify-center h-15 w-full',
-              'rounded-md border-dotted  cursor-pointer'
-            )}
-            onClick={() => {
-              fileSelectRef.current?.click()
-            }}
-            onDrop={handleDrop}
-            onDragOver={(event) => event.preventDefault()}
-          >
-            <FaUpload/>
-            Drop your JPG/PNG/WEBP file here or click to browse
-          </Button>
-          <input
-            type="file"
-            onChange={handleFileSelect}
-            accept={ACCEPTED_FILES}
-            ref={fileSelectRef}
-            hidden
-          />
-          <label className='block text-center p-2'>{file && file.name}</label>
-          <img ref={imgRef} className='h-78 justify-self-center'/>
-        </section>
       </div>
-      <section className='flex flex-row gap-3 m-3'>
-        <Button onClick={writeTags}>Write EXIF and Download</Button>
+      <section>
+          <div className="my-2">
+            <input
+              className="m-1 cursor-pointer"
+              id="optimize"
+              type="checkbox"
+              checked={optimize}
+              onChange={e => setOptimize(e.target.checked)}
+            />
+            <label className="cursor-pointer" htmlFor="optimize">Optimize to WebP</label>
+          </div>
+          <div>
+            <label className="w-20 inline-block" >Width</label>
+            <select
+              disabled={!optimize}
+              value={imgWidth}
+              onChange={e => setImgWidth(Number(e.target.value))}
+              className={ !optimize ? 'cursor-not-allowed opacity-50 !w-75' : '!w-75' }
+            >
+              {IMAGE_WIDTHS.map(width => (
+                <option value={width} key={width}>
+                  {width}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+          <label className="w-20 inline-block" >Quality</label>
+            <input
+              disabled={!optimize}
+              type="number"
+              value={quality}
+              step="5"
+              min="30"
+              max="100"
+              onChange={e => setQuality(Number(e.target.value))}
+              className={ !optimize ? 'cursor-not-allowed opacity-50' : '' }
+            />
+          </div>
+
+        </section>
+      <section className="flex flex-row gap-3 m-3">
+        <Button disabled={!file} onClick={previewImg}>Preview</Button>
+        <Button disabled={!file} onClick={optimizeAndDL}>Optimize and Download</Button>
         <Button onClick={clearAll}>Clear All</Button>
       </section>
+      {file && <>
+        <label>Original Image</label>
+        <img ref={imgRef} className="maxw-full h-auto justify-self-center" alt="Preview of Original Image"/>
+      </>}
+      {preview && <>
+        <p>Optimized Image</p>
+        <img
+          className="maxw-full h-auto justify-self-center"
+          alt="Preview of Optimized Image"
+          src={preview}
+        />
+      </>}
     </div>
   );
 };
