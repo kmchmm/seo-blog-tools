@@ -23,10 +23,11 @@ const Unauthorized: FC = () => {
           </Link>
         </Button>
         <Button>
-          {(userData.id === 0) ?
-            <Link to="/login">Sign back in</Link> :
+          {userData.id === 0 ? (
+            <Link to="/login">Sign back in</Link>
+          ) : (
             <Link to="/logout">Sign out</Link>
-        }
+          )}
         </Button>
       </div>
     </div>

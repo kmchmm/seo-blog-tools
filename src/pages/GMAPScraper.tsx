@@ -118,12 +118,14 @@ const handleExportCSV = () => {
   const table = document.getElementById('mapResults') as HTMLTableElement;
   if (!table) return;
 
-  let tableData = "";
+  let tableData = '';
   for (let i = 0; i < table.rows.length; i++) {
     for (let j = 0; j < table.rows[i].cells.length; j++) {
-      tableData += table.rows[i].cells[j].innerText + (j < table.rows[i].cells.length - 1 ? ',' : '');
+      tableData +=
+        table.rows[i].cells[j].innerText +
+        (j < table.rows[i].cells.length - 1 ? ',' : '');
     }
-    tableData += "\n";
+    tableData += '\n';
   }
   const blob = new Blob([tableData], { type: 'text/csv' });
   const url = URL.createObjectURL(blob);
@@ -285,7 +287,7 @@ const GMAPScraper: FC = () => {
   useEffect(() => {
     // globally disable auto cancellation
     pb.autoCancellation(false);
-    // subscribe to SSE from pocketbase, 
+    // subscribe to SSE from pocketbase,
     pb.realtime.subscribe(AK_OCTOBITS_COLLECTION, async e => {
       console.log(e);
       if (e.record.tool !== GMAPS_TOOL) return;
@@ -399,13 +401,11 @@ const GMAPScraper: FC = () => {
               onClick={() => {
                 navigate(`${TOOL_ROUTES.GMAP}`);
                 setError('');
-                setMode(IGMap.COLLECTION)
+                setMode(IGMap.COLLECTION);
               }}>
               <BackArrow />
             </button>
-            <Button
-              onClick={handleExportCSV}
-              disabled={loading}>
+            <Button onClick={handleExportCSV} disabled={loading}>
               Export as CSV
             </Button>
           </div>

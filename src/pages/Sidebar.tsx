@@ -79,16 +79,16 @@ const Sidebar: FC = () => {
   const trapTabFocus = useCallback((event: KeyboardEvent) => {
     if (event.key === 'Tab') {
       const focusableEls = (sidebarRef.current as HTMLDivElement).querySelectorAll('a');
-      
-      const firstFocusableEl = focusableEls[0];  
+
+      const firstFocusableEl = focusableEls[0];
       const lastFocusableEl = focusableEls[focusableEls.length - 1];
 
-      if ( event.shiftKey ) /* shift + tab */ {
-        if (document.activeElement === firstFocusableEl) {
+      if (event.shiftKey) {
+        /* shift + tab */ if (document.activeElement === firstFocusableEl) {
           lastFocusableEl.focus();
           event.preventDefault();
         }
-      } else /* tab */ {
+      } /* tab */ else {
         if (document.activeElement === lastFocusableEl) {
           firstFocusableEl.focus();
           event.preventDefault();
@@ -99,7 +99,7 @@ const Sidebar: FC = () => {
     if (event.key === 'Escape') {
       setIsSidebarOpen(false);
     }
-  }, [])
+  }, []);
 
   useEffect(() => {
     if (isSidebarOpen) {
@@ -110,8 +110,8 @@ const Sidebar: FC = () => {
 
     () => {
       document.removeEventListener('keydown', trapTabFocus);
-    }
-  }, [isSidebarOpen, trapTabFocus])
+    };
+  }, [isSidebarOpen, trapTabFocus]);
 
   useEffect(() => {
     if (isSidebarOpen) {
@@ -119,7 +119,7 @@ const Sidebar: FC = () => {
     } else {
       document.body.style.overflow = '';
     }
-  }, [isSidebarOpen])
+  }, [isSidebarOpen]);
 
   useEffect(() => {
     // Add event listener for click outside the sidebar
@@ -242,7 +242,9 @@ const Sidebar: FC = () => {
             <ul className="p-2">
               {toolsAccess.includes(TOOLS.CROSS_SITE_POSTING) && (
                 <RaketMenuItem>
-                  <Link tabIndex={isSidebarOpen ? 0 : -1} to={TOOL_ROUTES.CROSS_SITE_POSTING}>
+                  <Link
+                    tabIndex={isSidebarOpen ? 0 : -1}
+                    to={TOOL_ROUTES.CROSS_SITE_POSTING}>
                     <CrossSite />
                     <span>CrossSite Poster</span>
                   </Link>
