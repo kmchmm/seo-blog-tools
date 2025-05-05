@@ -155,6 +155,7 @@ const GeoTagger: FC = () => {
       URL.revokeObjectURL(preview);
       setPreview(imageUrl);
     } catch (err) {
+      showToast('Preview failed...');
       console.error('Error during API call:', err);
     } finally {
     }
@@ -191,6 +192,7 @@ const GeoTagger: FC = () => {
           : file.name
       );
     } catch (err) {
+      showToast('Geotagging/image optimization failed...');
       console.error('Error during API call:', err);
     } finally {
     }
@@ -225,8 +227,9 @@ const GeoTagger: FC = () => {
       setEXIFDesc(data.ImageDescription);
       setEXIFLatitude(convertToDegrees(data.GPSLatitude));
       setEXIFLongitude(convertToDegrees(data.GPSLongitude));
-      showToast(data.message)
+      showToast(data.message);
     } catch (err) {
+      showToast('Metadata extraction failed...');
       console.error('Error during API call:', err);
     } finally {
     }

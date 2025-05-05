@@ -11,7 +11,7 @@ createRoot(document.getElementById('root')!).render(
     <DarkModeProvider>
       <UserProvider>
         <ToastProvider>
-        <App />
+          <App />
         </ToastProvider>
       </UserProvider>
     </DarkModeProvider>
