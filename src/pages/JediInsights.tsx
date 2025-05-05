@@ -124,7 +124,7 @@ const JediInsights: FC = () => {
     setLoading(true);
     setTimeout(() => {
       const filtered = insights.filter(item =>
-        item[searchField]?.toLowerCase().includes(query.toLowerCase())
+        item[searchField as keyof Insight]?.toLowerCase().includes(query.toLowerCase())
       );
       setFilteredInsights(filtered);
       setCurrentPage(1);
@@ -136,7 +136,7 @@ const JediInsights: FC = () => {
     try {
       const response = await axios.get('http://localhost:8011/insights');
       const reversed = response.data.reverse();
-      const nonArchived = reversed.filter(item => item.status !== 'archived');
+      const nonArchived = reversed.filter((item: Insight) => item.status !== 'archived');
       setInsights(nonArchived);
       setFilteredInsights(nonArchived);
     } catch (err) {

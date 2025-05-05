@@ -10,6 +10,7 @@ import { Loading } from '../components/Loading';
 import { OctoBitRecord } from '../components/OctoBitRecord';
 import { MapRecord } from '../components/MapRecord';
 import { UserContext } from '../context/UserContext';
+import { ToastContext } from '../context/ToastContext';
 import BackArrow from '../assets/icons/back.svg?react';
 
 const isDev = import.meta.env.MODE === 'development';
@@ -149,6 +150,7 @@ const GMAPScraper: FC = () => {
   const fetchWorkerId = useRef<string>('');
   const currentResults = useRef<modifiedScrapeData[]>([]);
   const { userData } = use(UserContext);
+  const { showToast } = use(ToastContext);
   const navigate = useNavigate();
 
   // function handler for listening to new map results
@@ -219,6 +221,7 @@ const GMAPScraper: FC = () => {
         fetchWorkerId.current = data.worker_id;
         pb.realtime.unsubscribe(GMAPS_REQUESTS_COLLECTION);
         pb.realtime.subscribe(GMAPS_REQUESTS_COLLECTION, receiveResults);
+        showToast(data.message);
       } catch (err) {
         console.error('Error during API call:', err);
         setError('An error occurred while fetching results.');

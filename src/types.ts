@@ -1,3 +1,5 @@
+import { ReactNode } from 'react';
+
 export enum IBtnType {
   PRIMARY = 'primary',
   PAGINATION = 'pagination',
@@ -74,4 +76,8 @@ export interface modifiedScrapeData extends scrapeData {
 export interface MapRecordProps extends modifiedScrapeData {
   loading: boolean;
   deleteGMapRequest: Function;
+}
+
+export interface hasChildren {
+  children: ReactNode;
 }

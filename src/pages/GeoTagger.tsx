@@ -1,6 +1,7 @@
-import { ChangeEvent, DragEvent, FC, useEffect, useRef, useState } from 'react';
+import { ChangeEvent, DragEvent, FC, use, useEffect, useRef, useState } from 'react';
 import axios from 'axios';
 import clsx from 'clsx';
+import { ToastContext } from '../context/ToastContext';
 import { Button } from '../components/Button';
 
 import { FaUpload } from 'react-icons/fa';
@@ -86,6 +87,7 @@ const GeoTagger: FC = () => {
   const [preview, setPreview] = useState<string>('');
   const fileSelectRef = useRef<HTMLInputElement>(null);
   const imgRef = useRef<HTMLImageElement>(null);
+  const { showToast } = use(ToastContext);
 
   const clearAll = () => {
     setEXIFName('');
@@ -153,6 +155,7 @@ const GeoTagger: FC = () => {
       URL.revokeObjectURL(preview);
       setPreview(imageUrl);
     } catch (err) {
+      showToast('Preview failed...');
       console.error('Error during API call:', err);
     } finally {
     }
@@ -189,6 +192,7 @@ const GeoTagger: FC = () => {
           : file.name
       );
     } catch (err) {
+      showToast('Geotagging/image optimization failed...');
       console.error('Error during API call:', err);
     } finally {
     }
@@ -223,7 +227,9 @@ const GeoTagger: FC = () => {
       setEXIFDesc(data.ImageDescription);
       setEXIFLatitude(convertToDegrees(data.GPSLatitude));
       setEXIFLongitude(convertToDegrees(data.GPSLongitude));
+      showToast(data.message);
     } catch (err) {
+      showToast('Metadata extraction failed...');
       console.error('Error during API call:', err);
     } finally {
     }
