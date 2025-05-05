@@ -127,13 +127,19 @@ const SERPRank: FC = () => {
               {records.map(record => (
                 <tr key={record.id}>
                   <td className="border border-amber-200">{record.keyword}</td>
-                  <td className="border border-amber-200">{record.link || '---'}</td>
-                  <td className="border border-amber-200 !text-center">
-                    {record.moz_score ?? '---'}
+
+                  <td className="border border-amber-200">
+                    {(() => {
+                      try {
+                        const parsed = JSON.parse(record.link || '[]'); // safely parse
+                        return parsed[0]?.link || '---'; // get first link from data array
+                      } catch {
+                        return '---'; // fallback
+                      }
+                    })()}
                   </td>
-                  <td className="border border-amber-200 !text-center">
-                    {record.ak_score ?? '---'}
-                  </td>
+                  <td className="border border-amber-200 !text-center">{record.moz_score ?? '---'}</td>
+                  <td className="border border-amber-200 !text-center">{record.ak_score ?? '---'}</td>
                   <td className="border border-amber-200">{record.requested_by}</td>
                   <td className="border border-amber-200 !text-center">
                     <div className="relative group inline-block">
