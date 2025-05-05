@@ -1,10 +1,12 @@
-import { FC, useEffect, useState } from 'react';
+import React, { FC, useEffect, useState, useContext } from 'react';
 import axios from 'axios';
 import { IBtnType } from '../types';
 import { Button } from '../components/Button';
 import { Loading } from '../components/Loading';
 import { Modal } from '../components/Modal';
 import clsx from 'clsx';
+import { UserContext } from '../context/UserContext';
+
 
 import StackedLine from '../assets/icons/stacked-line.svg?react';
 import RefreshScore from '../assets/icons/refresh-score.svg?react';
@@ -40,7 +42,7 @@ function tryParseJson<T>(str: string): T | null {
 const JediInsights: FC = () => {
   const [url, setUrl] = useState('');
   const [keywords, setKeywords] = useState('');
-  const [fullname, setFullname] = useState('John Doe');
+  const [fullname, setFullname] = useState('');
   const [insights, setInsights] = useState<Insight[]>([]);
   const [filteredInsights, setFilteredInsights] = useState<Insight[]>([]);
   const [loading, setLoading] = useState(false);
@@ -50,32 +52,69 @@ const JediInsights: FC = () => {
   const [searchField, setSearchField] = useState('url');
   const [archivingId, setArchivingId] = useState<string | null>(null);
 
+  const [refreshingId, setRefreshingId] = useState<string | null>(null);
+  const { userData } = useContext(UserContext);
+  const [responseMsg, setResponseMsg] = useState('');
+  const [id, setId] = useState('');
+  const [urlError, setUrlError] = useState<string | null>(null); 
+  const [keywordsError, setKeywordsError] = useState<string | null>(null);
+
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [itemsPerPage] = useState<number>(6);
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedInsight, setSelectedInsight] = useState<Insight | null>(null);
 
-  const handleAnalyze = async () => {
-    if (!url || !keywords) {
-      alert('Please enter both URL and keywords');
-      return;
+  
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    // Reset previous errors
+    setUrlError(null);
+    setKeywordsError(null);
+
+    let formIsValid = true;
+
+    if (!url.trim()) {
+      setUrlError('URL is required.');
+      formIsValid = false;
+    }
+
+
+    if (!keywords.trim()) {
+      setKeywordsError('Keywords are required.');
+      formIsValid = false;
+    }
+
+    if (!formIsValid) {
+      return; // Don't submit if the form is invalid
     }
 
     setLoading(true);
-    setError('');
+
     try {
-      const response = await axios.post('http://localhost:8011/', {
-        url,
-        keywords,
-        fullname,
+      const response = await fetch('http://localhost:8011/', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          url,
+          keywords,
+          fullname: userData.full_name,
+        }),
       });
 
-      alert(response.data.message);
+
+      const result = await response.json();
+      console.log(result.message);
+
+      // Refresh the insights list
       await fetchInsights();
-    } catch (err) {
-      console.error(err);
-      setError('Something went wrong. Please try again.');
+      setUrl(''); // Optionally clear inputs
+      setKeywords('');
+    } catch (error) {
+      console.error('Submission error:', error);
     } finally {
       setLoading(false);
     }
@@ -132,7 +171,7 @@ const JediInsights: FC = () => {
     setArchivingId(id);
     try {
       await axios.patch(`http://localhost:8011/archive/${id}`);
-      await fetchInsights(); // refresh the list to reflect the change
+      await fetchInsights(); 
     } catch (error) {
       console.error('Error archiving insight:', error);
     } finally {
@@ -140,39 +179,87 @@ const JediInsights: FC = () => {
     }
   };
 
+
+  useEffect(() => {
+    const hasPending = insights.some(
+      insight => insight.moz_status === 'pending' || insight.wincher_status === 'pending'
+    );
+  
+    if (!hasPending) return;
+  
+    const interval = setInterval(async () => {
+      try {
+        const response = await axios.get('http://localhost:8011/insights');
+        const reversed = response.data.reverse();
+        const nonArchived = reversed.filter(item => item.status !== 'archived');
+        setInsights(nonArchived);
+        setFilteredInsights(nonArchived);
+  
+        const stillPending = nonArchived.some(
+          item => item.moz_status === 'pending' || item.wincher_status === 'pending'
+        );
+  
+        if (!stillPending) clearInterval(interval); 
+      } catch (err) {
+        console.error('Polling error:', err);
+        clearInterval(interval);
+      }
+    }, 5000);
+  
+    return () => clearInterval(interval);
+  }, [insights]);
+  
+  
+  
   return (
     <div
       className={clsx('flex flex-col w-full pt-4 px-3', 'bg-white-100 dark:bg-blue-600')}>
       <h1 className="text-black-100 dark:text-white-100 text-5xl">AK Jedi Insights</h1>
       <h6 className="italic">Combined On-Page SEO Checker from Wincher and MOZ</h6>
-
+ 
       <div className="flex justify-center items-center w-full gap-4 flex-row mt-4">
-        <div className="flex items-center justify-center w-1/2 gap-4">
-          <input
-            className="!border-gray-500 border p-2 rounded"
-            type="text"
-            value={url}
-            onChange={e => setUrl(e.target.value)}
-            placeholder="http://example.org"
-          />
-          <input
-            className="!border-gray-500 border p-2 rounded"
-            type="text"
-            value={keywords}
-            onChange={e => setKeywords(e.target.value)}
-            placeholder="Enter keywords"
-          />
-          <Button
-            btnType={IBtnType.SEARCH}
-            onClick={handleAnalyze}
-            disabled={loading}
-            className="!bg-black-200 !text-white hover:!bg-black dark:!bg-transparent dark:hover:!bg-yellow-100 dark:hover:!text-black-100">
-            {'Analyze'}
-          </Button>
+
+        <div className="flex items-center justify-center relative ">
+          <form onSubmit={handleSubmit} className="flex items-center w-full gap-4">
+            <div className="relative w-full">
+              <input
+                type="text"
+                value={url}
+                onChange={(e) => setUrl(e.target.value)}
+                placeholder="http://example.org"
+                className="!border-gray-500 border p-2 rounded w-full"
+              />
+              {urlError && (
+                <p className="text-red-500 text-sm absolute left-0 right-0 bottom-[-20px]">{urlError}</p> // Display error below the URL input
+              )}
+            </div>
+
+            <div className="relative w-full">
+              <input
+                className="!border-gray-500 border p-2 rounded w-full"
+                type="text"
+                value={keywords}
+                onChange={(e) => setKeywords(e.target.value)}
+                placeholder="Enter keywords"
+              />
+              {keywordsError && (
+                <p className="text-red-500 text-sm absolute left-0 right-0 bottom-[-20px]">{keywordsError}</p> // Display error below the Keywords input
+              )}
+            </div>
+
+            <Button
+              type="submit"
+              onClick={handleSubmit}
+              className="!bg-black-200 !text-white hover:!bg-black dark:!bg-transparent dark:hover:!bg-yellow-100 hover:text-white-100 dark:hover:!text-black-200 hover:!shadow-none !py-3 !px-5"
+            >
+              {loading ? 'Analyzing...' : 'Analyze'}
+            </Button>
+          </form>
         </div>
       </div>
 
-      <div className="flex justify-between mt-4">
+
+      <div className="flex justify-between mt-7">
         <div className="flex items-center w-1/2 gap-4">
           <input
             type="text"
@@ -280,22 +367,26 @@ const JediInsights: FC = () => {
                     {item.keywords}
                   </td>
                   <td className="border border-gray-500 dark:border-amber-200 !text-center font-extrabold text-2xl">
-                    {item.moz_status === 'pending'
-                      ? 'Pending'
-                      : moz?.page_score
-                        ? `${moz.page_score}`
-                        : '---'}
+                    {item.moz_status === 'pending' ? (
+                      <span className="!text-sm !opacity-50">{'Pending...'}</span> 
+                    ) : moz?.page_score ? (
+                      `${moz.page_score}`
+                    ) : (
+                      '---'
+                    )}
                   </td>
                   <td className="border border-gray-500 dark:border-amber-200 !text-center font-extrabold text-2xl">
-                    {item.wincher_status === 'pending'
-                      ? 'Pending'
-                      : wincher?.page_score
-                        ? `${wincher.page_score}`
-                        : '---'}
-                  </td>
-                  <td className="border border-gray-500 dark:border-amber-200">
-                    {item.requested_by}
-                  </td>
+
+                    {item.wincher_status === 'pending' ? (
+                      <span className="!text-sm !opacity-50">{'Pending...'}</span> 
+                    ) : wincher?.page_score ? (
+                      `${wincher.page_score}`
+                    ) : (
+                      '---'
+                    )}
+                </td>
+
+                  <td className="border border-gray-500 dark:border-amber-200">{item.requested_by}</td>
                   <td className="border border-gray-500 dark:border-amber-200 text-center flex justify-center">
                     <div className="relative group inline-block">
                       <Button
@@ -311,25 +402,41 @@ const JediInsights: FC = () => {
                     <div className="relative group inline-block">
                       <Button
                         onClick={async () => {
+                          setRefreshingId(item.id); 
                           try {
                             const response = await axios.post('http://localhost:8012/', {
                               id: item.id,
-                              fullname,
+                              fullname: userData?.full_name || 'Unknown',
+                              url: item.url,
+                              keywords: item.keywords,
                             });
-                            alert(response.data.message);
-                            await fetchInsights(); // Refresh data after re-run
+
+                            // alert(response.data.message);
+
+                            await fetchInsights();
                           } catch (err) {
-                            alert('Failed to refresh score');
                             console.error(err);
+                            // alert('Failed to refresh score');
+                          } finally {
+                            setRefreshingId(null); 
                           }
                         }}
-                        className="p-2 !bg-transparent border !border-transparent hover:!border-black-200 dark:hover:!border-yellow-100 rounded cursor-pointer hover:!bg-transparent hover:shadow-none">
-                        <RefreshScore className="w-6 h-6 text-black-200 dark:text-white" />
+
+                        disabled={refreshingId === item.id} // Disable the button while refreshing
+                        className="p-2 !bg-transparent border !border-transparent hover:!border-black-200 dark:hover:!border-yellow-100 rounded cursor-pointer hover:!bg-transparent hover:shadow-none"
+                      >
+                        {refreshingId === item.id ? (
+                          <span className="text-xs text-gray-600 dark:text-gray-300">Refreshing...</span> 
+                        ) : (
+                          <RefreshScore className="w-6 h-6 text-black-200 dark:text-white" />
+                        )}
                       </Button>
+                      
                       <span className="absolute top-full mt-2 left-1/2 -translate-x-1/2 whitespace-nowrap rounded bg-gray-800 px-2 py-1 text-xs text-white opacity-0 group-hover:opacity-100 transition">
                         Refresh Score
                       </span>
                     </div>
+
 
                     <div className="relative group inline-block">
                       <Button
