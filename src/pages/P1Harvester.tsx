@@ -1,5 +1,7 @@
-import { FC, use, useEffect, useState } from 'react';
+import { FC, KeyboardEvent, use, useCallback, useEffect, useState } from 'react';
+import axios from 'axios';
 import clsx from 'clsx';
+
 import pb from '../utils/pocketbaseInit.js';
 import { Button } from '../components/Button';
 import { Loading } from '../components/Loading';
@@ -8,6 +10,7 @@ import { ToastContext } from '../context/ToastContext';
 import Download from '../assets/icons/download.svg?react';
 
 const AK_SERPER_COLLECTION = 'ak_serper';
+const AK_OCTOBITS_COLLECTION = 'ak_octobits';
 
 interface resultData {
   title: string;
@@ -31,6 +34,12 @@ interface harvesterRecord {
   updated: string;
 }
 
+const isDev = import.meta.env.MODE === 'development';
+
+const apiUrl = isDev
+  ? import.meta.env.VITE_LOCAL_P1_HARVESTER_API_URL
+  : import.meta.env.VITE_PROD_P1_HARVESTER_API_URL;
+
 const customLoadingStyle = '[&>div]:h-5 [&>div]:w-5 [&>div]:mt-[2px]'
 
 const formatDate = (dateString: string) => {
@@ -48,45 +57,85 @@ const formatDate = (dateString: string) => {
   return new Date(dateString).toLocaleDateString('en-CA');
 }
 
+// automatically remove request from list
+const deleteFromCollection = (collection: harvesterRecord[], recordId: string) => {
+  const newCollection = [...collection];
+  const indexOfDeleted = newCollection.findIndex(octoBit => {
+    return octoBit.id === recordId;
+  });
+  newCollection.splice(indexOfDeleted, 1);
+  return newCollection;
+};
+
 const P1Harvester: FC = () => {
   const [harvesterResults, setHarvesterResults] = useState<harvesterRecord[]>([]);
   const [keywords, setKeywords] = useState<string>('');
-  const [loading, setLoading] = useState<boolean>(true);
+  const [loading, setLoading] = useState<boolean>(false);
+  const [error, setError] = useState<string>('');
   const { userData } = use(UserContext);
   const { showToast } = use(ToastContext);  
 
+  const p1Harvest = useCallback(
+    async (keywords: string) => {
+      setLoading(true);
+      setError('');
+
+      try {
+        const response = await axios.post(
+          apiUrl,
+          {
+            keyword: keywords,
+            requested_by: userData.full_name,
+          },
+          {}
+        );
+
+        const data = response.data;
+        showToast(data.message);
+        setLoading(false);
+      } catch (err) {
+        console.error('Error during API call:', err);
+        setError('An error occurred while fetching results.');
+        setLoading(false);
+      } finally {
+      }
+    },
+    [userData]
+  );
 
   const handleSubmit = () => {
-    
+    if (keywords.trim() === '') {
+      setError('Please enter a search keyword.');
+    } else {
+      setError('');
+      p1Harvest(keywords);
+    }
   }
 
-  const inputKeyDown = () => {
-
+  const inputKeyDown = (event: KeyboardEvent) => {
+    if (event.key === 'Enter') {
+      handleSubmit();
+    }
   }
 
   // we put the click handler on the tbody to minimize mosue event bindings
   const downloadCSV = (event: React.MouseEvent) => {
-    console.log('TAKTE!!!')
     const eventTarget = event.target as HTMLElement;
     // check if button or descendant of button
     const btnTarget = eventTarget.closest('button[data-recordid]');
     if (!btnTarget) return;
     const recordId = btnTarget.getAttribute('data-recordid');
-    console.log(btnTarget);
-    console.log(recordId);
     // find record
     const recordToDownload = harvesterResults.find(record => record.id === recordId);
     if (!recordToDownload) return;
-    console.log(recordToDownload);
 
     // get csv content
     let csv = 'title,link,description,content\n';
     const recordResults = recordToDownload.results?.data;
-    console.log(recordResults)
     for (let index = 0; index < recordResults.length; index++) {
       const element = recordResults[index] as unknown as resultData;
-      csv += element.title + ',' + element.link + ',' + element.description + ',' + element.content + ',' + '\n';
-      console.log(csv)
+      csv += '"' + element.title + '","' + element.link + '","' +
+        element.description + '","' + element.content + '"' + '\n';
     }
 
     // simulate download
@@ -114,6 +163,46 @@ const P1Harvester: FC = () => {
   useEffect(() => {
     fetchHarvesterResults();
   }, [])
+
+  useEffect(() => {
+    // globally disable auto cancellation
+    pb.autoCancellation(false);
+    // subscribe to SSE from pocketbase,
+    pb.realtime.subscribe(AK_SERPER_COLLECTION, async e => {
+      // scraping is completed
+      if (e.action === 'update') {
+          // a previous request (not current one) was completed
+          // search in collection, then update in state
+          const newCollection = [...harvesterResults];
+          const indexOfUpdated = newCollection.findIndex(octoBit => {
+            return octoBit.id === e.record.id;
+          });
+          newCollection[indexOfUpdated] = e.record;
+          setHarvesterResults(newCollection);
+
+        return;
+      }
+
+      // add in collection
+      if (e.action === 'create') {
+        const newOctoBitResults = [...harvesterResults];
+        newOctoBitResults.unshift(e.record);
+        setHarvesterResults(newOctoBitResults);
+        return;
+      }
+
+      // delete in collection
+      if (e.action === 'delete') {
+        const newCollection = deleteFromCollection(harvesterResults, e.record.id);
+        setHarvesterResults(newCollection);
+        return;
+      }
+    });
+
+    return () => {
+      pb.realtime.unsubscribe(AK_SERPER_COLLECTION);
+    };
+  }, [harvesterResults])
 
   return (
     <div
@@ -143,45 +232,50 @@ const P1Harvester: FC = () => {
             {loading ? <Loading /> : 'Submit'}
           </Button>
         </div>
+        {!loading && error && (
+          <p className="text-red-100 text-base text-center font-bold">{error}</p>
+        )}
       </div>
-          <table
-            id="mapResults"
-            className={clsx(
-              'w-full my-[20px] mx-auto border-collapse',
-              'table-fixed shadow-[0_4px_6px_rgba(0, 0, 0, 0.1)]'
-            )}>
-            <thead>
-              <tr>
-                <th>Keywords</th>
-                <th className="w-25">Status</th>
-                <th className="w-50">Requested Date</th>
-                <th className="w-75">Requested by</th>
-                <th className="w-25">Actions</th>
-              </tr>
-            </thead>
-            <tbody onClick={downloadCSV}>
-              { harvesterResults.map((record: harvesterRecord) => 
-                <tr key={record.id}>
-                  <td>{record.keyword}</td>
-                  <td className="capitalize">{record.status}</td>
-                  <td>{formatDate(record.created)}</td>
-                  <td>{record.requested_by}</td>
-                  <td className="dark:[&_svg]:fill-yellow-100">
-                    <button
-                      disabled={record.status.toLowerCase()!=='done'}
-                      className={record.status.toLowerCase()!=='done' ?
-                        'cursor-disabled' : 'cursor-pointer'
-                      }
-                      data-recordid={record.id}
-                    >
-                      <Download className="h-8" />
-                    </button>
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-
+      <table
+        id="mapResults"
+        className={clsx(
+          'w-full my-[20px] mx-auto border-collapse',
+          'table-fixed shadow-[0_4px_6px_rgba(0, 0, 0, 0.1)]'
+        )}>
+        <thead>
+          <tr>
+            <th>Keywords</th>
+            <th className="w-25">Status</th>
+            <th className="w-50">Requested Date</th>
+            <th className="w-75">Requested by</th>
+            <th className="w-25">Actions</th>
+          </tr>
+        </thead>
+        <tbody onClick={downloadCSV}>
+          { harvesterResults.map((record: harvesterRecord) => 
+            <tr key={record.id}>
+              <td>{record.keyword}</td>
+              <td className={clsx(
+                'capitalize',
+                record.status === 'pending' ? '[&>div]:h-5 [&>div]:w-5' : ''
+              )}>{record.status === 'pending' ? <Loading /> : record.status}</td>
+              <td>{formatDate(record.created)}</td>
+              <td>{record.requested_by}</td>
+              <td className="dark:[&_svg]:fill-yellow-100">
+                <button
+                  disabled={record.status.toLowerCase()!=='done'}
+                  className={record.status.toLowerCase()!=='done' ?
+                    'cursor-disabled' : 'cursor-pointer'
+                  }
+                  data-recordid={record.id}
+                >
+                  <Download className="h-8" />
+                </button>
+              </td>
+            </tr>
+          )}
+        </tbody>
+      </table>
     </div>
   );
 };
