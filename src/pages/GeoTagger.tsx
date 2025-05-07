@@ -75,6 +75,12 @@ const handleDownload = (blob: Blob, filename: string) => {
   URL.revokeObjectURL(href);
 };
 
+const trySanitize = (text: string) => {
+  const elm = document.createElement("p");
+  elm.textContent = text;
+  return(elm.innerHTML);
+}
+
 const GeoTagger: FC = () => {
   const [exifName, setEXIFName] = useState<string>('');
   const [exifDesc, setEXIFDesc] = useState<string>('');
@@ -223,10 +229,10 @@ const GeoTagger: FC = () => {
       );
 
       const data = response.data;
-      setEXIFName(data.DocumentName);
-      setEXIFDesc(data.ImageDescription);
-      setEXIFLatitude(convertToDegrees(data.GPSLatitude));
-      setEXIFLongitude(convertToDegrees(data.GPSLongitude));
+      setEXIFName(trySanitize(data.DocumentName));
+      setEXIFDesc(trySanitize(data.ImageDescription));
+      setEXIFLatitude(convertToDegrees(trySanitize(data.GPSLatitude)));
+      setEXIFLongitude(convertToDegrees(trySanitize(data.GPSLongitude)));
       showToast(data.message);
     } catch (err) {
       showToast('Metadata extraction failed...');
