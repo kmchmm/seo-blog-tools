@@ -123,7 +123,10 @@ const GeoTagger: FC = () => {
   const handleFileSelect = (event: ChangeEvent<HTMLInputElement>) => {
     const target = event.target;
     if (!target.files || !target.files.length) return;
-    if (!isAccepted(target.files[0].name)) return;
+    if (!isAccepted(target.files[0].name)) {
+      showToast('File format not accepted...');
+      return;
+    }
     memoizeFile(target.files[0]);
   };
 
@@ -153,6 +156,7 @@ const GeoTagger: FC = () => {
       const imageUrl = urlCreator.createObjectURL(response.data);
       // always call revokeObjectURL to previous preview url
       URL.revokeObjectURL(preview);
+      showToast('Preview added...');
       setPreview(imageUrl);
     } catch (err) {
       showToast('Preview failed...');
@@ -206,6 +210,8 @@ const GeoTagger: FC = () => {
       const newFiles = Array.from(droppedFiles);
       if (newFiles && newFiles[0] && isAccepted(newFiles[0].name)) {
         memoizeFile(newFiles[0]);
+      } else {
+        showToast('File format not accepted...')
       }
     }
   };

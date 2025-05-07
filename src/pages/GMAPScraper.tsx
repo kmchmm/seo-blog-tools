@@ -361,7 +361,7 @@ const GMAPScraper: FC = () => {
         AK OCTO SCRAPER Google Maps
       </h1>
       <div className="flex justify-between items-center w-full gap-4 flex-row">
-        <div className="flex items-center news-search-container w-1/2 gap-4">
+        <div className="flex items-center w-1/2 gap-4">
           <input
             type="text"
             value={keywords}
