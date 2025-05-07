@@ -4,7 +4,7 @@ import axios from 'axios';
 import clsx from 'clsx';
 
 import pb from '../utils/pocketbaseInit.js';
-import { scrapeData, modifiedScrapeData, TOOL_ROUTES } from '../types.js';
+import { scrapeData, modifiedScrapeData, TOOL_ROUTES, IBtnType } from '../types.js';
 import { Button } from '../components/Button';
 import { Loading } from '../components/Loading';
 import { OctoBitRecord } from '../components/OctoBitRecord';
@@ -12,6 +12,7 @@ import { MapRecord } from '../components/MapRecord';
 import { UserContext } from '../context/UserContext';
 import { ToastContext } from '../context/ToastContext';
 import BackArrow from '../assets/icons/back.svg?react';
+import { RecordModel } from 'pocketbase';
 
 const isDev = import.meta.env.MODE === 'development';
 
@@ -147,6 +148,8 @@ const GMAPScraper: FC = () => {
   const [keywords, setKeywords] = useState<string>('');
   const [location, setLocation] = useState<string>('any');
   const [mode, setMode] = useState<gmapMode>(IGMap.COLLECTION);
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const [totalPages, setTotalPages] = useState<number>(1);
   const fetchWorkerId = useRef<string>('');
   const currentResults = useRef<modifiedScrapeData[]>([]);
   const { userData } = use(UserContext);
@@ -166,17 +169,19 @@ const GMAPScraper: FC = () => {
   }, []);
 
   // fetch map scraping requests
-  const fetchCompleteCollection = async () => {
+  const fetchGMapsCollection = async (page: number = 1) => {
     // fetch complete collection
-    const collection = await pb.collection(GMAPS_REQUESTS_COLLECTION).getFullList({
+    const collection = await pb.collection(GMAPS_REQUESTS_COLLECTION).getList(page, 50, {
       filter: `worker_id="${fetchWorkerId.current}"`,
     });
 
-    const totalResult = collection.map(result => {
+    const totalResult = collection['items'].map((result: RecordModel) => {
       return { ...result.scraped_data, id: result.id };
     });
     setMapResults(totalResult);
     setLoading(false);
+    setTotalPages(collection.totalPages);
+    setCurrentPage(page);
   };
 
   // show the map results from a given request (as identified from the worker id)
@@ -191,7 +196,7 @@ const GMAPScraper: FC = () => {
       fetchWorkerId.current = worker_id;
       pb.realtime.unsubscribe(GMAPS_REQUESTS_COLLECTION);
       if (isDone) {
-        fetchCompleteCollection();
+        fetchGMapsCollection();
       } else {
         pb.realtime.subscribe(GMAPS_REQUESTS_COLLECTION, receiveResults);
       }
@@ -289,16 +294,15 @@ const GMAPScraper: FC = () => {
 
   useEffect(() => {
     // globally disable auto cancellation
-    pb.autoCancellation(false);
+    // pb.autoCancellation(false);
     // subscribe to SSE from pocketbase,
     pb.realtime.subscribe(AK_OCTOBITS_COLLECTION, async e => {
-      console.log(e);
       if (e.record.tool !== GMAPS_TOOL) return;
       // scraping is completed
       if (e.action === 'update') {
         if (e.record.worker_id === fetchWorkerId.current) {
           pb.realtime.unsubscribe(GMAPS_REQUESTS_COLLECTION);
-          fetchCompleteCollection();
+          fetchGMapsCollection();
         } else {
           // a previous request (not current one) was completed
           // search in collection, then update in state
@@ -334,21 +338,42 @@ const GMAPScraper: FC = () => {
     };
   }, [octoBitsResults]);
 
-  const fetchCollections = async () => {
-    const collection = await pb.collection(AK_OCTOBITS_COLLECTION).getList(1, 50, {
+  const fetchCollections = async (page:number = 1) => {
+    setLoading(true);
+    const collection = await pb.collection(AK_OCTOBITS_COLLECTION).getList(page, 50, {
       sort: '-created',
       filter: `tool="${GMAPS_TOOL}"`,
     });
     const collectionItems = collection['items'];
     setOctoBitsResults(collectionItems as octoBitsRecord[]);
     setLoading(false);
+    setTotalPages(collection.totalPages);
+    setCurrentPage(page);
   };
+
+  const prevPage = () => {
+    if (currentPage === 1) return;
+    const prev = currentPage-1;
+    if (mode === IGMap.COLLECTION) fetchCollections(prev)
+    if (mode === IGMap.SPEC) fetchGMapsCollection(prev)
+    setCurrentPage(prev);
+  }
+
+  const nextPage = () => {
+    if (currentPage === totalPages) return;
+    const next = currentPage+1;
+    if (mode === IGMap.COLLECTION) fetchCollections(next)
+    if (mode === IGMap.SPEC) fetchGMapsCollection(next)
+    setCurrentPage(next)
+  }
 
   useEffect(() => {
     if (mode === IGMap.COLLECTION) {
       pb.realtime.unsubscribe(GMAPS_REQUESTS_COLLECTION);
       fetchCollections();
     }
+    setTotalPages(1);
+    setCurrentPage(1);
   }, [mode]);
 
   return (
@@ -380,9 +405,29 @@ const GMAPScraper: FC = () => {
             ))}
           </select>
           <Button onClick={handleSearch} disabled={loading}>
-            {loading ? 'Searching...' : 'Request'}
+            Request
           </Button>
         </div>
+
+        {totalPages > 1 && <div className="flex justify-between items-center mr-2">
+          <Button
+            btnType={IBtnType.PAGINATION}
+            onClick={prevPage}
+            disabled={currentPage === 1}
+            className="mr-4">
+            Prev
+          </Button>
+          <span>
+            Page {currentPage} of {totalPages}
+          </span>
+          <Button
+            btnType={IBtnType.PAGINATION}
+            onClick={nextPage}
+            disabled={currentPage === totalPages}
+            className="ml-4">
+            Next
+          </Button>
+        </div>}
       </div>
 
       {loading && (
