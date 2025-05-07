@@ -40,28 +40,29 @@ const sidebarStyle = clsx(
 const menuItemLinkStyle = '[&_a]:flex [&_a]:items-center [&_a]:gap-1';
 const menuItemSvgStyle = '[&_svg]:h-6';
 
-const RaketMenuItem = (itemProps: RaketMenuItemProps) => {
-  const { children } = itemProps;
-
-  return (
-    <li
-      className={clsx(
-        'p-1 rounded-md',
-        'transition-all duration-200 ease-in-out',
-        'hover:bg-yellow-100',
-        'dark:[&_svg]:fill-white-100',
-        menuItemSvgStyle,
-        menuItemLinkStyle
-      )}>
-      {children}
-    </li>
-  );
-};
-
 const Sidebar: FC = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const { toolsAccess } = use(UserContext);
   const sidebarRef = useRef<HTMLDivElement>(null); // Create a reference for the sidebar
+
+  const RaketMenuItem = (itemProps: RaketMenuItemProps) => {
+    const { children } = itemProps;
+  
+    return (
+      <li
+        onClick={() => setIsSidebarOpen(false)}
+        className={clsx(
+          'p-1 rounded-md',
+          'transition-all duration-200 ease-in-out',
+          'hover:bg-yellow-100',
+          'dark:[&_svg]:fill-white-100',
+          menuItemSvgStyle,
+          menuItemLinkStyle
+        )}>
+        {children}
+      </li>
+    );
+  };
 
   // Toggle sidebar visibility
   const toggleSidebar = () => {
