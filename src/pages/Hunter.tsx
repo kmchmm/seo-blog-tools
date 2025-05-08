@@ -42,11 +42,17 @@ const Hunter: FC = () => {
             <hr className="border-t border-yellow-400 mt-4"/>
             <div className="mt-2">
               <div className="flex items-center gap-3">
-                <input type="text"  className="!p-2 !w-1/2"/>
+                <input type="text" 
+                placeholder="Keyword/Keyphrase" 
+                className="!p-2 !w-1/2"
+                />
                 <span className="!w-1/2">The word or phrase to look for.</span>
               </div>
               <div className="flex items-center gap-3">
-                <input type="text" className="!p-2 !w-1/2"/>
+                <input type="text" 
+                placeholder="URL" 
+                className="!p-2 !w-1/2"
+                />
                 <span className="!w-1/2">The destination URL.</span>
               </div>
               <div className="flex gap-2 mt-4 items-center">
@@ -59,15 +65,24 @@ const Hunter: FC = () => {
               <h3 className="!text-left text-lg font-bold mt-4">Optional Settings</h3>
               <div mt-2>
                 <div className="flex items-center gap-3">
-                  <input type="number"  className="!p-2 !w-1/2"/>
+                  <input type="number"
+                    defaultValue={1}
+                    className="!p-2 !w-1/2"
+                    />
                   <span className="!w-1/2">Priority</span>
                 </div>
                 <div className="flex items-center gap-3">
-                  <input type="number"  className="!p-2 !w-1/2"/>
+                  <input type="number"  
+                  defaultValue={0}
+                  className="!p-2 !w-1/2"
+                  />
                   <span className="!w-1/2">How often should the link appear on a page? Choose -1 for unlimited links.</span>
                 </div>
                 <div className="flex items-center gap-3">
-                  <input type="text"  className="!p-2 !w-1/2"/>
+                  <select className="!w-1/2 cursor-pointer">
+                    <option value="">Open in the same Tab</option>
+                    <option value="">Open in New Tab</option>
+                  </select>
                   <span className="!w-1/2">The behaviour of the link when clicked.</span>
                 </div>
               </div>
