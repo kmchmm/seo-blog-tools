@@ -123,15 +123,69 @@ const JediInsights: FC = () => {
   const handleSearch = () => {
     setLoading(true);
     setTimeout(() => {
-      const filtered = insights.filter(item =>
-        item[searchField as keyof Insight]?.toLowerCase().includes(query.toLowerCase())
-      );
+      const filtered = insights.filter(item => {
+        const value = item[searchField as keyof Insight];
+        return value && value.toString().toLowerCase().includes(query.toLowerCase());
+      });
       setFilteredInsights(filtered);
       setCurrentPage(1);
       setLoading(false);
     }, 300);
   };
+  
 
+  const handleRefresh = async (item: Insight) => {
+    setRefreshingId(item.id); // Set UI state
+  
+    // Immediately update UI to show "Pending..." by setting local status
+    setInsights(prev =>
+      prev.map(insight =>
+        insight.id === item.id
+          ? {
+              ...insight,
+              moz_status: 'pending',
+              wincher_status: 'pending',
+            }
+          : insight
+      )
+    );
+  
+    try {
+      // Start the refresh operation
+      await axios.post('http://localhost:8012/', {
+        id: item.id,
+        fullname: userData?.full_name || 'Unknown',
+        url: item.url,
+        keywords: item.keywords,
+      });
+  
+      // Start polling
+      const pollInterval = setInterval(async () => {
+        try {
+          const statusResponse = await axios.get(`http://localhost:8011/insight-status/${item.id}`);
+          const refreshedInsight = statusResponse.data;
+  
+          if (
+            refreshedInsight.moz_status !== 'pending' &&
+            refreshedInsight.wincher_status !== 'pending'
+          ) {
+            clearInterval(pollInterval);
+            setRefreshingId(null);
+            await fetchInsights();
+          }
+        } catch (err) {
+          console.error('Polling error:', err);
+          clearInterval(pollInterval);
+          setRefreshingId(null);
+        }
+      }, 5000);
+    } catch (err) {
+      console.error('Error during refresh:', err);
+      setRefreshingId(null);
+    }
+  };
+  
+  
   const fetchInsights = async () => {
     try {
       const response = await axios.get('http://localhost:8011/insights');
@@ -250,10 +304,15 @@ const JediInsights: FC = () => {
             <Button
               type="submit"
               onClick={handleSubmit}
-              className="!bg-black-200 !text-white hover:!bg-black dark:!bg-transparent dark:hover:!bg-yellow-100 hover:text-white-100 dark:hover:!text-black-200 hover:!shadow-none !py-3 !px-5"
+              disabled={loading} // <-- Disable while loading
+              className={clsx(
+                "!bg-black-200 !text-white hover:!bg-black dark:!bg-transparent dark:hover:!bg-yellow-100 hover:text-white-100 dark:hover:!text-black-200 hover:!shadow-none !py-3 !px-5",
+                loading && "opacity-50 cursor-not-allowed"
+              )}
             >
               {loading ? 'Analyzing...' : 'Analyze'}
             </Button>
+
           </form>
         </div>
       </div>
@@ -401,32 +460,12 @@ const JediInsights: FC = () => {
 
                     <div className="relative group inline-block">
                       <Button
-                        onClick={async () => {
-                          setRefreshingId(item.id); 
-                          try {
-                            const response = await axios.post('http://localhost:8012/', {
-                              id: item.id,
-                              fullname: userData?.full_name || 'Unknown',
-                              url: item.url,
-                              keywords: item.keywords,
-                            });
-
-                            // alert(response.data.message);
-
-                            await fetchInsights();
-                          } catch (err) {
-                            console.error(err);
-                            // alert('Failed to refresh score');
-                          } finally {
-                            setRefreshingId(null); 
-                          }
-                        }}
-
+                        onClick={() => handleRefresh(item)} // Trigger the refresh action
                         disabled={refreshingId === item.id} // Disable the button while refreshing
                         className="p-2 !bg-transparent border !border-transparent hover:!border-black-200 dark:hover:!border-yellow-100 rounded cursor-pointer hover:!bg-transparent hover:shadow-none"
                       >
                         {refreshingId === item.id ? (
-                          <span className="text-xs text-gray-600 dark:text-gray-300">Refreshing...</span> 
+                          <span className="text-xs text-gray-600 dark:text-gray-300">Refreshing...</span>
                         ) : (
                           <RefreshScore className="w-6 h-6 text-black-200 dark:text-white" />
                         )}
@@ -468,7 +507,7 @@ const JediInsights: FC = () => {
           <h2 className="text-xl font-bold mb-4 !text-left">ON-Page Results</h2>
           <hr />
 
-          <div className="flex justify-between gap-4 mt-4 text-center">
+          <div className="flex justify-between gap-4 mt-4 text-center text-black">
             {/* MOZ Section */}
             <div className="w-1/2">
               <div className="mt-4 mb-4 flex justify-center">
