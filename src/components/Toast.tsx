@@ -13,7 +13,7 @@ export const Toast: FC<ToastProps> = ({ message, onClose, duration = 3000 }) => 
   }, [onClose, duration]);
 
   return (
-    <div className="fixed right-4 top-30 z-50 bg-green-500 text-white px-7 py-2 rounded shadow-lg animate-slide-in">
+    <div className="fixed right-4 top-30 z-50 bg-green-500 text-white px-7 py-2 rounded shadow-lg animate-slide-in font-bold">
       {message}
     </div>
   );

@@ -653,7 +653,28 @@ const WincherDetails: FC<{ wincherData: any }> = ({ wincherData }) => {
       {/* SEO Opportunities */}
       <div className="mt-10">
         <div className="pl-4 pr-4 border border-white rounded">
-          <h2 className="text-2xl mb-2 !text-left">SEO Opportunities</h2>
+          <div className="flex justify-between">
+            <h2 className="text-2xl mb-2 !text-left">SEO Opportunities</h2>
+            {wincher?.id ? (
+              <a
+                href={`https://www.wincher.com/free-tools/on-page-seo-checker/${wincher.id}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="underline underline-offset-4 cursor-pointer text-blue-400"
+              >
+                Compare Site Result
+              </a>
+            ) : (
+              <div className="relative group inline-block">
+                <span className="underline underline-offset-4 cursor-not-allowed text-red-100">
+                  Compare Site Result
+                </span>
+                <div className="absolute top-full left-1/2 -translate-x-1/2 whitespace-nowrap rounded bg-gray-800 px-2 py-1 text-xs text-white opacity-0 group-hover:opacity-100 transition">
+                  Cannot visit empty URL
+                </div>
+              </div>
+            )}
+          </div>
           {sortedNonPassedResults.length > 0 ? (
             <ul className="list-none">
               {sortedNonPassedResults.map((item: any, i: number) => {
