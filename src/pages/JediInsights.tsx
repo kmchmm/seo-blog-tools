@@ -6,6 +6,7 @@ import { Loading } from '../components/Loading';
 import { Modal } from '../components/Modal';
 import clsx from 'clsx';
 import { UserContext } from '../context/UserContext';
+import { Toast } from '../components/Toast'; // Adjust path as needed
 
 
 import StackedLine from '../assets/icons/stacked-line.svg?react';
@@ -51,6 +52,9 @@ const JediInsights: FC = () => {
   const [query, setQuery] = useState('');
   const [searchField, setSearchField] = useState('url');
   const [archivingId, setArchivingId] = useState<string | null>(null);
+
+  const [showToast, setShowToast] = useState(false);
+
 
   const [refreshingId, setRefreshingId] = useState<string | null>(null);
   const { userData } = useContext(UserContext);
@@ -225,13 +229,15 @@ const JediInsights: FC = () => {
     setArchivingId(id);
     try {
       await axios.patch(`http://localhost:8011/archive/${id}`);
-      await fetchInsights(); 
+      await fetchInsights();
+      setShowToast(true); // Show the toast on success
     } catch (error) {
       console.error('Error archiving insight:', error);
     } finally {
       setArchivingId(null);
     }
   };
+  
 
 
   useEffect(() => {
@@ -270,7 +276,14 @@ const JediInsights: FC = () => {
       className={clsx('flex flex-col w-full pt-4 px-3', 'bg-white-100 dark:bg-blue-600')}>
       <h1 className="text-black-100 dark:text-white-100 text-5xl">AK Jedi Insights</h1>
       <h6 className="italic">Combined On-Page SEO Checker from Wincher and MOZ</h6>
- 
+      {showToast && (
+        <Toast
+          message="Insight successfully archived!"
+          onClose={() => setShowToast(false)}
+        />
+      )}
+
+
       <div className="flex justify-center items-center w-full gap-4 flex-row mt-4">
 
         <div className="flex items-center justify-center relative ">
