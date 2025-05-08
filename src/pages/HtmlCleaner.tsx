@@ -1,9 +1,18 @@
-import { FC } from 'react';
+import { FC, useRef } from 'react';
 import clsx from 'clsx';
 import { Button } from '../components/Button';
 import Sweep from '../assets/icons/sweep.svg?react';
+import { Editor } from '@tinymce/tinymce-react';
+import { Editor as TinyMCEEditor, EditorEvent } from 'tinymce';
 
 const HtmlCleaner: FC = () => {
+  const editorRef = useRef<TinyMCEEditor>(null);
+  const log = () => {
+    if (editorRef.current) {
+      console.log(editorRef.current.getContent());
+    }
+  };
+
   return (
     <div
       className={clsx(
@@ -93,7 +102,42 @@ const HtmlCleaner: FC = () => {
         </div>
       </section>
 
-      <Button className="self-start flex hover:[&_svg]:fill-white-100 dark:[&_svg]:fill-yellow-100 dark:hover:[&_svg]:fill-blue-600" ><Sweep/>Sweep</Button>
+      <Button
+        className={clsx(
+          'self-start flex hover:[&_svg]:fill-white-100 mb-2',
+          'dark:[&_svg]:fill-yellow-100 dark:hover:[&_svg]:fill-blue-600'
+        )}
+        onClick={log}
+      >
+        <Sweep className='w-6'/>Sweep
+      </Button>
+
+      <section id="editorContainer" className="hidden w-full py-2">
+        <div className="w-1/2">
+          <Editor
+            tinymceScriptSrc='../../tinymce/tinymce.min.js'
+            licenseKey='gpl'
+            onInit={(_evt, editor) => {
+              editorRef.current = editor;
+              // need to put this in order to avoid flicker of initial editor element (p tag)
+              (document.getElementById('editorContainer') as HTMLElement)
+                .style.display = 'block';
+            }}
+            initialValue='<p>This is the initial content of the editor.</p>'
+            init={{
+              height: 500,
+              menubar: false,
+              toolbar_mode: 'floating',
+              plugins: [
+                'charmap', 'emoticons', 'image', 'link', 'wordcount'
+              ],
+              toolbar: 'blocks fontsize | ' +
+                'bold italic underline | link image | alignleft indent outdent | emoticons charmap | removeformat',
+              content_style: 'body { font-family:Helvetica,Arial,sans-serif; font-size:14px }',
+            }}
+          />
+        </div>
+      </section>
     </div>
   );
 };
