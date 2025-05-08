@@ -10,8 +10,9 @@ const ANON_INITIAL = 'u';
 const lightModeStyle = 'border-black-100 text-black-100';
 const darkModeStyle = 'dark:border-yellow-100 dark:text-white-100';
 
-const rippleEffectStyle = `animate-ripple duration-200
-  ease-linear transform-[scale(0)]`;
+const rippleEffectStyle = `animate-ripple duration-50
+  ease-in-out transform-[scale(0)] opacity-100`;
+
 const profileBoxShadow =
   'shadow-[0_5px_5px_-3px_theme(color-shadow-200/.20),0_8px_10px_1px_theme(color-shadow-200/.14),0_3px_14px_2px_theme(color-shadow-200/.12)]';
 
