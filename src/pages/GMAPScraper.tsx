@@ -338,7 +338,7 @@ const GMAPScraper: FC = () => {
     };
   }, [octoBitsResults]);
 
-  const fetchCollections = async (page:number = 1) => {
+  const fetchCollections = async (page: number = 1) => {
     setLoading(true);
     const collection = await pb.collection(AK_OCTOBITS_COLLECTION).getList(page, 50, {
       sort: '-created',
@@ -353,19 +353,19 @@ const GMAPScraper: FC = () => {
 
   const prevPage = () => {
     if (currentPage === 1) return;
-    const prev = currentPage-1;
-    if (mode === IGMap.COLLECTION) fetchCollections(prev)
-    if (mode === IGMap.SPEC) fetchGMapsCollection(prev)
+    const prev = currentPage - 1;
+    if (mode === IGMap.COLLECTION) fetchCollections(prev);
+    if (mode === IGMap.SPEC) fetchGMapsCollection(prev);
     setCurrentPage(prev);
-  }
+  };
 
   const nextPage = () => {
     if (currentPage === totalPages) return;
-    const next = currentPage+1;
-    if (mode === IGMap.COLLECTION) fetchCollections(next)
-    if (mode === IGMap.SPEC) fetchGMapsCollection(next)
-    setCurrentPage(next)
-  }
+    const next = currentPage + 1;
+    if (mode === IGMap.COLLECTION) fetchCollections(next);
+    if (mode === IGMap.SPEC) fetchGMapsCollection(next);
+    setCurrentPage(next);
+  };
 
   useEffect(() => {
     if (mode === IGMap.COLLECTION) {
@@ -409,25 +409,27 @@ const GMAPScraper: FC = () => {
           </Button>
         </div>
 
-        {totalPages > 1 && <div className="flex justify-between items-center mr-2">
-          <Button
-            btnType={IBtnType.PAGINATION}
-            onClick={prevPage}
-            disabled={currentPage === 1}
-            className="mr-4">
-            Prev
-          </Button>
-          <span>
-            Page {currentPage} of {totalPages}
-          </span>
-          <Button
-            btnType={IBtnType.PAGINATION}
-            onClick={nextPage}
-            disabled={currentPage === totalPages}
-            className="ml-4">
-            Next
-          </Button>
-        </div>}
+        {totalPages > 1 && (
+          <div className="flex justify-between items-center mr-2">
+            <Button
+              btnType={IBtnType.PAGINATION}
+              onClick={prevPage}
+              disabled={currentPage === 1}
+              className="mr-4">
+              Prev
+            </Button>
+            <span>
+              Page {currentPage} of {totalPages}
+            </span>
+            <Button
+              btnType={IBtnType.PAGINATION}
+              onClick={nextPage}
+              disabled={currentPage === totalPages}
+              className="ml-4">
+              Next
+            </Button>
+          </div>
+        )}
       </div>
 
       {loading && (

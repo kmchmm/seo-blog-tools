@@ -32,13 +32,11 @@ export const Modal: FC<ModalProps> = ({
           maxHeight: '100vh',
           backgroundColor,
         }}
-        onClick={(e) => e.stopPropagation()}
-      >
+        onClick={e => e.stopPropagation()}>
         {showCloseButton && (
           <button
             onClick={onClose}
-            className="absolute top-5 right-5 text-3xl text-red-500 cursor-pointer z-10"
-          >
+            className="absolute top-5 right-5 text-3xl text-red-500 cursor-pointer z-10">
             &times;
           </button>
         )}
