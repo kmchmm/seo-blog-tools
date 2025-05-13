@@ -1,4 +1,4 @@
-import { FC, useRef, useState } from 'react';
+import { FC, useEffect, useRef, useState } from 'react';
 import clsx from 'clsx';
 import { Button } from '../components/Button';
 import Sweep from '../assets/icons/sweep.svg?react';
@@ -7,8 +7,7 @@ import { Editor as TinyMCEEditor, EditorEvent } from 'tinymce';
 import CodeMirror, { ViewUpdate } from '@uiw/react-codemirror';
 import { html } from '@codemirror/lang-html';
 
-import { decode, encode } from 'html-entities';
-import { text } from 'stream/consumers';
+import { encode } from 'html-entities';
 
 // export const encodeTagCharacters = (unsafe: string) => {
 //   return unsafe
@@ -17,23 +16,189 @@ import { text } from 'stream/consumers';
 //     .replace(/>/g, '&gt;');
 // };
 
+// removeTagAttributes
+// removeInlineStyles
+// removeClassesAndIds
+// setNewLinesAndTextIndents
+
+interface handleDescendantProps {
+  element: Element,
+  encodeSpecialCharacters: boolean,
+  removeComments: boolean,
+  removeEmptyTags: boolean,
+  removeImages: boolean,
+  removeLinks: boolean,
+  removeSpanTags: boolean,
+  removeTables: boolean,
+  removeTagAttributes: boolean,
+  removeTagsWithOneNbsp: boolean,
+  replaceTableTagsWithStructuredDivs: boolean,
+  textOnly: string,
+}
+
+const tableReplacementClasses = {
+  'table' : 'table-head',
+  'tr' : 'table-row',
+  'th' : 'table-head',
+  'td' : 'table-cell',
+  'thead' : 'table-head',
+  'tbody' : 'table body',
+  'tfoot' : 'table-foot'
+}
+
+const selfClosingTags = ['area', 'base', 'br', 'col', 'embed', 'hr', 'img', 'input', 'link', 'meta', 'param', 'source', 'track', 'wbr'];
+
+const isNodeEmpty = (node: ChildNode) => {
+  if (selfClosingTags.includes(node.nodeName.toLowerCase())) return false;
+
+  if (node.childNodes.length === 0) {
+    return true; // Node has no children
+  }
+
+  if (!node.textContent || node.textContent === '') {
+    return true; // Node's text content is empty or whitespace only
+  }
+}
+
+const isOneNbsp = (node: ChildNode) => {
+  // Node has no children (only text, which is nbsp;) 
+  if (node.childNodes.length === 1 &&
+    (node.textContent === '\xA0' ||
+    node.textContent === ' ')) {
+    return true; 
+  }
+
+  return false;
+}
+
+const recursiveReplace = (str: string, regex: RegExp, replacement: string) => {
+  let newStr = str.replace(regex, replacement);
+  if (newStr !== str) {
+    return recursiveReplace(newStr, regex, replacement);
+  }
+  return newStr;
+}
+
+const getCommentNodeOuterXML = (comment: ChildNode) => {
+  const clone = comment.cloneNode();
+  const newParent = document.createElement('p');
+  newParent.appendChild(clone);
+  return newParent.innerHTML;
+}
+
+const tableTags = ['table', 'tr', 'th', 'td', 'thead', 'tbody', 'tfoot'];
+
 // unfortunately, we can't use the textContent property
 // (should output all the text content within an element, including inside its children)
 // because textContent does not include the comments
 // (should be included if `remove comments` is not checked)
-const handleDescendants = (
-  element: Element,
-  textOnly: string,
-  isEncode: boolean,
-  removeComments: boolean
-) => {
+const handleDescendants = (props: handleDescendantProps) => {
+  const {
+    element,
+    encodeSpecialCharacters,
+    removeComments,
+    removeEmptyTags,
+    removeImages,
+    removeLinks,
+    removeSpanTags,
+    removeTables,
+    removeTagAttributes,
+    removeTagsWithOneNbsp,
+    replaceTableTagsWithStructuredDivs,
+  } = props;
+  let { textOnly } = props;
+
   for (const child of element.childNodes) {
     if (child.nodeType === Node.ELEMENT_NODE) {
-      console.log(child)
-      console.log(child.nodeName);
-      textOnly = handleDescendants(child as Element, textOnly, isEncode, removeComments);
+      if (removeEmptyTags && isNodeEmpty(child)) {
+        child.parentNode?.removeChild(child);
+        continue;
+      }
+
+      if (removeTagsWithOneNbsp && isOneNbsp(child)) {
+        child.parentNode?.removeChild(child);
+        continue;
+      }
+
+      if (child.nodeName.toLowerCase() === 'img' && removeImages) {
+        child.parentNode?.removeChild(child);
+        continue;
+      }
+
+      if ((child.nodeName.toLowerCase() === 'span' && removeSpanTags) ||
+        (child.nodeName.toLowerCase() === 'a' && removeLinks) || 
+        (removeTables && tableTags.includes(child.nodeName.toLowerCase()))
+      ) {
+
+        textOnly = handleDescendants({
+          element: child as Element,
+          encodeSpecialCharacters,
+          removeComments,
+          removeEmptyTags,
+          removeImages,
+          removeLinks,
+          removeSpanTags,
+          removeTables,
+          removeTagAttributes,
+          removeTagsWithOneNbsp,
+          replaceTableTagsWithStructuredDivs,
+          textOnly,
+        });
+        const children = Array.from(child.childNodes)
+        child.replaceWith(... children)
+        continue;
+      }
+
+      if (replaceTableTagsWithStructuredDivs &&
+        tableTags.includes(child.nodeName.toLowerCase())) {
+        
+        textOnly = handleDescendants({
+          element: child as Element,
+          encodeSpecialCharacters,
+          removeEmptyTags,
+          removeComments,
+          removeImages,
+          removeLinks,
+          removeSpanTags,
+          removeTables,
+          removeTagAttributes,
+          removeTagsWithOneNbsp,
+          replaceTableTagsWithStructuredDivs,
+          textOnly,
+        });
+        // need to use createElementNS in order to avoid automatic attribute of xlmns
+        // for all top level child of created element (when using document.createElement)
+        const newDiv = document.createElementNS('', 'div');
+        const classKey = child.nodeName.toLowerCase() as keyof typeof tableReplacementClasses;
+        newDiv.setAttribute('class', tableReplacementClasses[classKey])
+        newDiv.append(...child.childNodes);
+        child.replaceWith(newDiv);
+
+        continue;
+      }
+
+      // remove tag attributes
+      if (removeTagAttributes) {
+        console.log((child as Element).attributes)
+        // [...child.attributes].forEach(attr => elem.removeAttribute(attr.name));
+      }
+
+      textOnly = handleDescendants({
+        element: child as Element,
+        encodeSpecialCharacters,
+        removeComments,
+        removeEmptyTags,
+        removeImages,
+        removeLinks,
+        removeSpanTags,
+        removeTables,
+        removeTagAttributes,
+        removeTagsWithOneNbsp,
+        replaceTableTagsWithStructuredDivs,
+        textOnly,
+      });
     } else if (child.nodeType === Node.TEXT_NODE) {
-      if (isEncode) {
+      if (encodeSpecialCharacters) {
         const encoded = encode(child.nodeValue, {
           mode: 'nonAscii'
         });
@@ -46,7 +211,7 @@ const handleDescendants = (
       if (removeComments) {
         child.parentNode?.removeChild(child);
       } else {
-        textOnly+= child.nodeValue;
+        textOnly+= getCommentNodeOuterXML(child);
       }
     }
     else if (child.nodeType === Node.CDATA_SECTION_NODE) {
@@ -64,9 +229,9 @@ const HtmlCleaner: FC = () => {
   const [ removeInlineStyles, setRemoveInlineStyles ] = useState<boolean>(false);
   const [ removeClassesAndIds, setRemoveClassesAndIds ] = useState<boolean>(false);
   const [ removeAllTags, setRemoveAllTags ] = useState<boolean>(false);
-  const [ removeSuccessiveNbps, setRemoveSuccessiveNbps ] = useState<boolean>(false);
+  const [ removeSuccessiveNbsp, setRemoveSuccessiveNbsp ] = useState<boolean>(false);
   const [ removeEmptyTags, setRemoveEmptyTags ] = useState<boolean>(false);
-  const [ removeTagsWithOneNbps, setRemoveTagsWithOneNbps ] = useState<boolean>(false);
+  const [ removeTagsWithOneNbsp, setRemoveTagsWithOneNbsp ] = useState<boolean>(false);
   const [ removeSpanTags, setRemoveSpanTags ] = useState<boolean>(false);
   const [ removeImages, setRemoveImages ] = useState<boolean>(false);
   const [ removeLinks, setRemoveLinks ] = useState<boolean>(false);
@@ -89,26 +254,37 @@ const HtmlCleaner: FC = () => {
     if (editorRef.current) {
       let newString = editorRef.current.getContent()
 
+      // initial remove of nbsp, useful for removing tags with one nbsp
+      if (removeSuccessiveNbsp) {
+        newString = recursiveReplace(newString, /(&nbsp;| )+/gm, ' ');
+      }
+
       try {
         const domParser = new DOMParser();
         // we enclose in a parent p tag to make it a valid xml
         const xmlDoc = domParser.parseFromString(`<p>${newString}</p>`, "application/xml");
         const root = xmlDoc.documentElement;
-        console.log(newString);
-        // console.log(' - - - - ')
-        // console.log(root);
-        // console.log(root.textContent)
-        const textOnly = handleDescendants(root, '', encodeSpecialCharacters, removeComments);
+        const textOnly = handleDescendants({
+          encodeSpecialCharacters,
+          element: root,
+          removeComments,
+          removeEmptyTags,
+          removeImages,
+          removeLinks,
+          removeSpanTags,
+          removeTables,
+          removeTagAttributes,
+          removeTagsWithOneNbsp,
+          replaceTableTagsWithStructuredDivs,
+          textOnly: '',
+        });
 
         if (removeAllTags) {
           newString = textOnly;
         } else {
           // get innerHTML of enclosing p tag
           // handle re-encoding of ampersand
-          newString = root.innerHTML
-            .replace(/&amp;/g, '&')
-            .replace(/&apos;/g, '\'')
-            .replace(/&quot;/g, '"');
+          newString = root.innerHTML;
         }
       } catch (e) {
         console.error(e);
@@ -116,14 +292,23 @@ const HtmlCleaner: FC = () => {
 
       }
 
+      newString = newString
+        .replace(/&amp;/g, '&')
+        .replace(/&apos;/g, '\'')
+        .replace(/&quot;/g, '"');
+
+      // final remove of nbsp
+      // useful for when extracting text content (1 nbsp from 1 element and another)
+      if (removeSuccessiveNbsp) {
+        newString = recursiveReplace(newString, /(&nbsp;| )+/gm, ' ');
+      }
+
       setHtmlString(newString);
     }    
   }
 
   const onCodeMirrorChange = (value: string, viewUpdate: ViewUpdate) => {
-    if (editorRef.current) {
-      editorRef.current.setContent(value);
-    }
+    setHtmlString(value);
   }
 
   const onTinyMCEChange = (e: EditorEvent<Event>) => {
@@ -131,6 +316,12 @@ const HtmlCleaner: FC = () => {
       setHtmlString(editorRef.current.getContent())
     }
   }
+
+  useEffect(() => {
+    if (editorRef.current) {
+      editorRef.current.setContent(htmlString);
+    }
+  }, [htmlString])
 
   return (
     <div
@@ -208,15 +399,15 @@ const HtmlCleaner: FC = () => {
             <input
               className="m-2 ml-0 cursor-pointer h-5 w-5 align-middle"
               type="checkbox"
-              id="removeSuccessiveNbps"
-              checked={removeSuccessiveNbps}
-              onChange={e => {setRemoveSuccessiveNbps(e.target.checked)}}
+              id="removeSuccessiveNbsp"
+              checked={removeSuccessiveNbsp}
+              onChange={e => {setRemoveSuccessiveNbsp(e.target.checked)}}
             />
             <label
               className="mr-4 cursor-pointer align-middle"
-              htmlFor="removeSuccessiveNbps">
-              Remove successive
-              &nbps;</label>
+              htmlFor="removeSuccessiveNbsp">
+              Remove successive &amp;nbsp;
+            </label>
           </div>
 
           <div>
@@ -238,15 +429,15 @@ const HtmlCleaner: FC = () => {
             <input
               className="m-2 ml-0 cursor-pointer h-5 w-5 align-middle"
               type="checkbox"
-              id="removeTagsWithOneNbps"
-              checked={removeTagsWithOneNbps}
-              onChange={e => {setRemoveTagsWithOneNbps(e.target.checked)}}
+              id="removeTagsWithOneNbsp"
+              checked={removeTagsWithOneNbsp}
+              onChange={e => {setRemoveTagsWithOneNbsp(e.target.checked)}}
             />
             <label
               className="mr-4 cursor-pointer align-middle"
-              htmlFor="removeTagsWithOneNbps">
+              htmlFor="removeTagsWithOneNbsp">
               Remove tags
-              with one &nbps;</label>
+              with one &amp;nbsp;</label>
           </div>
 
           <div>
@@ -393,6 +584,7 @@ const HtmlCleaner: FC = () => {
               // needed especially for nbsp;
               entity_encoding: 'raw',
               element_format: 'xhtml',
+              extended_valid_elements: 'span',
               placeholder: 'Type here...',
               toolbar_mode: 'floating',
               plugins: [
