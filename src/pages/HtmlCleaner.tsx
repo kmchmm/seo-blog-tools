@@ -16,7 +16,6 @@ import { encode } from 'html-entities';
 //     .replace(/>/g, '&gt;');
 // };
 
-// removeTagAttributes
 // removeInlineStyles
 // removeClassesAndIds
 // setNewLinesAndTextIndents
@@ -24,9 +23,11 @@ import { encode } from 'html-entities';
 interface handleDescendantProps {
   element: Element,
   encodeSpecialCharacters: boolean,
+  removeClassesAndIds: boolean,
   removeComments: boolean,
   removeEmptyTags: boolean,
   removeImages: boolean,
+  removeInlineStyles: boolean,
   removeLinks: boolean,
   removeSpanTags: boolean,
   removeTables: boolean,
@@ -96,9 +97,11 @@ const handleDescendants = (props: handleDescendantProps) => {
   const {
     element,
     encodeSpecialCharacters,
+    removeClassesAndIds,
     removeComments,
     removeEmptyTags,
     removeImages,
+    removeInlineStyles,
     removeLinks,
     removeSpanTags,
     removeTables,
@@ -133,9 +136,11 @@ const handleDescendants = (props: handleDescendantProps) => {
         textOnly = handleDescendants({
           element: child as Element,
           encodeSpecialCharacters,
+          removeClassesAndIds,
           removeComments,
           removeEmptyTags,
           removeImages,
+          removeInlineStyles,
           removeLinks,
           removeSpanTags,
           removeTables,
@@ -155,9 +160,11 @@ const handleDescendants = (props: handleDescendantProps) => {
         textOnly = handleDescendants({
           element: child as Element,
           encodeSpecialCharacters,
-          removeEmptyTags,
+          removeClassesAndIds,
           removeComments,
+          removeEmptyTags,
           removeImages,
+          removeInlineStyles,
           removeLinks,
           removeSpanTags,
           removeTables,
@@ -179,16 +186,36 @@ const handleDescendants = (props: handleDescendantProps) => {
 
       // remove tag attributes
       if (removeTagAttributes) {
-        console.log((child as Element).attributes)
-        // [...child.attributes].forEach(attr => elem.removeAttribute(attr.name));
+        const childAttributes = [...(child as Element).attributes];
+        childAttributes.forEach(attr => {
+          const nodeName = child.nodeName.toLowerCase();
+          // only strip if not img[src] or a[href]
+          if (
+            !(nodeName === 'img' && attr.name === 'src') &&
+            !(nodeName === 'a' && attr.name === 'href'))
+            (child as Element).removeAttribute(attr.name);
+        })
+      // remove classes and IDs
+      } else {
+        if (removeClassesAndIds || removeInlineStyles) {
+          if (removeClassesAndIds) {
+            (child as Element).removeAttribute('class');
+            (child as Element).removeAttribute('id');
+          }
+          if (removeInlineStyles) {
+            (child as Element).removeAttribute('style');
+          }
+        }
       }
 
       textOnly = handleDescendants({
         element: child as Element,
         encodeSpecialCharacters,
+        removeClassesAndIds,
         removeComments,
         removeEmptyTags,
         removeImages,
+        removeInlineStyles,
         removeLinks,
         removeSpanTags,
         removeTables,
@@ -253,7 +280,7 @@ const HtmlCleaner: FC = () => {
   const applyCleaningSettings = () => {
     if (editorRef.current) {
       let newString = editorRef.current.getContent()
-
+      console.log(newString);
       // initial remove of nbsp, useful for removing tags with one nbsp
       if (removeSuccessiveNbsp) {
         newString = recursiveReplace(newString, /(&nbsp;| )+/gm, ' ');
@@ -267,9 +294,11 @@ const HtmlCleaner: FC = () => {
         const textOnly = handleDescendants({
           encodeSpecialCharacters,
           element: root,
+          removeClassesAndIds,
           removeComments,
           removeEmptyTags,
           removeImages,
+          removeInlineStyles,
           removeLinks,
           removeSpanTags,
           removeTables,
@@ -283,7 +312,6 @@ const HtmlCleaner: FC = () => {
           newString = textOnly;
         } else {
           // get innerHTML of enclosing p tag
-          // handle re-encoding of ampersand
           newString = root.innerHTML;
         }
       } catch (e) {
@@ -292,6 +320,7 @@ const HtmlCleaner: FC = () => {
 
       }
 
+      // handle re-encoding of ampersand
       newString = newString
         .replace(/&amp;/g, '&')
         .replace(/&apos;/g, '\'')
@@ -303,6 +332,8 @@ const HtmlCleaner: FC = () => {
         newString = recursiveReplace(newString, /(&nbsp;| )+/gm, ' ');
       }
 
+      console.log('NEW STRING')
+      console.log(newString);
       setHtmlString(newString);
     }    
   }
@@ -584,7 +615,7 @@ const HtmlCleaner: FC = () => {
               // needed especially for nbsp;
               entity_encoding: 'raw',
               element_format: 'xhtml',
-              extended_valid_elements: 'span',
+              extended_valid_elements: 'span[style|id|name|class]',
               placeholder: 'Type here...',
               toolbar_mode: 'floating',
               plugins: [
