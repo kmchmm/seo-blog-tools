@@ -6,19 +6,8 @@ import { Editor } from '@tinymce/tinymce-react';
 import { Editor as TinyMCEEditor, EditorEvent } from 'tinymce';
 import CodeMirror, { ViewUpdate } from '@uiw/react-codemirror';
 import { html } from '@codemirror/lang-html';
-
 import { encode } from 'html-entities';
-
-// export const encodeTagCharacters = (unsafe: string) => {
-//   return unsafe
-//     .replace(/&/g, '&amp;')
-//     .replace(/</g, '&lt;')
-//     .replace(/>/g, '&gt;');
-// };
-
-// removeInlineStyles
-// removeClassesAndIds
-// setNewLinesAndTextIndents
+import { html_beautify } from 'js-beautify';
 
 interface handleDescendantProps {
   element: Element,
@@ -34,6 +23,7 @@ interface handleDescendantProps {
   removeTagAttributes: boolean,
   removeTagsWithOneNbsp: boolean,
   replaceTableTagsWithStructuredDivs: boolean,
+  setNewLinesAndTextIndents: boolean,
   textOnly: string,
 }
 
@@ -45,6 +35,26 @@ const tableReplacementClasses = {
   'thead' : 'table-head',
   'tbody' : 'table body',
   'tfoot' : 'table-foot'
+}
+
+const jsBeautifierOptions = {
+  "indent_size": "4",
+  "indent_char": " ",
+  "max_preserve_newlines": "5",
+  "preserve_newlines": true,
+  "keep_array_indentation": false,
+  "break_chained_methods": false,
+  "indent_scripts": "normal",
+  "brace_style": "none",
+  "space_before_conditional": true,
+  "unescape_strings": false,
+  "jslint_happy": false,
+  "end_with_newline": false,
+  "wrap_line_length": "0",
+  "indent_inner_html": false,
+  "comma_first": false,
+  "e4x": false,
+  "indent_empty_lines": false
 }
 
 const selfClosingTags = ['area', 'base', 'br', 'col', 'embed', 'hr', 'img', 'input', 'link', 'meta', 'param', 'source', 'track', 'wbr'];
@@ -62,7 +72,7 @@ const isNodeEmpty = (node: ChildNode) => {
 }
 
 const isOneNbsp = (node: ChildNode) => {
-  // Node has no children (only text, which is nbsp;) 
+  // Node has no other children (only text, which is nbsp;) 
   if (node.childNodes.length === 1 &&
     (node.textContent === '\xA0' ||
     node.textContent === ' ')) {
@@ -108,6 +118,7 @@ const handleDescendants = (props: handleDescendantProps) => {
     removeTagAttributes,
     removeTagsWithOneNbsp,
     replaceTableTagsWithStructuredDivs,
+    setNewLinesAndTextIndents
   } = props;
   let { textOnly } = props;
 
@@ -147,6 +158,7 @@ const handleDescendants = (props: handleDescendantProps) => {
           removeTagAttributes,
           removeTagsWithOneNbsp,
           replaceTableTagsWithStructuredDivs,
+          setNewLinesAndTextIndents,
           textOnly,
         });
         const children = Array.from(child.childNodes)
@@ -171,13 +183,16 @@ const handleDescendants = (props: handleDescendantProps) => {
           removeTagAttributes,
           removeTagsWithOneNbsp,
           replaceTableTagsWithStructuredDivs,
+          setNewLinesAndTextIndents,
           textOnly,
         });
         // need to use createElementNS in order to avoid automatic attribute of xlmns
         // for all top level child of created element (when using document.createElement)
         const newDiv = document.createElementNS('', 'div');
-        const classKey = child.nodeName.toLowerCase() as keyof typeof tableReplacementClasses;
-        newDiv.setAttribute('class', tableReplacementClasses[classKey])
+        if (!removeTagAttributes && !removeClassesAndIds) {
+          const classKey = child.nodeName.toLowerCase() as keyof typeof tableReplacementClasses;
+          newDiv.setAttribute('class', tableReplacementClasses[classKey])
+        }
         newDiv.append(...child.childNodes);
         child.replaceWith(newDiv);
 
@@ -222,6 +237,7 @@ const handleDescendants = (props: handleDescendantProps) => {
         removeTagAttributes,
         removeTagsWithOneNbsp,
         replaceTableTagsWithStructuredDivs,
+        setNewLinesAndTextIndents,
         textOnly,
       });
     } else if (child.nodeType === Node.TEXT_NODE) {
@@ -248,6 +264,29 @@ const handleDescendants = (props: handleDescendantProps) => {
 
   return textOnly;
 };
+
+const prettifyXML = (xml: String) => {
+  let pad = 0;
+  const padding = '\u0020'.repeat(4); // set desired indent size here
+  
+  xml = xml.replace(/(\r\n|\n|\r)/gm, '\u0020').replace(/>\s+</g,'><');
+  xml = xml.replace(/(>)(<)(\/*)/g, '$1\r\n$2$3');
+  
+  return xml.split('\r\n').map((node, index) => { //XML elements now split into lines
+      let indent = 0;
+      if (node.match(/.+<\/\w[^>]*>$/)) {
+          indent = 0;
+      } else if (node.match(/^<\/\w/) && pad > 0) {
+          pad -= 1;
+      } else if (node.match(/^<[\w^>]*[^\/]>.*$/)) {
+          indent = 1;
+      } else {
+          indent = 0;
+      }
+      pad += indent;
+      return padding.repeat(pad - indent) + node;
+  }).join('\r\n');
+}
 
 const HtmlCleaner: FC = () => {
   const [ htmlString, setHtmlString ] = useState<string>('')
@@ -305,6 +344,7 @@ const HtmlCleaner: FC = () => {
           removeTagAttributes,
           removeTagsWithOneNbsp,
           replaceTableTagsWithStructuredDivs,
+          setNewLinesAndTextIndents,
           textOnly: '',
         });
 
@@ -332,8 +372,12 @@ const HtmlCleaner: FC = () => {
         newString = recursiveReplace(newString, /(&nbsp;| )+/gm, ' ');
       }
 
-      console.log('NEW STRING')
-      console.log(newString);
+      if (setNewLinesAndTextIndents) {
+        // first handles `inline` tags such as span, em, strong, etc
+        newString = prettifyXML(newString);
+        // this pretty much handles everything else 
+        newString = html_beautify(newString, jsBeautifierOptions);
+      }
       setHtmlString(newString);
     }    
   }
