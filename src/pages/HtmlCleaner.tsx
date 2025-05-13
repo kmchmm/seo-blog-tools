@@ -340,10 +340,6 @@ const HtmlCleaner: FC = () => {
   const applyCleaningSettings = () => {
     if (editorRef.current) {
       let newString = editorRef.current.getContent();
-      // initial remove of nbsp, useful for removing tags with one nbsp
-      if (removeSuccessiveNbsp) {
-        newString = recursiveReplace(newString, /(&nbsp;| | ){2,}/gm, ' ');
-      }
 
       try {
         const domParser = new DOMParser();
@@ -388,7 +384,6 @@ const HtmlCleaner: FC = () => {
         .replace(/&apos;/g, "'")
         .replace(/&quot;/g, '"');
 
-      // final remove of nbsp
       // useful for when extracting text content (1 nbsp from 1 element and another)
       if (removeSuccessiveNbsp) {
         newString = recursiveReplace(newString, /(&nbsp;| | ){2,}/gm, ' ');
