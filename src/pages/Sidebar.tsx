@@ -47,7 +47,7 @@ const Sidebar: FC = () => {
 
   const RaketMenuItem = (itemProps: RaketMenuItemProps) => {
     const { children } = itemProps;
-  
+
     return (
       <li
         onClick={() => setIsSidebarOpen(false)}

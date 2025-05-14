@@ -76,10 +76,10 @@ const handleDownload = (blob: Blob, filename: string) => {
 };
 
 const trySanitize = (text: string) => {
-  const elm = document.createElement("p");
+  const elm = document.createElement('p');
   elm.textContent = text;
-  return(elm.innerHTML);
-}
+  return elm.innerHTML;
+};
 
 const GeoTagger: FC = () => {
   const [exifName, setEXIFName] = useState<string>('');
@@ -217,7 +217,7 @@ const GeoTagger: FC = () => {
       if (newFiles && newFiles[0] && isAccepted(newFiles[0].name)) {
         memoizeFile(newFiles[0]);
       } else {
-        showToast('File format not accepted...')
+        showToast('File format not accepted...');
       }
     }
   };
