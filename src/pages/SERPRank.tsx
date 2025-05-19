@@ -1,6 +1,7 @@
-import { FC, useEffect, useState } from 'react';
+import { FC, useEffect, useState, useContext } from 'react';
 import axios from 'axios';
 import clsx from 'clsx';
+import { UserContext } from '../context/UserContext';
 
 import { IBtnType } from '../types';
 import { Button } from '../components/Button';
@@ -10,11 +11,11 @@ import RefreshScore from '../assets/icons/refresh-score.svg?react';
 
 type RecordType = {
   id: string;
-  link?: string;
+  url?: string;
   keyword: string;
   requested_by: string;
-  moz_score?: number;
-  ak_score?: number;
+  moz_rank?: number;
+  ak_rank?: number;
 };
 
 const SERPRank: FC = () => {
@@ -24,10 +25,14 @@ const SERPRank: FC = () => {
   const [initialLoading, setInitialLoading] = useState(true);
   const [records, setRecords] = useState<RecordType[]>([]);
   const [error, setError] = useState('');
+  const [pendingRecordId, setPendingRecordId] = useState<string | null>(null);
+  const [refreshingRecordId, setRefreshingRecordId] = useState<string | null>(null);  // Track refreshing state
+
+  const { userData } = useContext(UserContext);
 
   const fetchRecords = async () => {
     try {
-      const response = await axios.get('http://localhost:8015/records');
+      const response = await axios.get('http://localhost:8013/records');
       setRecords(response.data);
       setError('');
     } catch (err: any) {
@@ -40,6 +45,8 @@ const SERPRank: FC = () => {
 
   useEffect(() => {
     fetchRecords();
+    const interval = setInterval(fetchRecords, 5000);
+    return () => clearInterval(interval);
   }, []);
 
   const handleSearch = async () => {
@@ -48,13 +55,23 @@ const SERPRank: FC = () => {
       return;
     }
 
+    if (!userData?.full_name) {
+      alert('User is not logged in or missing full name.');
+      return;
+    }
+
     setLoading(true);
     setError('');
+    setPendingRecordId(null);
+
     try {
-      await axios.post('http://localhost:8015/', {
-        keyword,
-        requested_by: url,
+      await axios.post('http://localhost:8013/', {
+        url,
+        keywords: [keyword],
+        fullname: userData.full_name,
       });
+
+      setPendingRecordId('in-progress');
       await fetchRecords();
     } catch (err: any) {
       console.error('Failed to send request:', err);
@@ -64,9 +81,49 @@ const SERPRank: FC = () => {
     }
   };
 
+  const handleUpdateRequest = async (recordId: string) => {
+    if (refreshingRecordId) return;  // If already refreshing, prevent multiple clicks
+
+    try {
+      setRefreshingRecordId(recordId); // Set the record as refreshing
+
+      await axios.post('http://localhost:8014/', {
+        record_id: recordId,
+      });
+
+      const maxAttempts = 10;
+      let attempts = 0;
+
+      const pollForUpdate = async () => {
+        attempts++;
+        const response = await axios.get('http://localhost:8013/records');
+        const updatedRecords: RecordType[] = response.data;
+        const updatedRecord = updatedRecords.find(r => r.id === recordId);
+
+        if (updatedRecord && updatedRecord.moz_rank != null && updatedRecord.ak_rank != null) {
+          setRecords(updatedRecords);
+          setRefreshingRecordId(null); // Clear refreshing state when done
+          return;
+        }
+
+        if (attempts < maxAttempts) {
+          setTimeout(pollForUpdate, 2000);
+        } else {
+          setRecords(updatedRecords);
+          setRefreshingRecordId(null); // Clear refreshing state when done
+        }
+      };
+
+      pollForUpdate();
+    } catch (err: any) {
+      console.error(' Failed to send update request:', err);
+      setError(err?.response?.data?.message || 'Something went wrong during update.');
+      setRefreshingRecordId(null); // Clear refreshing state on error
+    }
+  };
+
   return (
-    <div
-      className={clsx('flex flex-col w-full pt-4 px-3', 'bg-white-100 dark:bg-blue-600')}>
+    <div className={clsx('flex flex-col w-full pt-4 px-3', 'bg-white-100 dark:bg-blue-600')}>
       <h1 className="text-black-100 dark:text-white-100 text-5xl">AK SERP Checker</h1>
       <h6 className="italic">Our SERPChecker TOOL. (RANKING TOOL)</h6>
 
@@ -84,13 +141,14 @@ const SERPRank: FC = () => {
             type="text"
             value={url}
             onChange={e => setUrl(e.target.value)}
-            placeholder="URL (Don't put HTTPS — e.g. arashlaw.com)"
+            placeholder="URL (e.g. https://arashlaw.com)"
           />
           <Button
             onClick={handleSearch}
             disabled={loading}
             btnType={IBtnType.SEARCH}
-            className="!bg-black-200 !text-white hover:!bg-black dark:!bg-transparent dark:hover:!bg-yellow-100 dark:hover:!text-black-100">
+            className="!bg-black-200 !text-white hover:!bg-black dark:!bg-transparent dark:hover:!bg-yellow-100 dark:hover:!text-black-100"
+          >
             {loading ? 'Checking...' : 'Check'}
           </Button>
         </div>
@@ -108,11 +166,7 @@ const SERPRank: FC = () => {
         </p>
       ) : (
         <div className="paa-table-container m-0 p-0 w-full">
-          <table
-            className={clsx(
-              'w-full my-[20px] mx-auto border-collapse',
-              'table-fixed shadow-[0_4px_6px_rgba(0, 0, 0, 0.1)]'
-            )}>
+          <table className={clsx('w-full my-[20px] mx-auto border-collapse', 'table-fixed shadow-[0_4px_6px_rgba(0, 0, 0, 0.1)]')}>
             <thead>
               <tr>
                 <th className="w-1/4 border border-amber-200">Keyword</th>
@@ -127,24 +181,38 @@ const SERPRank: FC = () => {
               {records.map(record => (
                 <tr key={record.id}>
                   <td className="border border-amber-200">{record.keyword}</td>
-
-                  <td className="border border-amber-200">
-                    {(() => {
-                      try {
-                        const parsed = JSON.parse(record.link || '[]'); // safely parse
-                        return parsed[0]?.link || '---'; // get first link from data array
-                      } catch {
-                        return '---'; // fallback
-                      }
-                    })()}
+                  <td className="border border-amber-200">{record.url || '---'}</td>
+                  <td className="border border-amber-200 !text-center">
+                    {record.moz_rank == null ? (
+                      <span className="text-sm italic opacity-60">Pending...</span>
+                    ) : (
+                      record.moz_rank
+                    )}
                   </td>
-                  <td className="border border-amber-200 !text-center">{record.moz_score ?? '---'}</td>
-                  <td className="border border-amber-200 !text-center">{record.ak_score ?? '---'}</td>
+                  <td className="border border-amber-200 !text-center">
+                    {record.ak_rank == null ? (
+                      <span className="text-sm italic opacity-60">Pending...</span>
+                    ) : (
+                      record.ak_rank
+                    )}
+                  </td>
                   <td className="border border-amber-200">{record.requested_by}</td>
                   <td className="border border-amber-200 !text-center">
                     <div className="relative group inline-block">
-                      <Button className="p-2 bg-transparent border !border-transparent hover:!border-yellow-100 rounded cursor-pointer hover:!bg-transparent hover:!shadow-none">
-                        <RefreshScore className="w-6 h-6 !text-black-200 dark:!text-white" />
+                      <Button
+                        onClick={() => handleUpdateRequest(record.id)}
+                        disabled={refreshingRecordId === record.id || pendingRecordId === record.id}
+                        className={clsx(
+                          "p-2 !bg-transparent border !border-transparent",
+                          "hover:!border-black-200 dark:hover:!border-yellow-100",
+                          "rounded cursor-pointer hover:!bg-transparent hover:!shadow-none"
+                        )}
+                      >
+                        {refreshingRecordId === record.id ? (
+                          <span className="text-xs text-gray-600 dark:text-gray-300">Refreshing...</span>
+                        ) : (
+                          <RefreshScore className="w-6 h-6 text-black-200 dark:text-white" />
+                        )}
                       </Button>
                       <span className="absolute top-full mt-2 left-1/2 -translate-x-1/2 whitespace-nowrap rounded bg-gray-800 px-2 py-1 text-xs text-white opacity-0 group-hover:opacity-100 transition">
                         Refresh Score

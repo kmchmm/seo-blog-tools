@@ -189,7 +189,13 @@ const NewsScraper: React.FC = () => {
                     READ MORE
                   </a>
                 </td>
-                <td>{article.date}</td>
+                <td className="!text-center whitespace-nowrap">
+                  <div>{article.date}</div>
+                  {article.time && (
+                    <div className="text-sm text-gray-500 dark:text-gray-200 mt-1">{article.time}</div>
+                  )}
+                </td>
+
               </tr>
             ))}
           </tbody>
