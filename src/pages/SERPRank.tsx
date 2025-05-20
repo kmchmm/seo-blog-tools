@@ -16,6 +16,8 @@ type RecordType = {
   requested_by: string;
   moz_rank?: number;
   ak_rank?: number;
+  moz_status?: string;
+  ak_status?: string;
 };
 
 const SERPRank: FC = () => {
@@ -30,6 +32,7 @@ const SERPRank: FC = () => {
 
   const { userData } = useContext(UserContext);
 
+  // Fetch records from the server
   const fetchRecords = async () => {
     try {
       const response = await axios.get('http://localhost:8013/records');
@@ -49,6 +52,17 @@ const SERPRank: FC = () => {
     return () => clearInterval(interval);
   }, []);
 
+  // Check if the current keyword/url already has pending data
+  const isSearchPending = () => {
+    return records.some(
+      record =>
+        record.keyword.trim().toLowerCase() === keyword.trim().toLowerCase() &&
+        record.url?.trim().toLowerCase() === url.trim().toLowerCase() &&
+        (record.moz_status === 'pending' || record.ak_status === 'pending')
+    );
+  };
+
+  // Handle search button click
   const handleSearch = async () => {
     if (!keyword || !url) {
       alert('Please enter both keyword and URL');
@@ -81,6 +95,7 @@ const SERPRank: FC = () => {
     }
   };
 
+  // Handle update request (refresh score)
   const handleUpdateRequest = async (recordId: string) => {
     if (refreshingRecordId) return;  // If already refreshing, prevent multiple clicks
 
@@ -145,11 +160,11 @@ const SERPRank: FC = () => {
           />
           <Button
             onClick={handleSearch}
-            disabled={loading}
+            disabled={loading || isSearchPending()}
             btnType={IBtnType.SEARCH}
             className="!bg-black-200 !text-white hover:!bg-black dark:!bg-transparent dark:hover:!bg-yellow-100 dark:hover:!text-black-100"
           >
-            {loading ? 'Checking...' : 'Check'}
+            {loading ? 'Checking...' : isSearchPending() ? 'Pending...' : 'Check'}
           </Button>
         </div>
       </div>
@@ -183,17 +198,25 @@ const SERPRank: FC = () => {
                   <td className="border border-amber-200">{record.keyword}</td>
                   <td className="border border-amber-200">{record.url || '---'}</td>
                   <td className="border border-amber-200 !text-center">
-                    {record.moz_rank == null ? (
+                    {record.moz_status === 'pending' ? (
                       <span className="text-sm italic opacity-60">Pending...</span>
-                    ) : (
+                    ) : record.moz_status === 'not_found' ? (
+                      <span className="text-sm italic text-red-500">Not Found</span>
+                    ) : record.moz_rank != null ? (
                       record.moz_rank
+                    ) : (
+                      <span className="text-sm italic text-gray-400">N/A</span>
                     )}
                   </td>
                   <td className="border border-amber-200 !text-center">
-                    {record.ak_rank == null ? (
+                    {record.ak_status === 'pending' ? (
                       <span className="text-sm italic opacity-60">Pending...</span>
-                    ) : (
+                    ) : record.ak_status === 'not_found' ? (
+                      <span className="text-sm italic text-red-500">Not Found</span>
+                    ) : record.ak_rank != null ? (
                       record.ak_rank
+                    ) : (
+                      <span className="text-sm italic text-gray-400">N/A</span>
                     )}
                   </td>
                   <td className="border border-amber-200">{record.requested_by}</td>
@@ -201,7 +224,7 @@ const SERPRank: FC = () => {
                     <div className="relative group inline-block">
                       <Button
                         onClick={() => handleUpdateRequest(record.id)}
-                        disabled={refreshingRecordId === record.id || pendingRecordId === record.id}
+                        disabled={refreshingRecordId === record.id || loading || pendingRecordId === record.id}
                         className={clsx(
                           "p-2 !bg-transparent border !border-transparent",
                           "hover:!border-black-200 dark:hover:!border-yellow-100",
