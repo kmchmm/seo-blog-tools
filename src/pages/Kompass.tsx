@@ -7,7 +7,7 @@ import Info from '../assets/icons/info.svg?react';
 
 const Kompass: FC = () => {
   const [keywordValue, setKeywordValue] = useState<string>('');
-  const [keywords, setKeywords] = useState<string[]>(['takte']);
+  const [keywords, setKeywords] = useState<string[]>([]);
 
   const handleAddKeyword = () => {
     // check if already added
