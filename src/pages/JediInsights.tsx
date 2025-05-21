@@ -43,7 +43,7 @@ function tryParseJson<T>(str: string): T | null {
 const JediInsights: FC = () => {
   const [url, setUrl] = useState('');
   const [keywords, setKeywords] = useState('');
-  const [fullname, setFullname] = useState('');
+  // const [fullname, setFullname] = useState('');
   const [insights, setInsights] = useState<Insight[]>([]);
   const [filteredInsights, setFilteredInsights] = useState<Insight[]>([]);
   const [loading, setLoading] = useState(false);
@@ -58,8 +58,8 @@ const JediInsights: FC = () => {
 
   const [refreshingId, setRefreshingId] = useState<string | null>(null);
   const { userData } = useContext(UserContext);
-  const [responseMsg, setResponseMsg] = useState('');
-  const [id, setId] = useState('');
+  // const [responseMsg, setResponseMsg] = useState('');
+  // const [id, setId] = useState('');
   const [urlError, setUrlError] = useState<string | null>(null); 
   const [keywordsError, setKeywordsError] = useState<string | null>(null);
 
@@ -251,12 +251,12 @@ const JediInsights: FC = () => {
       try {
         const response = await axios.get('http://localhost:8011/insights');
         const reversed = response.data.reverse();
-        const nonArchived = reversed.filter(item => item.status !== 'archived');
+        const nonArchived = reversed.filter((item: Insight) => item.status !== 'archived');
         setInsights(nonArchived);
         setFilteredInsights(nonArchived);
   
         const stillPending = nonArchived.some(
-          item => item.moz_status === 'pending' || item.wincher_status === 'pending'
+          (item: Insight) => item.moz_status === 'pending' || item.wincher_status === 'pending'
         );
   
         if (!stillPending) clearInterval(interval); 

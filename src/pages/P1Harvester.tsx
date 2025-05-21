@@ -10,7 +10,7 @@ import { ToastContext } from '../context/ToastContext';
 import Download from '../assets/icons/download.svg?react';
 
 const AK_SERPER_COLLECTION = 'ak_serper';
-const AK_OCTOBITS_COLLECTION = 'ak_octobits';
+// const AK_OCTOBITS_COLLECTION = 'ak_octobits';
 
 interface resultData {
   title: string;

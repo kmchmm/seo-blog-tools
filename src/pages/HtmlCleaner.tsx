@@ -2,8 +2,8 @@ import { FC, useEffect, useRef, useState } from 'react';
 import clsx from 'clsx';
 import Sweep from '../assets/icons/sweep.svg?react';
 import { Editor } from '@tinymce/tinymce-react';
-import { Editor as TinyMCEEditor, EditorEvent } from 'tinymce';
-import CodeMirror, { ViewUpdate } from '@uiw/react-codemirror';
+import { Editor as TinyMCEEditor } from 'tinymce';
+import CodeMirror from '@uiw/react-codemirror';
 import { html } from '@codemirror/lang-html';
 import { encode } from 'html-entities';
 import { html_beautify, HTMLBeautifyOptions } from 'js-beautify';
@@ -298,7 +298,8 @@ const prettifyXML = (xml: String) => {
 
   return xml
     .split('\r\n')
-    .map((node, index) => {
+    // .map((node, index) => {
+    .map((node) => {
       //XML elements now split into lines
       let indent = 0;
       if (node.match(/.+<\/\w[^>]*>$/)) {
@@ -402,11 +403,13 @@ const HtmlCleaner: FC = () => {
     }
   };
 
-  const onCodeMirrorChange = (value: string, viewUpdate: ViewUpdate) => {
+  // const onCodeMirrorChange = (value: string, viewUpdate: ViewUpdate) => {
+  const onCodeMirrorChange = (value: string) => {
     setHtmlString(value);
   };
 
-  const onTinyMCEChange = (e: EditorEvent<Event>) => {
+  // const onTinyMCEChange = (e: EditorEvent<Event>) => {
+  const onTinyMCEChange = () => {
     if (editorRef.current) {
       setHtmlString(editorRef.current.getContent());
     }
