@@ -32,7 +32,7 @@ const App: FC = () => {
   const { toolsAccess } = use(UserContext);
 
   return (
-    <Router>
+    <Router basename="/frontend-v2">
       <Routes>
         <Route element={<Layout />}>
           <Route path="/" element={<Home />} />
