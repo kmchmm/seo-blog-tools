@@ -46,7 +46,6 @@ const YoastSEOAnalyze = () => {
       // The worker has been configured, we can now analyze a Paper.
       const paper = new Paper( text , {
         keyword: "lawyer",
-        title: 
       } );
 
       return newWorker.analyze( paper );
