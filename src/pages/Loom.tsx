@@ -5,6 +5,8 @@ import { Editor } from '@tinymce/tinymce-react';
 import { Editor as TinyMCEEditor, EditorEvent } from 'tinymce';
 
 import { Button } from '../components/Button';
+import { LoomTabGroup } from '../components/LoomTabGroup';
+import { Summary } from '../components/Summary';
 
 const errorLengthStyle = 'bg-red-200';
 const warningLengthStyle = 'bg-yellow-200';
@@ -76,7 +78,7 @@ const Loom: FC = () => {
   const [ focusKeyword, setFocusKeyword ] = useState<string>('');
   const [ alternateEsq, setAlternateEsq ] = useState<string>('');
   const [ editMode, setEditMode ] = useState<boolean>(true);
-  const [ showSummary, setShowSummary ] = useState<boolean>(true);
+  const [ showSummary, setShowSummary ] = useState<boolean>(false);
   const editorRef = useRef<TinyMCEEditor>(null);
 
   const titleStyle = useMemo(() => 
@@ -171,10 +173,11 @@ const Loom: FC = () => {
               />
             </div>
             <div className="w-1/2">
-              <label>Enter Alternate ESQ</label>
+              <label>Alternate ESQ</label>
               <input
                 type="text"
                 value={alternateEsq}
+                placeholder="(optional)"
                 className="w-full! py-2!"
                 onChange={e => setAlternateEsq(e.target.value)}
               />
@@ -264,22 +267,25 @@ const Loom: FC = () => {
             )}></div>
           </div>
         </div>
-        <div className="w-[450px] h-[900px]">
+        <div className="w-[350px] min-h-[500px]">
           <Button className="w-full mb-4" >Run All Checks</Button>
           <section className={clsx(
             'border border-black/17.5 rounded-md p-4 bg-white',
             'flex flex-1 flex-col'
           )}>
             <Button className="self-center">Export Full Report</Button>
-            <div className="justify-between flex">
+            <div className={clsx(
+              'justify-between flex border-b px-4 pb-5 border-black/17.5',
+              'mx-[-16px] mb-4'
+            )}>
               <label className="font-bold">Summary</label>
               <a
-                className="cursor-pointer text-blue-300"
+                className="cursor-pointer text-blue-300 select-none"
                 onClick={() => setShowSummary(!showSummary)}
               >Show/Hide</a>
             </div>
-            {showSummary && <div>SUMMARY!!!</div>}
-            {!showSummary && <div>TABS!!!</div>}
+            {showSummary && <Summary />}
+            {!showSummary && <LoomTabGroup text={htmlString}/>}
           </section>
         </div>
 

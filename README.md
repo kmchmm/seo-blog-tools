@@ -52,3 +52,13 @@ export default tseslint.config({
   },
 });
 ```
+
+For attribution
+
+Font Awesome 5
+ - https://creativecommons.org/licenses/by/4.0/
+ - used in src/pages/GeoTagger.tsx
+
+Github Octicons
+ - https://github.com/primer/octicons/blob/main/LICENSE
+ - used in src/components/LoomTabGroup
