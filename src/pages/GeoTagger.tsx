@@ -18,7 +18,7 @@ const API_URL_WRITE = IS_DEV
 
 const ACCEPTED_FILES = '.jpg,.jpeg,.png,.webp';
 
-const IMAGE_WIDTHS = [1920, 650, 420];
+const IMAGE_WIDTHS = [1920, 650, 420, 0];
 
 const FORM_DATA_HEADER = {
   'Content-Type': 'multipart/form-data',
@@ -93,6 +93,8 @@ const GeoTagger: FC = () => {
   const [file, setFile] = useState<File>();
   const [optimize, setOptimize] = useState<boolean>(false);
   const [imgWidth, setImgWidth] = useState<number>(1920);
+  const [originalWidth, setOriginalWidth] = useState<string>('');
+  const [customWidth, setCustomWidth] = useState<number>(0);
   const [quality, setQuality] = useState<number>(80);
   const [preview, setPreview] = useState<string>('');
   const fileSelectRef = useRef<HTMLInputElement>(null);
@@ -107,6 +109,8 @@ const GeoTagger: FC = () => {
     setFile(undefined);
     if (preview) URL.revokeObjectURL(preview);
     setPreview('');
+    setOriginalWidth('');
+    setCustomWidth(0);
     if (fileSelectRef.current) {
       fileSelectRef.current.value = '';
     }
@@ -154,7 +158,7 @@ const GeoTagger: FC = () => {
           GPSLatitudeRef: Number(exifLatitude) > 0 ? 'N' : 'S',
           GPSLongitudeRef: Number(exifLongitude) > 0 ? 'E' : 'W',
           optimize,
-          imgWidth,
+          imgWidth: (imgWidth > 0) ? imgWidth : customWidth,
           quality,
         },
         {
@@ -189,7 +193,7 @@ const GeoTagger: FC = () => {
           GPSLatitudeRef: Number(exifLatitude) > 0 ? 'N' : 'S',
           GPSLongitudeRef: Number(exifLongitude) > 0 ? 'E' : 'W',
           optimize,
-          imgWidth,
+          imgWidth: (imgWidth > 0) ? imgWidth : customWidth,
           quality,
         },
         {
@@ -254,6 +258,7 @@ const GeoTagger: FC = () => {
   useEffect(() => {
     if (preview) URL.revokeObjectURL(preview);
     setPreview('');
+    setOriginalWidth('');
     if (!file) {
       if (imgRef.current) imgRef.current.src = '';
 
@@ -264,7 +269,13 @@ const GeoTagger: FC = () => {
     // Encode the file using the FileReader API
     const reader = new FileReader();
     reader.onloadend = () => {
+      const img = new Image;
+      img.onload = function() {
+          setOriginalWidth(String(img.width));
+          setCustomWidth(img.width);
+      };
       const dataURI = reader.result as string;
+      img.src = dataURI;
       if (imgRef.current) imgRef.current.src = dataURI;
     };
     reader.readAsDataURL(file as File);
@@ -344,6 +355,9 @@ const GeoTagger: FC = () => {
         </section>
       </div>
       <section>
+        <p className="my-2 text-center">
+          Original Width: {originalWidth}
+        </p>        
         <div className="my-2">
           <input
             className="m-1 cursor-pointer"
@@ -362,13 +376,29 @@ const GeoTagger: FC = () => {
             disabled={!optimize}
             value={imgWidth}
             onChange={e => setImgWidth(Number(e.target.value))}
-            className={!optimize ? 'cursor-not-allowed opacity-50 !w-75' : '!w-75'}>
+            className={clsx(
+              '!w-40 !rounded-r-none',
+              !optimize ? 'cursor-not-allowed opacity-50 ' : ''
+            )}>
             {IMAGE_WIDTHS.map(width => (
               <option value={width} key={width}>
-                {width}
+                {width > 0 ? width : 'Custom'}
               </option>
             ))}
           </select>
+          <input
+            disabled={imgWidth !== 0 || !optimize}
+            type="number"
+            value={customWidth}
+            step="5"
+            min="20"
+            onChange={e => setCustomWidth(Number(e.target.value))}
+            className={clsx(
+              '!w-35 !rounded-l-none',
+              (imgWidth !== 0 || !optimize) ?
+                'cursor-not-allowed opacity-50 ' : ''
+            )}
+          />
         </div>
         <div>
           <label className="w-20 inline-block">Quality</label>
