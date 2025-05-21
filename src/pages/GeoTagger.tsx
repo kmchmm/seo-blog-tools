@@ -12,6 +12,10 @@ const API_URL = IS_DEV
   ? import.meta.env.VITE_LOCAL_EXIF_API_URL
   : import.meta.env.VITE_PROD_EXIF_API_URL;
 
+const API_URL_WRITE = IS_DEV
+  ? import.meta.env.VITE_LOCAL_EXIF_WRITE_API_URL
+  : import.meta.env.VITE_PROD_EXIF_WRITE_API_URL;
+
 const ACCEPTED_FILES = '.jpg,.jpeg,.png,.webp';
 
 const IMAGE_WIDTHS = [1920, 650, 420];
@@ -140,7 +144,7 @@ const GeoTagger: FC = () => {
     if (!file) return;
     try {
       const response = await axios.post(
-        `${API_URL}/write`,
+        `${API_URL_WRITE}`,
         {
           file,
           DocumentName: exifName,
@@ -175,7 +179,7 @@ const GeoTagger: FC = () => {
     if (!file) return;
     try {
       const response = await axios.post(
-        `${API_URL}/write`,
+        `${API_URL_WRITE}`,
         {
           file,
           DocumentName: exifName,
