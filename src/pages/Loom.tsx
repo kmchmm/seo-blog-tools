@@ -4,9 +4,7 @@ import clsx from 'clsx';
 import { Editor } from '@tinymce/tinymce-react';
 import { Editor as TinyMCEEditor, EditorEvent } from 'tinymce';
 
-import { Button } from '../components/Button';
-import { LoomTabGroup } from '../components/LoomTabGroup';
-import { Summary } from '../components/Summary';
+import { LoomSidebar } from '../components/LoomSidebar';
 
 const errorLengthStyle = 'bg-red-200';
 const warningLengthStyle = 'bg-yellow-200';
@@ -18,6 +16,7 @@ interface CONSTRAINT {
 }
 
 const EDITOR_MIN_HEIGHT = 450;
+const minHeghtStyle = 'min-h-[450px]';
 
 // based relatively on previous AK Loom tool
 const TITLE_CONSTRAINTS: CONSTRAINT = {
@@ -71,14 +70,12 @@ const  checkPixelLength = (text: string, constraint: CONSTRAINT) => {
 }
 
 const Loom: FC = () => {
-  const [tab, setTab] = useState<string>('');
   const [htmlString, setHtmlString] = useState<string>('');
   const [ title, setTitle ] = useState<string>('');
   const [ description, setDescription ] = useState<string>('');
   const [ focusKeyword, setFocusKeyword ] = useState<string>('');
   const [ alternateEsq, setAlternateEsq ] = useState<string>('');
   const [ editMode, setEditMode ] = useState<boolean>(true);
-  const [ showSummary, setShowSummary ] = useState<boolean>(false);
   const editorRef = useRef<TinyMCEEditor>(null);
 
   const titleStyle = useMemo(() => 
@@ -262,33 +259,17 @@ const Loom: FC = () => {
             </div>
             <div className={clsx(
               'border border-black/17.5 rounded-md p-4 bg-white',
-              `min-h-[${EDITOR_MIN_HEIGHT}px]`,
+              minHeghtStyle,
               editMode ? 'hidden' : 'visible'
             )}></div>
           </div>
         </div>
-        <div className="w-[350px] min-h-[500px]">
-          <Button className="w-full mb-4" >Run All Checks</Button>
-          <section className={clsx(
-            'border border-black/17.5 rounded-md p-4 bg-white',
-            'flex flex-1 flex-col'
-          )}>
-            <Button className="self-center">Export Full Report</Button>
-            <div className={clsx(
-              'justify-between flex border-b px-4 pb-5 border-black/17.5',
-              'mx-[-16px] mb-4'
-            )}>
-              <label className="font-bold">Summary</label>
-              <a
-                className="cursor-pointer text-blue-300 select-none"
-                onClick={() => setShowSummary(!showSummary)}
-              >Show/Hide</a>
-            </div>
-            {showSummary && <Summary />}
-            {!showSummary && <LoomTabGroup text={htmlString}/>}
-          </section>
-        </div>
-
+        <LoomSidebar
+          text={htmlString}
+          keyword={focusKeyword}
+          metaTitle={title}
+          metaDescription={description}
+        />
       </section>
     </div>
   );
