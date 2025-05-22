@@ -77,13 +77,7 @@ const TitleTweak: FC = () => {
       <section className="flex flex-row mt-12">
         <div className="flex flex-1 flex-col gap-2 p-2">
           <textarea
-            className={clsx(
-              'px-3 py-2 text-lg bg-white',
-              'rounded-md border border-gray-300 min-h-12',
-              'transition-[border-color,box-shadow] duration-[150ms,150ms]',
-              'ease-[ease-in-out,ease-in-out] outline-0',
-              'focus:border-blue-900 focus:shadow-[0_0_0_.25rem_#0d6efd40]'
-            )}
+            className="min-h-12 text-lg"
             rows={8}
             placeholder="Input text here"
             onChange={handleChange}
