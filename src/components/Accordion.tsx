@@ -32,7 +32,7 @@ export const Accordion = (accProps: AccordionProps) => {
           expanded ? 'h-14 pt-5' : 'h-12 pt-3'
         )}
         onClick={() => {
-          setExpanded(!expanded)
+          setExpanded(isExpanded => !isExpanded);
         }}
       >
         <GoChevronDown className={clsx(

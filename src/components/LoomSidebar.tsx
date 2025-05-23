@@ -142,7 +142,7 @@ export const LoomSidebar: FC<LoomProps> = ({
           <label className="font-bold">Summary</label>
           <a
             className="cursor-pointer text-blue-300 select-none"
-            onClick={() => setShowSummary(!showSummary)}
+            onClick={() => setShowSummary(shouldShow => !shouldShow)}
           >Show/Hide</a>
         </div>
         {showSummary && <Summary />}
