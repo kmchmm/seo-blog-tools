@@ -412,12 +412,6 @@ const HtmlCleaner: FC = () => {
     }
   };
 
-  useEffect(() => {
-    if (editorRef.current) {
-      editorRef.current.setContent(htmlString);
-    }
-  }, [htmlString]);
-
   return (
     <div
       className={clsx(
@@ -687,7 +681,7 @@ const HtmlCleaner: FC = () => {
               editor.on('Change', onTinyMCEChange);
               editor.on('keyup', onTinyMCEChange);
             }}
-            initialValue=""
+            value={htmlString}
             init={{
               height: 450,
               menubar: true,
