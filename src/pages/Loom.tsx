@@ -291,7 +291,7 @@ const Loom: FC = () => {
 
           <div className={clsx('border border-black/17.5 rounded-md p-4 bg-white', minHeightStyle, editMode ? 'hidden' : 'visible')}>
             {!editMode && (
-              <div className="prose "
+              <div className="prose dark:text-black"
                 dangerouslySetInnerHTML={{
                   __html: addHeadingAnchors(highlightedHtml ? highlightedHtml : htmlString),
                 }}

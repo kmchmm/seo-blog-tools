@@ -535,7 +535,7 @@ export const LoomSidebar: FC<LoomProps> = ({
           )}>
             <TabList
               aria-label="Error List"
-              className="flex gap-1 mb-5"
+              className="flex gap-1 mb-5 dark:!text-black-200"
             >
               <Tab id="Yoast" className={tabHeaderStyle}>
                 <YoastIcon className={svgStyle}/>Yoast
@@ -558,8 +558,8 @@ export const LoomSidebar: FC<LoomProps> = ({
             </TabList>
 
             <TabPanel id="Yoast">
-              <div className="text-center">
-                <Button className="w-full !bg-[#2563ea] hover:!bg-blue-1000 text-white border-0 hover:shadow-none rounded-none" onClick={yoastSEOAnalyze}>Run Yoast SEO Analysis</Button>
+              <div className="text-center dark:!text-black">
+                <Button className="w-full !bg-[#2563ea] hover:!bg-blue-1000 text-white dark:!text-white border-0 hover:shadow-none dark:hover:shadow-none rounded-none" onClick={yoastSEOAnalyze}>Run Yoast SEO Analysis</Button>
 
                 <h6 className={resultsHeaderStyle}>YOAST SEO ANALYSIS</h6>
                 <Accordion header="Problems" className='mb-2'>
@@ -601,14 +601,14 @@ export const LoomSidebar: FC<LoomProps> = ({
             </TabPanel>
 
             <TabPanel id="SB37">
-              <div className="mb-5">
-                <Button className="w-full !bg-[#2563ea] hover:!bg-blue-1000 text-white border-0 hover:shadow-none rounded-none" onClick={checkForViolations}>
+              <div className="mb-5 dark:!text-black">
+                <Button className="w-full !bg-[#2563ea] hover:!bg-blue-1000 text-white dark:!text-white border-0 hover:shadow-none rounded-none dark:hover:shadow-none" onClick={checkForViolations}>
                   Check For Potential Violations
                 </Button>
 
                 <div className="flex mt-5 gap-2 mb-1">
                   <Button                         
-                    className="w-1/2 text-sm  !bg-white  text-black !border-black-200 border rounded-none hover:shadow-none hover:!bg-black-200 hover:text-white"
+                    className="w-1/2 text-sm  !bg-white  text-black !border-black-200 border rounded-none hover:shadow-none hover:!bg-black-200 hover:text-white dark:hover:shadow-none dark:!text-black-200 dark:hover:!text-white" 
                     disabled={!highlightActive}
                     onClick={() => {
                       onHighlight(violations);
@@ -618,7 +618,7 @@ export const LoomSidebar: FC<LoomProps> = ({
                     Show Highlights
                   </Button>
                   <Button
-                    className="!bg-white text-sm w-1/2 text-black border !border-black-200 hover:!bg-black-200 hover:text-white rounded-none hover:shadow-none"
+                    className="!bg-white text-sm w-1/2 text-black border !border-black-200 hover:!bg-black-200 hover:text-white rounded-none hover:shadow-none dark:hover:shadow-none dark:!text-black-200 dark:hover:!text-white"
                     disabled={dictionaryViolations.length === 0}   
                     onClick={() => {
                       onHighlight(dictionaryViolations);  
@@ -629,7 +629,7 @@ export const LoomSidebar: FC<LoomProps> = ({
                   </Button>
                 </div>
                   <Button
-                    className="w-full text-sm !bg-[#EF4444] border-[#EF4444]  text-white border hover:!bg-red-700 hover:!border-red-700 rounded-none hover:shadow-none"
+                    className="w-full text-sm !bg-[#EF4444] border-[#EF4444]  text-white border hover:!bg-red-700 hover:!border-red-700 rounded-none hover:shadow-none dark:hover:shadow-none dark:!text-white"
                     disabled={!highlightActive}
                     onClick={() => {
                       onRemoveHighlight();
@@ -640,7 +640,7 @@ export const LoomSidebar: FC<LoomProps> = ({
                   </Button>
               </div>
 
-              <div className="mb-4">
+              <div className="mb-4 dark:!text-black">
                 <h4 className="mb-2 font-semibold">Results:</h4>
 
                 <Accordion
@@ -742,7 +742,7 @@ export const LoomSidebar: FC<LoomProps> = ({
               </div>
 
               <div className="mb-3">
-                <h5>Check for additional words/phrases:</h5>
+                <h5 className="dark:!text-black">Check for additional words/phrases:</h5>
                 <div className="relative mb-1">
                   <input
                     type="text"
@@ -757,7 +757,7 @@ export const LoomSidebar: FC<LoomProps> = ({
 
                 {customSearchResults.some(result => result.count > 0) && (
                   <div className="mt-1 mb-2">
-                    <div className="flex justify-between font-extrabold p-2 bg-gray-300">Search Results:</div>
+                    <div className="flex justify-between font-extrabold p-2 bg-gray-300 dark:!text-black-200">Search Results:</div>
                     {customSearchResults.map(({ term, count, id }, index) => (
                       <div key={index} className="py-1 border-b border-gray-200">
                         {count > 0 ? (
@@ -782,13 +782,13 @@ export const LoomSidebar: FC<LoomProps> = ({
 
                 <div className="flex gap-2 mb-3">
                   <Button
-                    className="w-full !bg-white border !border-black-200 hover:!bg-black-200 hover:text-white rounded-none  text-black hover:shadow-none"
+                    className="w-full !bg-white border !border-black-200 hover:!bg-black-200 hover:text-white rounded-none  text-black hover:shadow-none dark:hover:shadow-none dark:!text-black-200 dark:hover:!text-white"
                     onClick={handleCustomSearch}
                   >
                     Search Now
                   </Button>
 
-                  <Button onClick={handleAddOpenModal} className="w-full border !border-black-200 hover:!bg-black-200 hover:text-white rounded-none !bg-white text-black hover:shadow-none">
+                  <Button onClick={handleAddOpenModal} className="w-full border !border-black-200 hover:!bg-black-200 hover:text-white rounded-none !bg-white text-black hover:shadow-none dark:hover:shadow-none dark:!text-black-200 dark:hover:!text-white">
                     Add to Dictionary
                   </Button>
                     
@@ -846,7 +846,7 @@ export const LoomSidebar: FC<LoomProps> = ({
                   )}
                 </div>
 
-                <Button onClick={handleViewOpenModal} className="w-full !bg-[#6B7280] hover:!bg-black-200 text-white border-0 rounded-none  hover:shadow-none">
+                <Button onClick={handleViewOpenModal} className="w-full !bg-[#6B7280] hover:!bg-black-200 text-white border-0 rounded-none  hover:shadow-none dark:!text-white dark:hover:shadow-none dark:!text-black-200 dark:hover:!text-white">
                   View Dictionary
                 </Button>
                 {isViewModalOpen && (
