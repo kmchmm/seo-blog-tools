@@ -1,9 +1,11 @@
-import { FC, useState, useEffect, useContext } from 'react';
+import { FC, useState, useEffect, useContext, useRef } from 'react';
 import clsx from 'clsx';
 import { AnalysisWorkerWrapper, Paper } from "yoastseo";
 import { Modal } from '../components/Modal';
 import supabase from '../utils/supabaseInit.js';
 import { UserContext } from '../context/UserContext';
+import { createContentWorker } from '../utils/contentWorker';
+import { analyzeLinks } from '../utils/analyzeLinksWorker';
 
 
 import { Button } from './Button';
@@ -21,6 +23,35 @@ import { FaTrash } from 'react-icons/fa';
 import { FaCheckCircle, FaTimesCircle } from 'react-icons/fa';
 
 
+interface FormatError {
+  paragraphIndex: number;
+  message?: string;
+}
+
+interface ErrorList {
+  multipleSpaceErrors: FormatError[];
+  emDashErrors: FormatError[];
+  leadingTrailingSpaceErrors: FormatError[];
+  spaceBeforePunctuationErrors: FormatError[];
+  missingPunctuationErrors: FormatError[];
+  titleCaseErrors: FormatError[];
+}
+
+interface LinkDetail {
+  url: string;
+  anchor: string;
+  location: string;
+}
+
+interface LinkIssue {
+  type: string;
+  url: string;
+  anchor?: string;
+  location?: string;
+}
+
+
+
 interface LoomProps {
   text: string;
   keyword: string;
@@ -28,7 +59,15 @@ interface LoomProps {
   metaDescription: string;
   onHighlight: (phrases: string[]) => void;
   onRemoveHighlight: () => void;
+  onFixAll: (newHtml: string) => void;
+  onFormatHighlight: (errors: ErrorList) => void; // ✅ Corrected here
+  onRemoveFormatHighlight: () => void;
+  onHighlightContent?: (headings: string[], repeatedWords: string[]) => void;
+  onRemoveContentHighlight: () => void;
+  highlightedContentSections?: { level: string; text: string; wordCount: number }[];
+  onLinkIssues?: (issues: LinkIssue[]) => void;
 }
+
 
 interface AssessmentResult {
   editFieldName : string;
@@ -155,6 +194,8 @@ const VIOLATION_PHRASES = [
     "get started on your case"
 ];
 
+
+
 const tabHeaderStyle = clsx(
   'text-xs w-15 text-center cursor-pointer flex flex-col items-center rounded-md p-1',
   'data-[selected]:text-blue-300 data-[selected]:bg-blue-100/10',
@@ -184,10 +225,19 @@ const formatList = (htmlString: string) => {
 }
 
 
-const panels = [
-  { id: "Format", label: "Check For Formatting Errors" },
-  { id: "Content", label: "Check For Content Issues" },
-];
+const groupLinksByLocation = (links: LinkDetail[]) => {
+  return links.reduce((acc, link) => {
+    if (!acc[link.location]) acc[link.location] = [];
+    acc[link.location].push(link);
+    return acc;
+  }, {} as Record<string, LinkDetail[]>);
+};
+
+
+// const panels = [
+//   { id: "Format", label: "Check For Formatting Errors" },
+//   { id: "Content", label: "Check For Content Issues" },
+// ];
 
 export const LoomSidebar: FC<LoomProps> = ({
   text,
@@ -195,7 +245,14 @@ export const LoomSidebar: FC<LoomProps> = ({
   metaDescription,
   metaTitle,
   onHighlight,
-  onRemoveHighlight
+  onRemoveHighlight,
+  onFormatHighlight,
+  onRemoveFormatHighlight,
+  onFixAll,
+  onHighlightContent,
+  onRemoveContentHighlight,
+  highlightedContentSections,
+  onLinkIssues
 }) => {
 
   const { userData } = useContext(UserContext);  const [ showSummary, setShowSummary ] = useState<boolean>(false);
@@ -211,15 +268,69 @@ export const LoomSidebar: FC<LoomProps> = ({
   const [customSearchResults, setCustomSearchResults] = useState<{ term: string; count: number }[]>([]);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
+  const [activeHighlights, setActiveHighlights] = useState<string[]>([]);
 
   const [dictionary, setDictionary] = useState<{ id: number; keyword: string; created_by: string }[]>([]);
   const [newPhrase, setNewPhrase] = useState('');
   const [addStatus, setAddStatus] = useState<null | 'success' | 'exists' | 'error'>(null);
   const [dictionaryViolations, setDictionaryViolations] = useState<string[]>([]);
   const [dictionaryViolationResults, setDictionaryViolationResults] = useState<Record<string, { heading: string, id: string }[]>>({});
+  const [showResults, setShowResults] = useState(false);
+
+  const workerRef = useRef<Worker | null>(null);
+  const [wordCount, setWordCount] = useState<number | null>(null);
+  const [contentHeadings, setContentHeadings] = useState<
+    { level: string; text: string; wordCount: number }[]
+  >([]);
+  const [contentHeadingCount, setContentHeadingCount] = useState(0);
+  const [sameStartWordSequences, setSameStartWordSequences] = useState<
+    { startIndex: number; word: string }[]
+  >([]);
+  const [sectionsOver300Words, setSectionsOver300Words] = useState<
+    { heading: string; wordCount: number }[]
+  >([]);
+  const [hasContentChecked, setHasContentChecked] = useState(false);
+  const [totalContentErrors, setTotalContentErrors] = useState(0);
+  const [contentShowResults, setContentShowResults] = useState(false);
+
+
+  const [hasLinkChecked, setHasLinkChecked] = useState(false);
+  const [linkShowResults, setLinkShowResults] = useState(false);
+
+
+  const [hasKeywordChecked, setHasKeywordChecked] = useState(false);
+
+
+  const [loading, setLoading] = useState(false);
+
+  const [formatErrors, setFormatErrors] = useState({
+    multipleSpaceErrors: [],
+    emDashErrors: [],
+    titleCaseErrors: [],
+    leadingTrailingSpaceErrors: [],
+    spaceBeforePunctuationErrors: [],
+    missingPunctuationErrors: [],
+  });
+
+
+const [linkErrors, setLinkErrors] = useState<{
+  invalidLinks: string[];
+  missingTrailingSlash: string[];
+  duplicateLinks: string[];
+  brokenLinks: string[];
+  identicalAnchors: string[];
+  invalidAnchors: string[];
+  internalLinks: string[];
+  externalLinks: string[];
+} | null>(null);
 
 
 
+  const hasErrors = Object.values(formatErrors).some((arr) => arr.length > 0);
+
+  ////////////////////////////////////////////////////////
+  ////////////////YOAST  TOOL/////////////////////////////
+  ////////////////////////////////////////////////////////
   const yoastSEOAnalyze = () => {
     const url = new URL('../utils/yoastWorker.ts', import.meta.url);
     const newWorker = new AnalysisWorkerWrapper( new Worker( url, {
@@ -271,6 +382,9 @@ export const LoomSidebar: FC<LoomProps> = ({
     } );
   }
 
+  ////////////////////////////////////////////////////////
+  //////////////////SB37 TOOL/////////////////////////////
+  ////////////////////////////////////////////////////////
   const checkForStaticViolations = () => {
     const allMatches: string[] = [];
     const lowerText = text.toLowerCase();
@@ -350,7 +464,6 @@ export const LoomSidebar: FC<LoomProps> = ({
     
     fetchDictionary();
   }, []);
-
 
 
   const mapViolationsToHeadings = (text: string, violations: string[]) => {
@@ -469,7 +582,6 @@ export const LoomSidebar: FC<LoomProps> = ({
     }
   };
 
-
   const handleDeletePhrase = async (id: number) => {
     const { error } = await supabase.from('loom_dictionary').delete().eq('id', id);
 
@@ -479,8 +591,6 @@ export const LoomSidebar: FC<LoomProps> = ({
       setDictionary((prev) => prev.filter((entry) => entry.id !== id));
     }
   };
-
-
 
   const handleCustomSearch = () => {
     const term = customSearchTerm.trim().toLowerCase();
@@ -507,9 +617,380 @@ export const LoomSidebar: FC<LoomProps> = ({
     setCustomSearchTerm('');
   };
 
+  
+  ////////////////////////////////////////////////////////
+  //////////////FORMAT QA TOOL////////////////////////////
+  ////////////////////////////////////////////////////////
+  const runFormatCheck = () => {
+    const worker = new Worker(new URL('../utils/formatErrors.ts', import.meta.url), {
+      type: 'module',
+    });
+
+    const parser = new DOMParser();
+    const preprocessed = text.replace(/<br\s*\/?>/gi, '\n');
+    const doc = parser.parseFromString(preprocessed, 'text/html');
+    
+    const paragraphs = Array.from(
+      doc.body.querySelectorAll('p, h1, h2, h3, h4, h5, h6')
+    ).map((el) => {
+      const htmlEl = el as HTMLElement; // Cast to access innerText
+      return {
+        text: htmlEl.innerText || '',
+        heading: htmlEl.tagName.toUpperCase().startsWith('H') ? htmlEl.tagName.toUpperCase() : null,
+      };
+    });
 
 
+    worker.onmessage = (e) => {
+      setFormatErrors(e.data);
+      worker.terminate();
+    };
 
+    worker.postMessage(paragraphs);
+  };
+
+//   const checkFormatting = () => {
+//     // Run your formatting checks and update `formatErrors` accordingly
+//     const results = runAllFormatChecks(); // <- Your custom function
+//     setFormatErrors(results);
+//     setShowResults(true);
+//   };
+// const handleHeaderClick = (type: string) => {
+//   // You can call onHighlight with relevant phrases or do any action you want here.
+//   // For example, highlight all sentences related to this error type.
+//   const phrasesToHighlight = formatErrors[type] || [];
+//   onHighlight(phrasesToHighlight);
+//   setHighlightActive(true);
+// };
+
+  
+  const renderErrorList = (
+    errors: { heading?: string; sentence: string }[],
+    regex: RegExp,
+    type: string
+  ) => {
+    const handleHeaderClick = (type: string) => {
+      // Optional: highlight all sentences under this error type
+      const phrasesToHighlight = formatErrors[type] || [];
+      onHighlight(phrasesToHighlight.map((e: any) => e.sentence));
+      setHighlightActive(true);
+    };
+
+    if (errors.length > 0) {
+      return (
+        <ul className="text-xs space-y-1">
+          {errors.map((err, idx) => {
+            const highlighted = err.sentence.replace(regex, (match) => {
+              return `<mark class="bg-red-300 text-red-700 rounded-sm px-1">${match}</mark>`;
+            });
+
+            return (
+              <li key={idx}>
+                {err.heading && err.sentence !== err.heading ? (
+                  <>
+                    <div
+                      className="font-bold cursor-pointer hover:text-blue-500"
+                      onClick={() => handleHeaderClick(type)}
+                      role="button"
+                      tabIndex={0}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') handleHeaderClick(type);
+                      }}
+                    >
+                      {err.heading}
+                    </div>
+                    <ul className="pl-3 mt-2">
+                      <li
+                        className="list-disc"
+                        dangerouslySetInnerHTML={{ __html: highlighted }}
+                      />
+                    </ul>
+                  </>
+                ) : (
+                  <span dangerouslySetInnerHTML={{ __html: highlighted }} />
+                )}
+              </li>
+            );
+          })}
+        </ul>
+      );
+    }
+
+    const noIssuesMessages: Record<string, string> = {
+      multipleSpaceErrors: 'No multiple spaces. Rawr',
+      emDashErrors: 'No em dash issues. Rawr',
+      leadingTrailingSpaceErrors: 'No leading/trailing spaces. Rawr',
+      spaceBeforePunctuationErrors: 'No space before punctuation. Rawr',
+      missingPunctuationErrors: 'No missing punctuation. Rawr',
+    };
+
+    return (
+      <p className="text-gray-500 italic">{noIssuesMessages[type] || 'No issues found.'}</p>
+    );
+  };
+
+// function getAllErrorSentences(formatErrors: Record<string, { sentence: string }[]>): string[] {
+//   const allSentences: string[] = [];
+
+//   Object.values(formatErrors).forEach(errorArray => {
+//     errorArray.forEach(error => {
+//       if (error.sentence) {
+//         allSentences.push(error.sentence.trim());
+//       }
+//     });
+//   });
+
+//   return allSentences;
+// }
+
+
+  const handleHighlightFormatErrors = () => {
+    onFormatHighlight(formatErrors); 
+    setHighlightActive(true);
+  };
+
+
+  const highlightTitleCaseErrorsStrict = (sentence: string) => {
+    return sentence
+      .split(/\s+/)
+      .map((word) => {
+        // Check if the first character is lowercase (ignores punctuation)
+        const firstChar = word.charAt(0);
+        if (firstChar === firstChar.toLowerCase() && /[a-z]/.test(firstChar)) {
+          return `<mark class="bg-red-300 text-red-700 rounded-sm px-1">${word}</mark>`;
+        }
+        return word;
+      })
+      .join(' ');
+  };
+
+  const toTitleCase = (str: string) => {
+    return str
+      .toLowerCase()
+      .replace(/\b\w+/g, (word) =>
+        word.charAt(0).toUpperCase() + word.slice(1)
+      );
+  };
+
+
+  const handleFixAll = () => {
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(text, 'text/html');
+
+    const paragraphs = Array.from(doc.body.querySelectorAll('p, h1, h2, h3, h4, h5, h6'));
+
+  paragraphs.forEach((el) => {
+    let fixedText = el.textContent || '';
+    const tagName = el.tagName.toUpperCase();
+
+    // Fix multiple spaces
+    fixedText = fixedText.replace(/[ \u00A0]{2,}/g, ' ');
+
+    // Fix em dash spacing
+    fixedText = fixedText.replace(/ ?— ?/g, ' — ');
+
+    // Fix leading/trailing spaces
+    fixedText = fixedText.trim();
+
+    // Fix space before punctuation
+    fixedText = fixedText.replace(/ ([.,;:!?])/g, '$1');
+
+    // Title Case Headings
+    if (tagName.startsWith('H')) {
+      fixedText = toTitleCase(fixedText);
+    }
+
+    el.textContent = fixedText;
+  });
+
+
+    onFixAll(doc.body.innerHTML); 
+  };
+
+
+  ////////////////////////////////////////////////////////
+  //////////////CONTENT QA TOOL///////////////////////////
+  ////////////////////////////////////////////////////////
+  const checkContentIssues = () => {
+    if (!workerRef.current) {
+      workerRef.current = createContentWorker();
+    }
+
+    const container = document.createElement('div');
+    container.innerHTML = text;
+
+    const emptySpans = container.querySelectorAll('span');
+    emptySpans.forEach((span) => {
+      if (!span.textContent || span.textContent.trim() === '') {
+        span.remove();
+      }
+    });
+
+    const headings: { level: string; text: string; wordCount: number }[] = [];
+    const elements = Array.from(container.children);
+
+    for (let i = 0; i < elements.length; i++) {
+      const el = elements[i];
+      const tag = el.tagName.toUpperCase();
+
+      if (/H[1-6]/.test(tag)) {
+        const level = parseInt(tag.substring(1));
+        const headingText = el.textContent?.trim() || '';
+
+        let contentText = '';
+        for (let j = i + 1; j < elements.length; j++) {
+          const sibling = elements[j];
+          const siblingTag = sibling.tagName.toUpperCase();
+          if (/H[1-6]/.test(siblingTag)) break;
+
+          contentText += ' ' + (sibling.textContent || '');
+        }
+
+        const normalizedContent = contentText.replace(/\((\d+)\)/g, '$1');
+        const words = normalizedContent.match(/\b(?:\d+[-]\d+|\d+|[a-zA-Z]{1,}(?:[-'][a-zA-Z]+)*)\b/gi);
+
+        headings.push({
+          level: 'H' + level,
+          text: headingText,
+          wordCount: words ? words.length : 0,
+        });
+      }
+    }
+
+    setContentHeadings(headings);
+    setContentHeadingCount(headings.length);
+
+    const bigSections = headings.filter(h => h.wordCount > 300).map(h => ({
+      heading: h.text,
+      wordCount: h.wordCount
+    }));
+    setSectionsOver300Words(bigSections);
+
+    const plainText = container.textContent || '';
+    const normalizedText = plainText.replace(/\((\d+)\)/g, '$1');
+
+    workerRef.current.onmessage = (e: MessageEvent) => {
+      const { wordCount, sameStartWordSequences } = e.data;
+      setWordCount(wordCount);
+      setSameStartWordSequences(sameStartWordSequences || []);
+
+      // ✅ Count total content errors
+      const errorCount = bigSections.length + (sameStartWordSequences?.length || 0);
+      setTotalContentErrors(errorCount);
+      setContentShowResults(true); // enable UI showing the results
+    };
+
+    workerRef.current.postMessage(normalizedText);
+    setHasContentChecked(true);
+  };
+
+useEffect(() => {
+  if (highlightedContentSections) {
+    setContentHeadings(highlightedContentSections);
+    setContentHeadingCount(highlightedContentSections.length);
+
+    const bigSections = highlightedContentSections.filter(h => h.wordCount > 300);
+    setSectionsOver300Words(bigSections);
+  }
+}, [highlightedContentSections]);
+
+// const totalContentErrors =
+//   sectionsOver300Words.length + sameStartWordSequences.length;
+
+const contentErrorMessage =
+  totalContentErrors === 0
+    ? 'No content issues found! Good job! 🎉'
+    : `Content issues found! Please review ⚠️`;
+
+
+  ////////////////////////////////////////////////////////
+  ///////////////LINK QA TOOL/////////////////////////////
+  ////////////////////////////////////////////////////////
+
+  const handleAnalyzeLink = () => {
+    checkAnalyzeLink();     
+    setHasLinkChecked(true);    
+  };
+
+  const checkAnalyzeLink = () => {
+    if (!text) return;
+
+    const result = analyzeLinks(text);
+    console.log('analyzeLinks result:', result);
+    setLinkErrors(result);
+
+    if (typeof onLinkIssues === 'function') {
+      const issues: LinkIssue[] = [];
+
+      Object.entries(result).forEach(([type, details]) => {
+        if (Array.isArray(details)) {
+          details.forEach((entry) => {
+            if (typeof entry === 'string') {
+              issues.push({ type, url: entry }); // For legacy formats like identicalAnchors
+            } else {
+              issues.push({ type, url: entry.url, anchor: entry.anchor });
+            }
+          });
+        }
+      });
+
+        onLinkIssues(issues);
+      }
+
+    setLinkShowResults(true); // enable UI showing the results
+
+  }
+
+const formatErrorLabel = (label: string) =>
+  label.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase());
+
+const totalLinkAndAnchorIssues = linkErrors
+  ? Object.entries(linkErrors)
+      .filter(([key]) => key !== 'internalLinks' && key !== 'externalLinks')
+      .reduce((sum, [, arr]) => sum + arr.length, 0)
+  : 0;
+
+const totalLinkErrors = linkErrors
+  ? Object.entries(linkErrors)
+      .filter(([key]) => key !== 'internalLinks' && key !== 'externalLinks')
+      .reduce((sum, [, arr]) => sum + arr.length, 0)
+  : 0;
+
+const linkErrorMessage =
+  totalLinkErrors === 0
+    ? 'No link issues found! Good job! 🎉'
+    : 'Some link issues found! Please review.⚠️';
+
+  const scrollToLink = (url: string) => {
+  const el = document.querySelector(`a[href="${url}"]`);
+  if (el) {
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    el.classList.add('ring-2', 'ring-offset-2', 'ring-yellow-300');
+    setTimeout(() => {
+      el.classList.remove('ring-2', 'ring-offset-2', 'ring-yellow-300');
+    }, 2000);
+  }
+};
+
+
+  ////////////////////////////////////////////////////////
+  /////////////////KEYWORD QA TOOL////////////////////////
+  ////////////////////////////////////////////////////////
+
+  const checkAnalyzeKeyword = () => {
+    
+  }
+
+  const keywordErrorMessage =
+  totalContentErrors === 0
+    ? 'No keyword issues found! Good job! 🎉'
+    : `Analysis was cancelled or failed.`;
+
+
+  const handleAnalyzeKeyword= () => {
+    checkAnalyzeKeyword();     
+    setHasKeywordChecked(true);   
+  };
   return (
     <div className="w-[350px] min-h-[500px]">
       <Button className="w-full mb-4" >Run All Checks</Button>
@@ -611,9 +1092,12 @@ export const LoomSidebar: FC<LoomProps> = ({
                     className="w-1/2 text-sm  !bg-white  text-black !border-black-200 border rounded-none hover:shadow-none hover:!bg-black-200 hover:text-white dark:hover:shadow-none dark:!text-black-200 dark:hover:!text-white" 
                     disabled={!highlightActive}
                     onClick={() => {
-                      onHighlight(violations);
+                      const updated = Array.from(new Set([...activeHighlights, ...violations]));
+                      setActiveHighlights(updated);
+                      onHighlight(updated);
                       setHighlightActive(true);
                     }}
+
                   >
                     Show Highlights
                   </Button>
@@ -621,9 +1105,12 @@ export const LoomSidebar: FC<LoomProps> = ({
                     className="!bg-white text-sm w-1/2 text-black border !border-black-200 hover:!bg-black-200 hover:text-white rounded-none hover:shadow-none dark:hover:shadow-none dark:!text-black-200 dark:hover:!text-white"
                     disabled={dictionaryViolations.length === 0}   
                     onClick={() => {
-                      onHighlight(dictionaryViolations);  
-                      setHighlightActive(true);            
+                      const updated = Array.from(new Set([...activeHighlights, ...dictionaryViolations]));
+                      setActiveHighlights(updated);
+                      onHighlight(updated);
+                      setHighlightActive(true);
                     }}
+
                   >
                     Dict Highlights
                   </Button>
@@ -633,8 +1120,10 @@ export const LoomSidebar: FC<LoomProps> = ({
                     disabled={!highlightActive}
                     onClick={() => {
                       onRemoveHighlight();
+                      setActiveHighlights([]); 
                       setHighlightActive(true);
                     }}
+
                   >
                     Remove Highlights
                   </Button>
@@ -908,27 +1397,615 @@ export const LoomSidebar: FC<LoomProps> = ({
 
 
             <TabPanel id="Format">
-                <Button className="w-full !bg-[#2563ea] hover:!bg-blue-1000 text-white border-0 hover:shadow-none rounded-none" >
-                  Check For Formatting Errors
+                <Button   onClick={() => {
+                        runFormatCheck();
+                        setShowResults(true);
+                      }} 
+                  className="w-full !bg-[#2563ea] hover:!bg-blue-1000 text-white border-0 hover:shadow-none rounded-none dark:hover:shadow-none dark:!text-white" >
+                 {loading ? 'Checking...' : 'Check For Formatting Errors'}
                 </Button>
-            </TabPanel>
+
+                <div className="flex mt-5 gap-2 mb-2">
+                  <Button
+                    className="w-1/2 text-sm !bg-white text-black !border-black-200 border rounded-none hover:shadow-none hover:!bg-black-200 hover:text-white dark:hover:shadow-none dark:!text-black-200 dark:hover:!text-white"
+                    onClick={() => handleHighlightFormatErrors()}
+                  >
+                    Show Highlights
+                  </Button>
+
+                  <Button
+                    className="w-1/2 text-sm !bg-[#EF4444] border-[#EF4444] text-white border hover:!bg-red-700 hover:!border-red-700 rounded-none hover:shadow-none dark:hover:shadow-none dark:!text-white"
+                    onClick={() => {
+                      onRemoveFormatHighlight();
+                      setHighlightActive(false);
+                    }}
+                  >
+                    Remove Highlights
+                  </Button>
+
+                </div>
+                {showResults && (
+                  <>
+                    <div className={`mb-4 p-4 rounded ${hasErrors ? 'bg-[#faeaea] text-red-600' : 'bg-[#e6f6e9] !text-green-100'}`}>
+                      {!hasErrors ? (
+                        <h6 className="!text-center">No error found ✅</h6>
+                      ) : (
+                        <div className="w-full flex justify-center flex-col">
+                          {formatErrors.missingPunctuationErrors.length > 0 &&
+                          formatErrors.multipleSpaceErrors.length === 0 &&
+                          formatErrors.emDashErrors.length === 0 &&
+                          formatErrors.leadingTrailingSpaceErrors.length === 0 &&
+                          formatErrors.spaceBeforePunctuationErrors.length === 0 &&
+                          formatErrors.titleCaseErrors.length === 0 ? (
+                            <h6 className="!text-center !text-sm text-red-600">
+                              Missing Punctuation errors, fix manually ⚠️
+                            </h6>
+                          ) : (
+                            <>
+                              <h6 className="!text-center !text-sm text-red-600">
+                                Formatting Errors found! Please fix ⚠️
+                              </h6>
+                              <Button
+                                onClick={handleFixAll}
+                                className="w-full my-0 border-0 mt-3 !px-5 rounded-sm !bg-red-100 !text-white !shadow-none hover:!bg-red-600"
+                              >
+                                Fix All
+                              </Button>
+                            </>
+                          )}
+                        </div>
+                      )}
+                    </div>
+
+
+                    <Accordion
+                      header={
+                        <div className="flex justify-between items-center w-full">
+                          <span>Multiple Spaces</span>
+                          {showResults && (
+                            formatErrors.multipleSpaceErrors.length > 0 ? (
+                              <div className="bg-[#f5ecee] w-[40px] text-right rounded-2xl px-2">
+                                <span className="text-red-100">{formatErrors.multipleSpaceErrors.length}</span>
+                              </div>
+                            ) : (
+                              <div className="bg-[#e5f5ea] w-[40px] text-right rounded-2xl px-2">
+                                <span className="text-green-100">0</span>
+                              </div>
+                            )
+                          )}
+                        </div>
+                      }
+                      className="mb-2 text-sm border dark:border-black-200 dark:!text-black-200"
+                    >
+                      {renderErrorList(formatErrors.multipleSpaceErrors, /\s{2,}/g, 'multipleSpaceErrors')}
+                    </Accordion>
+
+
+                    <Accordion
+                      header={
+                        <div className="flex justify-between items-center w-full">
+                          <span>Em Dash Issues</span>
+                          {showResults && (
+                            formatErrors.emDashErrors.length > 0 ? (
+                              <div className="bg-[#f5ecee] w-[40px] text-right rounded-2xl px-2">
+                                <span className="text-red-100">{formatErrors.emDashErrors.length}</span>
+                              </div>
+                            ) : (
+                              <div className="bg-[#e5f5ea] w-[40px] text-right rounded-2xl px-2">
+                                <span className="text-green-100">0</span>
+                              </div>
+                            )
+                          )}
+                        </div>
+                      }
+                      className="mb-2 text-sm dark:!text-black-200"
+                    >
+                      {renderErrorList(formatErrors.emDashErrors, /[^ ]—|—[^ ]/g, 'emDashErrors')}
+                    </Accordion>
+
+                    <Accordion   
+                    header={
+                          <div className="flex justify-between items-center w-full">
+                            <span>Lowercase in Heading</span>
+                            {showResults && (
+                              formatErrors.titleCaseErrors.length > 0 ? (
+                                <div className="bg-[#f5ecee] w-[40px] text-right rounded-2xl px-2">
+                                  <span className="text-red-100">{formatErrors.titleCaseErrors.length}</span>
+                                </div>
+                              ) : (
+                                <div className="bg-[#e5f5ea] w-[40px] text-right rounded-2xl px-2">
+                                  <span className="text-green-100">0</span>
+                                </div>
+                              )
+                            )}
+                          </div>
+                        }
+                        className="mb-2 text-sm dark:!text-black-200"
+                      >
+                      {formatErrors.titleCaseErrors.length > 0 ? (
+                        <ul className="text-xs space-y-1 pl-3">
+                          {formatErrors.titleCaseErrors.map((err, idx) => {
+                            const highlighted = highlightTitleCaseErrorsStrict(err.sentence);
+                            return (
+                              <li key={idx} className="list-disc">
+                                {err.heading && err.sentence !== err.heading ? (
+                                  <>
+                                    <div className="font-bold">{err.heading}</div>
+                                    <ul className="pl-3 mt-2">
+                                      <li
+                                        className="list-disc"
+                                        dangerouslySetInnerHTML={{ __html: highlighted }}
+                                      />
+                                    </ul>
+                                  </>
+                                ) : (
+                                  <span dangerouslySetInnerHTML={{ __html: highlighted }} />
+                                )}
+                              </li>
+                            );
+                          })}
+                        </ul>
+                      ) : (
+                        <p className="text-gray-500 italic">No lowercase in heading. Rawr</p>
+                      )}
+                    </Accordion>
+
+                    <Accordion
+                      header={
+                        <div className="flex justify-between items-center w-full">
+                          <span>Leading/Trailing Spaces</span>
+                          {showResults && (
+                            formatErrors.leadingTrailingSpaceErrors.length > 0 ? (
+                              <div className="bg-[#f5ecee] w-[40px] text-right rounded-2xl px-2">
+                                <span className="text-red-100">{formatErrors.leadingTrailingSpaceErrors.length}</span>
+                              </div>
+                            ) : (
+                              <div className="bg-[#e5f5ea] w-[40px] text-right rounded-2xl px-2">
+                                <span className="text-green-100">0</span>
+                              </div>
+                            )
+                          )}
+                        </div>
+                      }
+                      className="mb-2 text-sm dark:!text-black-200"
+                    >
+                      {renderErrorList(formatErrors.leadingTrailingSpaceErrors, /^\s+|\s+$/g, 'leadingTrailingSpaceErrors')}
+                    </Accordion>
+
+                    <Accordion
+                      header={
+                        <div className="flex justify-between items-center w-full">
+                          <span>Space before Punctuation</span>
+                          {showResults && (
+                            formatErrors.spaceBeforePunctuationErrors.length > 0 ? (
+                              <div className="bg-[#f5ecee] w-[40px] text-right rounded-2xl px-2">
+                                <span className="text-red-100">{formatErrors.spaceBeforePunctuationErrors.length}</span>
+                              </div>
+                            ) : (
+                              <div className="bg-[#e5f5ea] w-[40px] text-right rounded-2xl px-2">
+                                <span className="text-green-100">0</span>
+                              </div>
+                            )
+                          )}
+                        </div>
+                      }
+                      className="mb-2 text-sm dark:!text-black-200"
+                    >
+                      {renderErrorList(formatErrors.spaceBeforePunctuationErrors, /\s+([.,!?;:])/g, 'spaceBeforePunctuationErrors')}
+                    </Accordion>
+
+                    <Accordion
+                      header={
+                        <div className="flex justify-between items-center w-full">
+                          <span>Missing Punctuation</span>
+                          {showResults && (
+                            formatErrors.missingPunctuationErrors.length > 0 ? (
+                              <div className="bg-[#f5ecee] w-[40px] text-right rounded-2xl px-2">
+                                <span className="text-red-100">{formatErrors.missingPunctuationErrors.length}</span>
+                              </div>
+                            ) : (
+                              <div className="bg-[#e5f5ea] w-[40px] text-right rounded-2xl px-2">
+                                <span className="text-green-100">0</span>
+                              </div>
+                            )
+                          )}
+                        </div>
+                      }
+                      className="mb-2 text-sm dark:!text-black-200"
+                    >
+                      {renderErrorList(formatErrors.missingPunctuationErrors, /[^.?!]$/g, 'missingPunctuationErrors')}
+                    </Accordion>
+                  </>
+                )}
+
+           
+                </TabPanel>
 
             <TabPanel id="Content">
-                <Button className="w-full !bg-[#2563ea] hover:!bg-blue-1000 text-white border-0 hover:shadow-none rounded-none" >
+                <Button onClick={checkContentIssues} className="w-full !bg-[#2563ea] hover:!bg-blue-1000 text-white border-0 hover:shadow-none rounded-none dark:hover:shadow-none dark:!text-white" >
                   Check For Content Issues
                 </Button>
+                <div className="flex mt-5 gap-2 mb-1">
+                  <Button
+                    onClick={() => {
+                      const headings = sectionsOver300Words.map(section => section.heading);
+                      const repeatedWords = sameStartWordSequences.map(seq => seq.word);
+                      onHighlightContent?.(headings, repeatedWords);
+                    }}
+                    className="w-1/2 text-sm !bg-white text-black !border-black-200 border rounded-none hover:shadow-none hover:!bg-black-200 hover:text-white dark:hover:shadow-none dark:!text-black-200 dark:hover:!text-white"
+                  >
+                    Show Highlights
+                  </Button>
+                  <Button
+                    onClick={onRemoveContentHighlight}
+                    className="w-1/2 text-sm !bg-[#EF4444] border-[#EF4444]  text-white border hover:!bg-red-700 hover:!border-red-700 rounded-none hover:shadow-none dark:hover:shadow-none dark:!text-white"
+                  >
+                    Remove Highlights
+                  </Button>
+
+                </div>
+
+              {hasContentChecked && (
+                <>
+                  <div className={`my-4 text-sm font-medium py-4 text-center ${totalContentErrors === 0 ? 'bg-[#e6f6e9] text-green-100' : 'bg-[#faeaea] text-red-600'}`}>
+                    {contentErrorMessage}
+                  </div>
+
+                  <div>
+                    <div className="flex justify-between my-4">
+                      <h2 className="font-bold">Total Word Count</h2>
+                      <span className="font-bold">{wordCount !== null ? wordCount : '—'}</span>
+                    </div>
+                    
+                    <div>
+                      <div className="flex justify-between">
+                        <h2 className="!text-left font-bold">Headings</h2>
+                        <span className="font-bold">{contentHeadingCount}</span>
+                      </div>
+                      <Accordion
+                        header="View Details"
+                        className="[&_svg]:hidden border-none [&>div:first-child]:text-blue-400 [&>div:first-child]:underline [&>div:first-child]:underline-offset-4 [&>svg]:hidden"
+                      >
+
+                        {contentHeadings.length > 0 ? (
+                          <ul className=" list-disc">
+                            <div className="flex justify-between">
+                              <h4 className="font-bold">Headings</h4>
+                              <span className="text-sm font-bold">Word Count</span>
+                            </div>
+                            {contentHeadings.map((h, i) => (
+                              <div className="flex justify-between items-center">
+                                <li key={i} className="list-none w-full text-sm my-1">
+                                  <strong>{h.level}:</strong> {h.text}
+                                </li>
+                                <span className="w-[80px] text-right text-sm">{h.wordCount}</span>
+                              </div>
+                            ))}
+                          </ul>
+                        ) : (
+                          <p>No headings found.</p>
+                        )}
+                      </Accordion>
+                    </div>
+
+                  <div>
+                    <Accordion 
+                      header={
+                        <div className="flex items-center justify-between w-full">
+                          <span>Sections with over 300 words</span>
+                          {contentShowResults && (
+                            <div
+                              className={`w-[40px] text-right rounded-2xl px-2 ${
+                                sectionsOver300Words.length > 0 ? 'bg-[#f5ecee]' : 'bg-[#e5f5ea]'
+                              }`}
+                            >
+                              <span className={sectionsOver300Words.length > 0 ? 'text-red-100' : 'text-green-100'}>
+                                {sectionsOver300Words.length}
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      }
+                      className="text-sm"
+                    >
+                      {sectionsOver300Words.length > 0 ? (
+                        <ul>
+                          {sectionsOver300Words.map((section, idx) => (
+                            <li key={idx}>
+                              <strong>{section.heading}</strong> — {section.wordCount} words
+                            </li>
+                          ))}
+                        </ul>
+                      ) : (
+                        <p>No sections over 300 words found.</p>
+                      )}
+                    </Accordion>
+
+
+                    <Accordion
+                      header={
+                        <div className="flex items-center justify-between w-full">
+                          <span>Same Start Word in 3 Sentences</span>
+                          {contentShowResults && (
+                            <div
+                              className={`w-[40px] text-right rounded-2xl px-2 ${
+                                sameStartWordSequences.length > 0 ? 'bg-[#f5ecee]' : 'bg-[#e5f5ea]'
+                              }`}
+                            >
+                              <span
+                                className={sameStartWordSequences.length > 0 ? 'text-red-100' : 'text-green-100'}
+                              >
+                                {sameStartWordSequences.length}
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      }
+                      className="mt-2 text-sm"
+                    >
+                      {sameStartWordSequences.length > 0 ? (
+                        <ul className="px-2">
+                          {sameStartWordSequences.map((seq, idx) => (
+                            <li key={idx} className="list-disc px-2">
+                              Starting word: <strong>{seq.word}</strong> at sentence index {seq.startIndex + 1}
+                            </li>
+                          ))}
+                        </ul>
+                      ) : (
+                        <p>No sequences of 3 consecutive sentences starting with the same word.</p>
+                      )}
+                    </Accordion>
+
+                  </div>
+
+                  </div> 
+                </>
+              )}
             </TabPanel>
 
             <TabPanel id="Link">
-                <Button className="w-full !bg-[#2563ea] hover:!bg-blue-1000 text-white border-0 hover:shadow-none rounded-none" >
+                <Button onClick={handleAnalyzeLink} className="w-full !bg-[#2563ea] hover:!bg-blue-1000 text-white border-0 hover:shadow-none rounded-none dark:hover:shadow-none dark:!text-white" >
                   Analyze Links
                 </Button>
+                  <div className="flex mt-5 gap-2 mb-1">
+                    <Button
+                      onClick={() => {
+                        if (!linkErrors || !onLinkIssues) return;
+
+                        const issues: LinkIssue[] = [];
+
+                        Object.entries(linkErrors).forEach(([type, urls]) => {
+                          if (Array.isArray(urls)) {
+                            urls.forEach((url) => {
+                              issues.push({ type, url });
+                            });
+                          }
+                        });
+
+                        onLinkIssues(issues); // ✅ Send issues to Loom.tsx for highlighting
+                      }}
+                      className="w-1/2 text-sm !bg-white text-black !border-black-200 border rounded-none hover:shadow-none hover:!bg-black-200 hover:text-white dark:hover:shadow-none dark:!text-black-200 dark:hover:!text-white"
+                    >
+                      Show Highlights
+                    </Button>
+
+                    <Button
+                      className="w-1/2 text-sm !bg-[#EF4444] border-[#EF4444]  text-white border hover:!bg-red-700 hover:!border-red-700 rounded-none hover:shadow-none dark:hover:shadow-none dark:!text-white"
+                    >
+                      Remove Highlights
+                    </Button>
+                  </div>
+
+                  {hasLinkChecked && (
+                    <>
+                    <div className={`my-4 text-sm font-medium py-4 text-center ${totalLinkErrors === 0 ? '!bg-[#e6f6e9] !text-green-100' : 'bg-[#faeaea] text-red-600'}`}>
+                      {linkErrorMessage}
+                    </div>
+                    
+                        {linkErrors && (
+                          <div>
+                            <Accordion
+                              className="mt-2"
+                              header={
+                                <div className="flex items-center justify-between w-full">
+                                  <span>Link & Anchor Text Issues</span>
+                                  {linkShowResults && (
+                                    <div
+                                      className={`w-[40px] text-right rounded-2xl px-2 ${
+                                        totalLinkAndAnchorIssues > 0 ? 'bg-[#f5ecee] text-red-100' : 'bg-[#e5f5ea] !text-green-100'
+                                      }`}
+                                    >
+                                      {totalLinkAndAnchorIssues}
+                                    </div>
+                                  )}
+                                </div>
+                              }
+                            >
+                              <ul className="text-left list-none list-inside space-y-3 text-sm">
+                          {linkErrors && Object.entries(linkErrors).map(([key, value]) => {
+                            // Only show real error types (skip internal/external links)
+                            const isErrorType = [
+                              'invalidLinks',
+                              'missingTrailingSlash',
+                              'duplicateLinks',
+                              'brokenLinks',
+                              'identicalAnchors',
+                              'invalidAnchors'
+                            ].includes(key);
+
+                            if (!isErrorType || !Array.isArray(value) || value.length === 0) {
+                              return null;
+                            }
+
+                            return (
+                              <li key={key}>
+                                <strong>{formatErrorLabel(key)} ({value.length}):</strong>
+                                <ul className="pl-5 mt-1 space-y-1 list-decimal">
+                                  {value.map((url, idx) => (
+                                    <li key={`${key}-${idx}`} className="!cursor-pointer">
+                                      <button
+                                        onClick={() => {
+                                          if (!url || url === '#') return;
+                                          try {
+                                            const el = document.querySelector(`[href="${url}"]`);
+                                            if (el) {
+                                              el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                                              el.classList.add('ring-2', 'ring-offset-2', 'ring-yellow-300');
+                                              setTimeout(() => {
+                                                el.classList.remove('ring-2', 'ring-offset-2', 'ring-yellow-300');
+                                              }, 2000);
+                                            }
+                                          } catch (e) {
+                                            console.warn(`Invalid selector for href: ${url}`, e);
+                                          }
+                                        }}
+                                        className="text-blue-600 underline hover:text-blue-800 cursor-pointer"
+                                      >
+                                        {url}
+                                      </button>
+                                    </li>
+                                  ))}
+                                </ul>
+                              </li>
+                            );
+                          })}
+
+                            </ul>
+                            </Accordion>
+
+                            <Accordion
+                              className="mt-2"
+                              header={
+                                <div className="flex items-center justify-between w-full">
+                                  <span>Internal Links (Grouped by Heading)</span>
+                                  {linkShowResults && (
+                                    <div
+                                      className={`w-[40px] text-right rounded-2xl px-2 ${
+                                        (linkErrors?.internalLinks?.length || 0) > 0 ? 'bg-[#e5f5ea]' : 'bg-[#e5f5ea]'
+                                      }`}
+                                    >
+                                      {linkErrors?.internalLinks?.length || 0}
+                                    </div>
+                                  )}
+                                </div>
+                              }
+                            >
+                              <ul className="!text-left list-none list-inside space-y-2 text-sm">
+                                {Array.isArray(linkErrors?.internalLinks) &&
+                                  linkErrors.internalLinks
+                                    .filter((l) => typeof l !== 'string')
+                                    .reduce((grouped: Record<string, LinkDetail[]>, link: any) => {
+                                      const location = link.location || 'Unknown Section';
+                                      if (!grouped[location]) grouped[location] = [];
+                                      grouped[location].push(link);
+                                      return grouped;
+                                    }, {} as Record<string, LinkDetail[]>)
+                                  &&
+                                  Object.entries(
+                                    linkErrors.internalLinks
+                                      .filter((l) => typeof l !== 'string')
+                                      .reduce((grouped: Record<string, LinkDetail[]>, link: any) => {
+                                        const location = link.location || 'Unknown Section';
+                                        if (!grouped[location]) grouped[location] = [];
+                                        grouped[location].push(link);
+                                        return grouped;
+                                      }, {} as Record<string, LinkDetail[]>)
+                                  ).map(([location, links]) => (
+                                    <li key={location}>
+                                      <h4 className="font-semibold text-black mb-1">{location}</h4>
+                                      <ul className="list-disc list-inside space-y-1">
+                                        {links.map((link, i) => (
+                                          <li
+                                            key={`${location}-${i}`}
+                                            onClick={() => scrollToLink(link.url)}
+                                            className="text-blue-400 underline hover:text-blue-950 break-words whitespace-pre-wrap text-left w-full cursor-pointer"
+                                          >
+                                            <span className="font-medium text-black-600 mr-1">{link.anchor || '(no anchor)'}</span>
+                                            — {link.url}
+                                          </li>
+                                        ))}
+                                      </ul>
+                                    </li>
+                                  ))}
+                              </ul>
+                            </Accordion>
+
+
+                            <Accordion
+                              className="mt-2"
+                              header={
+                                <div className="flex items-center justify-between w-full">
+                                  <span>External Links</span>
+                                  {linkShowResults && (
+                                    <div
+                                      className={`w-[40px] text-right rounded-2xl px-2 ${
+                                        (linkErrors?.externalLinks?.length || 0) > 0 ? 'bg-[#e5f5ea]' : 'bg-[#e5f5ea]'
+                                      }`}
+                                    >
+                                      {linkErrors?.externalLinks?.length || 0}
+                                    </div>
+                                  )}
+                                </div>
+                              }
+                            >
+                              <ul className="!text-left list-disc list-inside space-y-1 text-sm">
+                                {(linkErrors?.externalLinks || []).map((link, i) => (
+                                  <li key={`external-${i}`}                                       
+                                    onClick={() => scrollToLink(link)}
+                                    className="text-blue-400 underline hover:text-blue-950 break-words whitespace-pre-wrap text-left w-full cursor-pointer">
+                                      {link}
+                                  </li>
+                                ))}
+                              </ul>
+                            </Accordion>
+
+
+                          </div>
+                        )}
+
+                    </>
+                  )}
             </TabPanel>
 
             <TabPanel id="Keyword">
-                <Button className="w-full !bg-[#2563ea] hover:!bg-blue-1000 text-white border-0 hover:shadow-none rounded-none" >
+                <Button onClick={handleAnalyzeKeyword} className="w-full !bg-[#2563ea] hover:!bg-blue-1000 text-white border-0 hover:shadow-none rounded-none dark:hover:shadow-none dark:!text-white" >
                   Analyze Keywords
                 </Button>
+                  <div className="flex mt-5 gap-2 mb-1">
+                    <Button                         
+                      className="w-1/2 text-sm  !bg-white  text-black !border-black-200 border rounded-none hover:shadow-none hover:!bg-black-200 hover:text-white dark:hover:shadow-none dark:!text-black-200 dark:hover:!text-white" 
+                    >
+                      Show Highlights
+                    </Button>
+                    <Button
+                      className="w-1/2 text-sm !bg-[#EF4444] border-[#EF4444]  text-white border hover:!bg-red-700 hover:!border-red-700 rounded-none hover:shadow-none dark:hover:shadow-none dark:!text-white"
+                    >
+                      Remove Highlights
+                    </Button>
+                </div>
+                  
+
+                {hasKeywordChecked && (
+                  <>
+                  <div className={`my-4 text-sm font-medium py-4 text-center ${totalLinkErrors === 0 ? '!bg-[#e6f6e9] !text-green-100' : 'bg-[#faeaea] text-red-600'}`}>
+                    {linkErrorMessage}
+                  </div>
+
+
+                  <div>
+                  </div>
+                  </>      
+                )}
+                  <div className="mt-5">
+                    <div>
+                      <label htmlFor="">Focus Keyphrase</label>
+                      <input type="text" placeholder='e.g "car accident lawyer"' />
+                    </div>
+                    <div>
+                      <label htmlFor="">Alternate Keyphrase</label>
+                      <input type="text" name="" id="" placeholder='Alternate ESQ (optional)'/>
+                    </div>
+                  </div>
             </TabPanel>
           </Tabs>
         }

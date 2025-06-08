@@ -40,7 +40,7 @@ export const Accordion = (accProps: AccordionProps) => {
           'transition-[transform] duration-150 ease-[cubic-bezier(0.4,0,0.2,1)]',
           expanded ? 'rotate-z-180' : ''
         )} />
-        <div className="flex-1 text-left">{header}</div>
+        <div className="flex-1 text-left break-words">{header}</div>
       </div>
       <div className={clsx(
         'overflow-hidden',

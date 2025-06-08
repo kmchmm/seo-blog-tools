@@ -17,19 +17,88 @@ interface CONSTRAINT {
   MAX: number;
 }
 
+interface FormatError {
+  paragraphIndex: number;
+  message?: string;
+  start: number; 
+  end: number; 
+  errorSubType?: 'leading' | 'trailing';
+}
+
+interface ErrorList {
+  multipleSpaceErrors: FormatError[];
+  emDashErrors: FormatError[];
+  leadingTrailingSpaceErrors: FormatError[];
+  spaceBeforePunctuationErrors: FormatError[];
+  missingPunctuationErrors: FormatError[];
+  titleCaseErrors: FormatError[];
+}
+
+interface LinkIssue {
+  type: string;
+  url: string;
+  anchor?: string;
+  location?: string;
+}
+
+// Normalize URLs for matching
+const normalizeUrl = (url: string): string => {
+  if (url.startsWith('http')) return url;
+  if (url.startsWith('/')) return `https://arashlaw.com${url}`;
+  return url;
+};
+
+function highlightLinkIssuesInHtml(html: string, issues: LinkIssue[]): string {
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(html, 'text/html');
+
+  // Map URLs to issue types (normalized)
+  const urlToTypes = new Map<string, Set<string>>();
+  for (const issue of issues) {
+    const normUrl = normalizeUrl(issue.url);
+    if (!urlToTypes.has(normUrl)) urlToTypes.set(normUrl, new Set());
+    urlToTypes.get(normUrl)!.add(issue.type);
+  }
+
+  doc.querySelectorAll('a').forEach((link, index) => {
+    const hrefRaw = link.getAttribute('href');
+    if (!hrefRaw) return;
+
+    const href = normalizeUrl(hrefRaw);
+    const types = urlToTypes.get(href);
+    if (!types) return;
+
+    // Add unique ID for anchor/scrolling
+    link.setAttribute('id', `link-issue-${index}`);
+
+    // Error highlighting (any non internal/external types)
+    if ([...types].some(t => !['internalLinks', 'externalLinks'].includes(t))) {
+      link.classList.add('underline', 'decoration-wavy', 'decoration-error');
+    }
+
+    // Internal link style (green)
+    if (types.has('internalLinks')) {
+      link.classList.add('decoration-internal');
+    }
+
+    // External link style (underline + dark blue)
+    if (types.has('externalLinks')) {
+      link.classList.add('underline', 'decoration-external');
+    }
+  });
+
+  return doc.body.innerHTML;
+}
+
 const TINYMCE_API_KEY = 'p964xz9rbfvw8dgzbv2k8vpw3n70suinf499l1nmbl1ajhks';
 
 const addHeadingAnchors = (html: string): string => {
   const parser = new DOMParser();
   const doc = parser.parseFromString(html, 'text/html');
-
   let idCounter = 0;
-  const headings = doc.querySelectorAll('h1, h2, h3, h4, h5, h6');
 
-  headings.forEach((el) => {
-    if (!el.id) {
-      el.id = `heading-${idCounter++}`;
-    }
+  doc.querySelectorAll('h1, h2, h3, h4, h5, h6').forEach(el => {
+    if (!el.id) el.id = `heading-${idCounter++}`;
   });
 
   return doc.body.innerHTML;
@@ -58,218 +127,571 @@ const modeActive = clsx(
 );
 
 const checkPixelLength = (text: string, constraint: CONSTRAINT) => {
-  const tempElement = document.createElement('span');
-  tempElement.style.fontSize = '16px';
-  tempElement.style.whiteSpace = 'nowrap';
-  tempElement.style.visibility = 'hidden';
-  tempElement.textContent = text;
-  document.body.appendChild(tempElement);
-  const pixelWidth = tempElement.offsetWidth;
-  document.body.removeChild(tempElement);
+  const temp = document.createElement('span');
+  temp.style.fontSize = '16px';
+  temp.style.whiteSpace = 'nowrap';
+  temp.style.visibility = 'hidden';
+  temp.textContent = text;
+  document.body.appendChild(temp);
+  const width = temp.offsetWidth;
+  document.body.removeChild(temp);
 
-  let indicatorWidth: number = 100;
-  if (constraint.MAX > pixelWidth) {
-    indicatorWidth = (pixelWidth / constraint.MAX) * 100;
-  }
+  let indicatorWidth = constraint.MAX > width ? (width / constraint.MAX) * 100 : 100;
 
-  let titleStyle = errorLengthStyle;
-  if (constraint.WARNING <= pixelWidth && pixelWidth < constraint.PERFECT)
-    titleStyle = warningLengthStyle;
-  if (constraint.PERFECT <= pixelWidth && pixelWidth < constraint.MAX)
-    titleStyle = perfectLengthStyle;
+  let style = errorLengthStyle;
+  if (width >= constraint.WARNING && width < constraint.PERFECT) style = warningLengthStyle;
+  if (width >= constraint.PERFECT && width < constraint.MAX) style = perfectLengthStyle;
 
-  return {
-    style: titleStyle,
-    width: {
-      width: `${indicatorWidth}%`,
-    },
-  };
+  return { style, width: { width: `${indicatorWidth}%` } };
 };
 
 const Loom: FC = () => {
   const [htmlString, setHtmlString] = useState<string>('');
-  const [title, setTitle] = useState<string>('');
-  const [description, setDescription] = useState<string>('');
-  const [focusKeyword, setFocusKeyword] = useState<string>('');
-  const [alternateEsq, setAlternateEsq] = useState<string>('');
-  const [editMode, setEditMode] = useState<boolean>(true);
-  const editorRef = useRef<TinyMCEEditor>(null);
+  const [title, setTitle] = useState('');
+  const [description, setDescription] = useState('');
+  const [focusKeyword, setFocusKeyword] = useState('');
+  const [alternateEsq, setAlternateEsq] = useState('');
+  const [editMode, setEditMode] = useState(true);
   const [highlightedHtml, setHighlightedHtml] = useState<string | null>(null);
+  const editorRef = useRef<TinyMCEEditor | null>(null);
 
   const titleStyle = useMemo(() => checkPixelLength(title, TITLE_CONSTRAINTS), [title]);
   const descStyle = useMemo(() => checkPixelLength(description, DESC_CONSTRAINTS), [description]);
 
-  
-  const highlightPhrases = (phrases: string[]) => {
-    if (!htmlString) return;
+  const [formatErrors, setFormatErrors] = useState<ErrorList | null>(null);
 
-    // Remove previous highlights
-    let baseHtml = htmlString.replace(/<mark class="bg-yellow-200">(.*?)<\/mark>/gi, '$1');
+  const [highlightedContentSections, setHighlightedContentSections] = useState<
+    { level: string; text: string; wordCount: number }[]
+  >([]);
 
-    // Filter out empty phrases
-    const validPhrases = phrases.filter(Boolean).map(p => p.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
-    if (validPhrases.length === 0) {
-      setHighlightedHtml(null);
-      return;
-    }
+  const [linkIssues, setLinkIssues] = useState<LinkIssue[] | null>(null);
 
-    // Build a single regex to highlight all phrases
-    const regex = new RegExp(`\\b(${validPhrases.join('|')})\\b`, 'gi');
 
-    // Use a DOM parser to avoid breaking HTML structure
+
+
+  const escapeRegex = (str: string) =>
+    str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+  const applyHighlights = (html: string, phrases: string[], className: string) => {
     const parser = new DOMParser();
-    const doc = parser.parseFromString(baseHtml, 'text/html');
+    const doc = parser.parseFromString(html, 'text/html');
 
-    const walk = (node: ChildNode) => {
-      if (node.nodeType === Node.TEXT_NODE) {
-        const text = node.textContent!;
-        if (regex.test(text)) {
-          const span = document.createElement('mark');
-          span.className = 'bg-yellow-200';
+    const regex = new RegExp(`\\b(${phrases.map(escapeRegex).join('|')})\\b`, 'gi');
 
-          // Replace matching words with <mark> inside a fragment
-          const replaced = text.replace(regex, (match) => `<mark class="bg-yellow-200">${match}</mark>`);
-
-          // Parse replaced HTML fragment and insert in place of text node
-          const frag = document.createRange().createContextualFragment(replaced);
-          node.replaceWith(frag);
-        }
-      } else {
-        node.childNodes.forEach(walk);
+    const walk = (node: Node) => {
+      if (node.nodeType === Node.TEXT_NODE && regex.test(node.nodeValue || '')) {
+        const tempDiv = document.createElement('div');
+        tempDiv.innerHTML = (node.nodeValue || '').replace(regex, match => `<mark class="${className}">${match}</mark>`);
+        const fragment = document.createDocumentFragment();
+        [...tempDiv.childNodes].forEach(n => fragment.appendChild(n));
+        node.parentNode?.replaceChild(fragment, node);
+      } else if (node.nodeType === Node.ELEMENT_NODE) {
+        node.childNodes.forEach(child => walk(child));
       }
     };
 
-    doc.body.childNodes.forEach(walk);
+    walk(doc.body);
 
-    setHighlightedHtml(doc.body.innerHTML);
+    return doc.body.innerHTML;
   };
+
+
+  const applyFormatHighlights = (html: string, phrases: string[], className: string) => {
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(html, 'text/html');
+
+    const regex = new RegExp(`\\b(${phrases.map(escapeRegex).join('|')})\\b`, 'gi');
+
+    const walk = (node: Node) => {
+      if (node.nodeType === Node.TEXT_NODE && regex.test(node.nodeValue || '')) {
+        const tempDiv = document.createElement('div');
+        tempDiv.innerHTML = (node.nodeValue || '').replace(regex, match => `<mark class="${className}">${match}</mark>`);
+        const fragment = document.createDocumentFragment();
+        [...tempDiv.childNodes].forEach(n => fragment.appendChild(n));
+        node.parentNode?.replaceChild(fragment, node);
+      } else if (node.nodeType === Node.ELEMENT_NODE) {
+        node.childNodes.forEach(child => walk(child));
+      }
+    };
+
+    walk(doc.body);
+
+    return doc.body.innerHTML;
+  };
+
+    const applyContentHighlights = (html: string, phrases: string[], className: string) => {
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(html, 'text/html');
+
+    const regex = new RegExp(`\\b(${phrases.map(escapeRegex).join('|')})\\b`, 'gi');
+
+    const walk = (node: Node) => {
+      if (node.nodeType === Node.TEXT_NODE && regex.test(node.nodeValue || '')) {
+        const tempDiv = document.createElement('div');
+        tempDiv.innerHTML = (node.nodeValue || '').replace(regex, match => `<mark class="${className}">${match}</mark>`);
+        const fragment = document.createDocumentFragment();
+        [...tempDiv.childNodes].forEach(n => fragment.appendChild(n));
+        node.parentNode?.replaceChild(fragment, node);
+      } else if (node.nodeType === Node.ELEMENT_NODE) {
+        node.childNodes.forEach(child => walk(child));
+      }
+    };
+
+    walk(doc.body);
+
+    return doc.body.innerHTML;
+  };
+
+  function highlightTextNode(node: Text, regex: RegExp, errorType: string, doc: Document) {
+    const parent = node.parentNode;
+    if (!parent) return;
+
+    const text = node.textContent || '';
+    let lastIndex = 0;
+    const frag = doc.createDocumentFragment();
+
+    let match;
+    while ((match = regex.exec(text)) !== null) {
+      const before = text.slice(lastIndex, match.index);
+      if (before.length > 0) {
+        frag.appendChild(doc.createTextNode(before));
+      }
+
+      const mark = doc.createElement('mark');
+      mark.className = 'bg-red-300 text-red-700 rounded-sm px-1';
+      mark.title = errorType;
+      mark.textContent = match[0];
+      frag.appendChild(mark);
+
+      lastIndex = match.index + match[0].length;
+
+      if (match.index === regex.lastIndex) regex.lastIndex++;
+    }
+
+    const after = text.slice(lastIndex);
+    if (after.length > 0) {
+      frag.appendChild(doc.createTextNode(after));
+    }
+
+    parent.replaceChild(frag, node);
+  }
+
+  function highlightLastWordInTextNode(node: Text, errorType: string, doc: Document) {
+    const parent = node.parentNode;
+    if (!parent) return;
+
+    const text = node.textContent || '';
+    const trimmedText = text.trimEnd();
+    const lastWordMatch = trimmedText.match(/(\S+)$/);
+    if (!lastWordMatch) return;
+
+    const lastWord = lastWordMatch[1];
+    const lastWordIndex = text.lastIndexOf(lastWord);
+    if (lastWordIndex === -1) return;
+
+    const frag = doc.createDocumentFragment();
+
+    // Text before last word
+    const before = text.slice(0, lastWordIndex);
+    if (before.length > 0) {
+      frag.appendChild(doc.createTextNode(before));
+    }
+
+    // Marked last word
+    const mark = doc.createElement('mark');
+    mark.className = 'bg-red-300 text-red-700 rounded-sm px-1';
+    mark.title = errorType;
+    mark.textContent = lastWord;
+    frag.appendChild(mark);
+
+    // Text after last word
+    const after = text.slice(lastWordIndex + lastWord.length);
+    if (after.length > 0) {
+      frag.appendChild(doc.createTextNode(after));
+    }
+
+    parent.replaceChild(frag, node);
+  }
+
+  function highlightAllErrorsInHTML(html: string, formatErrors: ErrorList): string {
+    if (!formatErrors || typeof formatErrors !== 'object') return html;
+
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(html, 'text/html');
+
+    const regexMap: Record<string, RegExp> = {
+      multipleSpaceErrors: /\s{2,}/g,
+      emDashErrors: /[^ ]—|—[^ ]/g,
+      spaceBeforePunctuationErrors: /\s+([.,!?;:])/g,
+    };
+
+    const elements = Array.from(doc.body.querySelectorAll('p, h1, h2, h3, h4, h5, h6'));
+
+    elements.forEach((el, index) => {
+      // Highlight regex-based errors using highlightTextNode
+      for (const [errorType, regex] of Object.entries(regexMap)) {
+        const errorList = (formatErrors as any)[errorType] as FormattingError[] | undefined;
+        if (!errorList || errorList.length === 0) continue;
+
+        const matchedErrors = errorList.filter(err => err.paragraphIndex === index);
+        if (matchedErrors.length === 0) continue;
+
+        const treeWalker = doc.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+        let node: Text | null;
+        while ((node = treeWalker.nextNode() as Text | null)) {
+          if (regex.test(node.textContent || '')) {
+            regex.lastIndex = 0;
+            highlightTextNode(node, regex, errorType, doc);
+          }
+        }
+      }
+
+      // Missing punctuation errors: highlight last word if paragraph missing punctuation
+      const missingPunctuationErrors = (formatErrors.missingPunctuationErrors || []).filter(err => err.paragraphIndex === index);
+      if (missingPunctuationErrors.length > 0) {
+        const textContent = el.textContent?.trimEnd() || '';
+        if (!/[.?!]$/.test(textContent)) {
+          const textNodes: Text[] = [];
+          const treeWalker = doc.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+          let node: Text | null;
+          while ((node = treeWalker.nextNode() as Text | null)) {
+            textNodes.push(node);
+          }
+          for (let i = textNodes.length - 1; i >= 0; i--) {
+            const nodeText = textNodes[i].textContent?.trimEnd() || '';
+            if (nodeText.length > 0) {
+              highlightLastWordInTextNode(textNodes[i], 'Missing punctuation error', doc);
+              break;
+            }
+          }
+        }
+      }
+
+      // Title case errors: highlight lowercase-start words
+      const titleErrors = formatErrors?.titleCaseErrors?.filter(err => err.paragraphIndex === index) ?? [];
+      if (titleErrors.length > 0) {
+        const treeWalker = doc.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+        let node: Text | null;
+        while ((node = treeWalker.nextNode() as Text | null)) {
+          const words = node.textContent?.split(/(\s+)/) || [];
+          let changed = false;
+          const frag = doc.createDocumentFragment();
+
+          words.forEach(word => {
+            if (word.trim() && word[0] === word[0].toLowerCase() && /[a-z]/.test(word[0])) {
+              const mark = doc.createElement('mark');
+              mark.className = 'bg-red-300 text-red-700 rounded-sm px-1';
+              mark.title = 'Title case error';
+              mark.textContent = word;
+              frag.appendChild(mark);
+              changed = true;
+            } else {
+              frag.appendChild(doc.createTextNode(word));
+            }
+          });
+
+          if (changed) {
+            node.parentNode?.replaceChild(frag, node);
+          }
+        }
+      }
+
+      // === Highlight whole paragraph if it has leading/trailing space errors ===
+      const leadingTrailingErrors = (formatErrors.leadingTrailingSpaceErrors || []).filter(err => err.paragraphIndex === index);
+
+      if (leadingTrailingErrors.length > 0) {
+        // Wrap entire paragraph text inside one <mark>
+        const mark = doc.createElement('mark');
+        mark.className = 'bg-red-300 text-red-700 rounded-sm px-1';
+        mark.title = 'Leading or trailing space error';
+
+        while (el.firstChild) {
+          mark.appendChild(el.firstChild);
+        }
+
+        el.appendChild(mark);
+      }
+    });
+
+    return doc.body.innerHTML;
+  }
+
+
+  useEffect(() => {
+    console.log('[Editor HTML]', htmlString);
+  }, [htmlString]);
+
+  const highlightPhrases = (phrases: string[]) => {
+    const cleanHtml = htmlString.replace(/<mark[^>]*>(.*?)<\/mark>/gi, '$1');
+    if (!phrases.length) return setHighlightedHtml(null);
+    const newHtml = applyHighlights(cleanHtml, phrases, 'bg-[#FEF08A]');
+    setHighlightedHtml(newHtml);
+  };
+
+  const highlightFormattingPhrases = (phrases: string[]) => {
+    console.log('[highlightFormattingPhrases] received phrases:', phrases);
+    const cleanHtml = htmlString.replace(/<mark[^>]*>(.*?)<\/mark>/gi, '$1');
+
+    if (!phrases.length) return setHighlightedHtml(null);
+
+    const sorted = [...phrases]
+      .map(p => p.trim())
+      .filter(Boolean)
+      .sort((a, b) => b.length - a.length); // Longer phrases first
+
+    const newHtml = applyFormatHighlights(cleanHtml, sorted, 'bg-red-300 text-red-700 rounded-sm px-1');
+
+    setHighlightedHtml(newHtml);
+  };
+
+
+  const removeHighlights = () => setHighlightedHtml(null);
+  const removeFormatHighlights = () => setHighlightedHtml(null);
 
   useEffect(() => {
     if (!editMode) {
-      highlightPhrases([focusKeyword, alternateEsq]);
+      highlightPhrases([focusKeyword, alternateEsq].filter(Boolean));
     } else {
       removeHighlights();
     }
   }, [focusKeyword, alternateEsq, editMode]);
 
-  const removeHighlights = () => {
-    setHighlightedHtml(null);
+
+const highlightContent = (headings: string[], repeatedWords: string[]) => {
+  const cleanHtml = htmlString.replace(/<mark[^>]*>(.*?)<\/mark>/gi, '$1');
+
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(cleanHtml, 'text/html');
+
+  const sections: { level: string; text: string; wordCount: number }[] = [];
+
+  // Highlight sections over 300 words
+  const highlightSections = () => {
+    const children = Array.from(doc.body.children);
+    let buffer: Element[] = [];
+    let sectionStartIndex = -1;
+
+    for (let i = 0; i < children.length; i++) {
+      const el = children[i];
+      const tag = el.tagName.toUpperCase();
+
+      if (/^H[1-6]$/.test(tag)) {
+        // Evaluate previous section
+        if (buffer.length && sectionStartIndex !== -1) {
+          const sectionText = buffer.map(n => n.textContent || '').join(' ');
+          const wordCount = sectionText.trim().split(/\s+/).length;
+
+          if (wordCount > 300) {
+            const wrapper = document.createElement('mark');
+            wrapper.className = 'bg-[#cccccc] text-red-800 block';
+            wrapper.title = `Section contains ${wordCount} words`;
+
+            for (let j = sectionStartIndex; j < i; j++) {
+              wrapper.appendChild(children[j].cloneNode(true));
+            }
+
+            children[sectionStartIndex].replaceWith(wrapper);
+            for (let j = sectionStartIndex + 1; j < i; j++) {
+              children[j].remove();
+            }
+          }
+
+          // Save heading info
+          const headingText = children[sectionStartIndex]?.textContent?.trim() || '';
+          sections.push({
+            level: children[sectionStartIndex]?.tagName.toUpperCase() || 'H1',
+            text: headingText,
+            wordCount,
+          });
+        }
+
+        buffer = [el];
+        sectionStartIndex = i;
+      } else if (sectionStartIndex !== -1) {
+        buffer.push(el);
+      }
+    }
+
+    if (buffer.length && sectionStartIndex !== -1) {
+      const sectionText = buffer.map(n => n.textContent || '').join(' ');
+      const wordCount = sectionText.trim().split(/\s+/).length;
+
+      if (wordCount > 300) {
+        const wrapper = document.createElement('mark');
+        wrapper.className = 'bg-[#cccccc] text-red-800 block';
+        wrapper.title = `Section contains ${wordCount} words`;
+
+        for (let j = sectionStartIndex; j < children.length; j++) {
+          wrapper.appendChild(children[j].cloneNode(true));
+        }
+
+        children[sectionStartIndex].replaceWith(wrapper);
+        for (let j = sectionStartIndex + 1; j < children.length; j++) {
+          children[j].remove();
+        }
+      }
+
+      // Save final heading info
+      const headingText = children[sectionStartIndex]?.textContent?.trim() || '';
+      sections.push({
+        level: children[sectionStartIndex]?.tagName.toUpperCase() || 'H1',
+        text: headingText,
+        wordCount,
+      });
+    }
   };
+
+  // Highlight repeated sentence starts
+    const highlightRepeatedSentences = () => {
+      const repeatedWordsLower = repeatedWords.map(w => w.toLowerCase());
+
+      const walk = (node: Node) => {
+        if (node.nodeType === Node.TEXT_NODE && node.parentNode?.nodeName !== 'SCRIPT') {
+          const text = node.nodeValue || '';
+          const sentences = text.match(/[^.!?]+(?:[.!?]+|$)/g);
+          if (!sentences || sentences.length < 3) return;
+
+          let i = 0;
+          const fragments: Node[] = [];
+
+          while (i < sentences.length) {
+            const currentSentence = sentences[i].trim();
+            const match = currentSentence.match(/^(\w+)/);
+            const startWord = match?.[1]?.toLowerCase();
+
+            if (!startWord) {
+              fragments.push(document.createTextNode(currentSentence + ' '));
+              i++;
+              continue;
+            }
+
+            let count = 1;
+            for (let j = i + 1; j < sentences.length; j++) {
+              const nextMatch = sentences[j].trim().match(/^(\w+)/);
+              if (!nextMatch || nextMatch[1].toLowerCase() !== startWord) break;
+              count++;
+            }
+
+            const isRepeated = count >= 3 && repeatedWordsLower.includes(startWord);
+
+            for (let k = 0; k < count; k++) {
+              const s = sentences[i + k].trim();
+              const span = document.createElement(isRepeated ? 'mark' : 'span');
+              if (isRepeated) {
+                span.className = 'bg-blue-100 text-white';
+                span.title = `Repeated starting word: ${startWord}`;
+              }
+              span.textContent = s + ' ';
+              fragments.push(span);
+            }
+
+            i += count;
+          }
+
+          const parent = node.parentNode!;
+          fragments.forEach(f => parent.insertBefore(f, node));
+          parent.removeChild(node);
+        } else if (node.nodeType === Node.ELEMENT_NODE) {
+          Array.from(node.childNodes).forEach(walk);
+        }
+      };
+
+      walk(doc.body);
+    };
+
+  highlightSections();
+  highlightRepeatedSentences();
+
+  const newHtml = doc.body.innerHTML;
+  setHighlightedHtml(newHtml);
+  setHighlightedContentSections(sections); // <- Save section info to your state
+};
+
+const removeContentHighlights = () => {
+  const cleanHtml = htmlString.replace(/<mark[^>]*>(.*?)<\/mark>/gi, '$1');
+  setHighlightedHtml(cleanHtml);
+};
+
 
   return (
     <div className={clsx('flex flex-col items-center w-full pt-4 px-3', 'bg-white-100 dark:bg-blue-600')}>
       <h1 className="text-black-100 dark:text-white-100 text-5xl">AK Loom</h1>
       <p className="text-left italic self-start">For writers by developers</p>
 
-      <section className="w-full py-2 gap-5 flex flex-row mb-5">
-        <div className="w-1/2">
-          <label>Meta Title</label>
-          {title.length > 0 && (
-            <span>
-              <label> - {title.length}</label>
-              <label>{title.length > 1 ? ' characters' : ' character'}</label>
-            </span>
-          )}
-          <input type="text" value={title} className="w-full! py-2!" onChange={(e) => setTitle(e.target.value)} />
-          <div className="w-full h-4 bg-gray-400 rounded-md overflow-hidden mb-5">
-            <div className={clsx('h-full transition-width duration-600 ease-[ease]', titleStyle.style)} style={titleStyle.width}></div>
-          </div>
-
-          <label>Meta Description</label>
-          <span>
-            <label> - {description.length} </label>
-            <label>characters</label>
-          </span>
-          <textarea
-            value={description}
-            placeholder="Meta Description"
-            className="w-full min-h-10 h-25 my-2 dark:text-black-200"
-            onChange={(e) => setDescription(e.target.value)}
-          />
-          <div className="w-full h-4 bg-gray-400 rounded-md overflow-hidden">
-            <div className={clsx('h-full transition-width duration-600 ease-[ease]', descStyle.style)} style={descStyle.width}></div>
-          </div>
-        </div>
-
-        <div className="w-1/2 flex flex-col">
-          <label>Google Appearance Preview</label>
-          <div className={clsx('border border-black/17.5 rounded-md p-4 bg-white', 'flex flex-1 flex-col dark:text-black-200')}>
-            <span>Arash Law</span>
-            <cite className="text-[12px] leading-[18px]"></cite>
-            <h3 className="text-xl truncate text-blue-1000 leading-[1.2] font-medium">{title}</h3>
-            <span className="text-black-200/75 wrap-break-word">{description}</span>
-          </div>
-        </div>
-      </section>
-
-      <section className="w-full py-2 gap-5 flex flex-row">
-        <div className="flex-1 flex flex-col">
-          <div className="flex flex-row gap-5 mb-4">
-            <div className="w-1/2">
-              <label>Focus Keyphrase</label>
-              <input
-                type="text"
-                value={focusKeyword}
-                className="w-full! py-2!"
-                onChange={(e) => setFocusKeyword(e.target.value)}
-              />
+      <div className="dark:!bg-[#f7f8fa] dark:!text-black-200 w-full">
+        <section className="w-full py-2 gap-5 flex flex-row mb-5">
+          <div className="w-1/2">
+            <label>Meta Title</label>
+            {title && <span> - {title.length} {title.length > 1 ? 'characters' : 'character'}</span>}
+            <input type="text" value={title} className="!w-full py-2" onChange={(e) => setTitle(e.target.value)} />
+            <div className="w-full h-4 bg-gray-400 rounded-md overflow-hidden mb-5">
+              <div className={clsx('h-full transition-width duration-600 ease-[ease]', titleStyle.style)} style={titleStyle.width}></div>
             </div>
-            <div className="w-1/2">
-              <label>Alternate ESQ</label>
-              <input
-                type="text"
-                value={alternateEsq}
-                placeholder="(optional)"
-                className="w-full! py-2!"
-                onChange={(e) => setAlternateEsq(e.target.value)}
-              />
+
+            <label>Meta Description</label>
+            <span> - {description.length} characters</span>
+            <textarea
+              value={description}
+              placeholder="Meta Description"
+              className="w-full min-h-10 h-25 my-2 dark:text-black-200"
+              onChange={(e) => setDescription(e.target.value)}
+            />
+            <div className="w-full h-4 bg-gray-400 rounded-md overflow-hidden">
+              <div className={clsx('h-full transition-width duration-600 ease-[ease]', descStyle.style)} style={descStyle.width}></div>
             </div>
           </div>
 
-          <div className="flex-row flex justify-end mb-2">
-            <span
-              className={clsx(
-                'font-medium text-base font-normal leading-[1.5] py-[6px] px-[12px]',
-                'rounded-md border border-black-100 inline-block self-end',
-                'dark:bg-blue-600 dark:border-yellow-100',
-                'transition-colors transition-shadow duration-150 ease-in-out hover:cursor-pointer',
-                'rounded-r-none',
-                editMode ? modeActive : 'bg-white-100 dark:text-yellow-100'
-              )}
-              onClick={() => {
-                removeHighlights();
-                setEditMode(true);
-              }}
-            >
-              Edit
-            </span>
-
-            <span
-              className={clsx(
-                'font-medium text-base font-normal leading-[1.5] py-[6px] px-[12px]',
-                'rounded-md border border-black-100 inline-block self-end',
-                'dark:bg-blue-600 dark:border-yellow-100',
-                'transition-colors transition-shadow duration-150 ease-in-out hover:cursor-pointer',
-                'rounded-l-none',
-                !editMode ? modeActive : 'bg-white-100 dark:text-yellow-100'
-              )}
-              onClick={() => {
-                highlightPhrases([focusKeyword, alternateEsq].filter(Boolean));
-                setEditMode(false);
-              }}
-            >
-              Show Output
-            </span>
+          <div className="w-1/2 flex flex-col">
+            <label>Google Appearance Preview</label>
+            <div className="border border-black/17.5 rounded-md p-4 bg-white flex-1 flex flex-col dark:text-black-200">
+              <span>Arash Law</span>
+              <cite className="text-[12px] leading-[18px]"></cite>
+              <h3 className="text-xl truncate text-blue-1000 leading-[1.2] font-medium">{title}</h3>
+              <span className="text-black-200/75 wrap-break-word">{description}</span>
+            </div>
           </div>
+        </section>
 
-          <div className={editMode ? 'visible' : 'hidden'}>
-            {editMode && (
+        <section className="w-full py-2 gap-5 flex flex-row">
+          <div className="flex-1 flex flex-col">
+            <div className="flex flex-row gap-5 mb-4">
+              <div className="w-1/2">
+                <label>Focus Keyphrase</label>
+                <input
+                  type="text"
+                  value={focusKeyword}
+                  className="!w-full py-2"
+                  onChange={(e) => setFocusKeyword(e.target.value)}
+                />
+              </div>
+              <div className="w-1/2">
+                <label>Alternate ESQ</label>
+                <input
+                  type="text"
+                  value={alternateEsq}
+                  placeholder="(optional)"
+                  className="!w-full py-2"
+                  onChange={(e) => setAlternateEsq(e.target.value)}
+                />
+              </div>
+            </div>
+
+            <div className="flex-row flex justify-end mb-2">
+              <span className={clsx('font-medium text-base py-[6px] px-[12px]', 'rounded-md border', editMode ? modeActive : '')}
+                onClick={() => { removeHighlights(); setEditMode(true); }}>
+                Edit
+              </span>
+              <span className={clsx('font-medium text-base py-[6px] px-[12px]', 'rounded-md border', !editMode ? modeActive : '')}
+                onClick={() => { highlightPhrases([focusKeyword, alternateEsq].filter(Boolean)); setEditMode(false); }}>
+                Show Output
+              </span>
+            </div>
+
+            {editMode ? (
               <Editor
                 apiKey={TINYMCE_API_KEY}
-                onInit={(_evt, editor) => {
-                  editorRef.current = editor;
-                }}
-                onEditorChange={(content) => setHtmlString(content)}
+                onInit={(_, editor) => (editorRef.current = editor)}
+                onEditorChange={setHtmlString}
                 initialValue={htmlString}
                 init={{
                   height: EDITOR_MIN_HEIGHT,
@@ -281,26 +703,26 @@ const Loom: FC = () => {
                   extended_valid_elements: 'span[style|id|name|class]',
                   placeholder: 'Type here...',
                   toolbar_mode: 'floating',
-                  plugins: ['anchor', 'charmap', 'codesample', 'emoticons', 'image', 'link', 'media', 'searchreplace', 'table', 'visualblocks', 'wordcount'],
+                  plugins: [
+                    'anchor', 'charmap', 'codesample', 'emoticons',
+                    'image', 'link', 'media', 'searchreplace',
+                    'table', 'visualblocks', 'wordcount'
+                  ],
                   toolbar: 'blocks fontsize | bold italic underline | link image | alignleft indent outdent | emoticons charmap | removeformat',
                   content_style: 'body { font-family:Helvetica,Arial,sans-serif; font-size:14px }',
                 }}
               />
+            ) : (
+              <div className={clsx('border border-black/17.5 rounded-md p-4 bg-white', minHeightStyle)}>
+                {highlightedHtml ? (
+                  <div className="prose dark:text-black" dangerouslySetInnerHTML={{ __html: highlightedHtml }} />
+                ) : (
+                  <div className="prose dark:text-black" dangerouslySetInnerHTML={{ __html: htmlString }} />
+                )}
+              </div>
             )}
           </div>
 
-          <div className={clsx('border border-black/17.5 rounded-md p-4 bg-white', minHeightStyle, editMode ? 'hidden' : 'visible')}>
-            {!editMode && (
-              <div className="prose dark:text-black"
-                dangerouslySetInnerHTML={{
-                  __html: addHeadingAnchors(highlightedHtml ? highlightedHtml : htmlString),
-                }}
-              />
-
-
-            )}
-          </div>
-        </div>
           <div className="sticky top-4 self-start max-h-screen overflow-y-auto">
             <LoomSidebar
               text={htmlString}
@@ -309,9 +731,40 @@ const Loom: FC = () => {
               metaDescription={description}
               onHighlight={highlightPhrases}
               onRemoveHighlight={removeHighlights}
+              onFixAll={(newHtml) => {
+                setHtmlString(newHtml);
+                if (editorRef.current) {
+                  editorRef.current.setContent(newHtml);
+                }
+              }}
+              onFormatHighlight={(errors) => {
+                // Validate input
+                if (!errors || typeof errors !== 'object' || Array.isArray(errors)) {
+                  console.error('Invalid formatErrors object received:', errors);
+                  return;
+                }
+
+                setFormatErrors(errors);
+                const newHtml = highlightAllErrorsInHTML(htmlString, errors);
+                setHighlightedHtml(newHtml);
+              }}
+
+              onRemoveFormatHighlight={removeFormatHighlights}
+              onHighlightContent={(headings, repeatedWords) => {
+              highlightContent(headings, repeatedWords);
+              }}
+              onRemoveContentHighlight={removeContentHighlights}
+              highlightedContentSections={highlightedContentSections}
+
+              onLinkIssues={(issues) => {
+                const highlighted = highlightLinkIssuesInHtml(htmlString, issues);
+                setHighlightedHtml(highlighted);
+                setEditMode(false);
+              }}
             />
           </div>
-      </section>
+        </section>
+      </div>
     </div>
   );
 };
