@@ -9,6 +9,7 @@ export interface FormattingError {
   sentence: string;
   paragraphIndex: number;
   heading: string;
+   errorSubType?: 'leading' | 'trailing' | string;
 }
 
 export interface ErrorList {
@@ -42,10 +43,10 @@ function checkDocumentForErrorsFull(paragraphs: Paragraph[]): ErrorList {
 
     errorList.multipleSpaceErrors.push(...checkMultipleSpaces(text, i, paragraphs));
     errorList.emDashErrors.push(...checkEmDashSpacing(text, i, paragraphs));
-    errorList.titleCaseErrors.push(...checkHeadingTitleCase(text, heading, i));
+    errorList.titleCaseErrors.push(...checkHeadingTitleCase(text, heading ?? null, i)); 
     errorList.leadingTrailingSpaceErrors.push(...checkLeadingTrailingSpaces(text, i, paragraphs));
     errorList.spaceBeforePunctuationErrors.push(...checkSpaceBeforePunctuation(text, i, paragraphs));
-    errorList.missingPunctuationErrors.push(...checkMissingPunctuation(text, heading, i, paragraphs));
+    errorList.missingPunctuationErrors.push(...checkMissingPunctuation(text, heading ?? null, i, paragraphs));
   }
 
   return errorList;
