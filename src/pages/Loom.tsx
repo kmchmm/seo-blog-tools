@@ -6,6 +6,8 @@ import { Editor } from '@tinymce/tinymce-react';
 import { Editor as TinyMCEEditor } from 'tinymce';
 
 import { LoomSidebar } from '../components/LoomSidebar';
+import { addHeadingIds } from '../utils/sb37HTMLHelper';
+
 
 const errorLengthStyle = 'bg-red-200';
 const warningLengthStyle = 'bg-yellow-200';
@@ -92,17 +94,17 @@ function highlightLinkIssuesInHtml(html: string, issues: LinkIssue[]): string {
 
 const TINYMCE_API_KEY = 'p964xz9rbfvw8dgzbv2k8vpw3n70suinf499l1nmbl1ajhks';
 
-const addHeadingAnchors = (html: string): string => {
-  const parser = new DOMParser();
-  const doc = parser.parseFromString(html, 'text/html');
-  let idCounter = 0;
+// const addHeadingAnchors = (html: string): string => {
+//   const parser = new DOMParser();
+//   const doc = parser.parseFromString(html, 'text/html');
+//   let idCounter = 0;
 
-  doc.querySelectorAll('h1, h2, h3, h4, h5, h6').forEach(el => {
-    if (!el.id) el.id = `heading-${idCounter++}`;
-  });
+//   doc.querySelectorAll('h1, h2, h3, h4, h5, h6').forEach(el => {
+//     if (!el.id) el.id = `heading-${idCounter++}`;
+//   });
 
-  return doc.body.innerHTML;
-};
+//   return doc.body.innerHTML;
+// };
 
 const EDITOR_MIN_HEIGHT = 450;
 const minHeightStyle = 'min-h-[450px]';
@@ -136,7 +138,7 @@ const checkPixelLength = (text: string, constraint: CONSTRAINT) => {
   const width = temp.offsetWidth;
   document.body.removeChild(temp);
 
-  let indicatorWidth = constraint.MAX > width ? (width / constraint.MAX) * 100 : 100;
+  const indicatorWidth = constraint.MAX > width ? (width / constraint.MAX) * 100 : 100;
 
   let style = errorLengthStyle;
   if (width >= constraint.WARNING && width < constraint.PERFECT) style = warningLengthStyle;
@@ -158,13 +160,14 @@ const Loom: FC = () => {
   const titleStyle = useMemo(() => checkPixelLength(title, TITLE_CONSTRAINTS), [title]);
   const descStyle = useMemo(() => checkPixelLength(description, DESC_CONSTRAINTS), [description]);
 
-  const [formatErrors, setFormatErrors] = useState<ErrorList | null>(null);
+  const [, setFormatErrors] = useState<ErrorList | null>(null);
+  // const [setFormatErrors] = useState<ErrorList | null>(null);
 
   const [highlightedContentSections, setHighlightedContentSections] = useState<
     { level: string; text: string; wordCount: number }[]
   >([]);
 
-  const [linkIssues, setLinkIssues] = useState<LinkIssue[] | null>(null);
+  // const [linkIssues, setLinkIssues] = useState<LinkIssue[] | null>(null);
 
 
 
@@ -196,51 +199,51 @@ const Loom: FC = () => {
   };
 
 
-  const applyFormatHighlights = (html: string, phrases: string[], className: string) => {
-    const parser = new DOMParser();
-    const doc = parser.parseFromString(html, 'text/html');
+  // const applyFormatHighlights = (html: string, phrases: string[], className: string) => {
+  //   const parser = new DOMParser();
+  //   const doc = parser.parseFromString(html, 'text/html');
 
-    const regex = new RegExp(`\\b(${phrases.map(escapeRegex).join('|')})\\b`, 'gi');
+  //   const regex = new RegExp(`\\b(${phrases.map(escapeRegex).join('|')})\\b`, 'gi');
 
-    const walk = (node: Node) => {
-      if (node.nodeType === Node.TEXT_NODE && regex.test(node.nodeValue || '')) {
-        const tempDiv = document.createElement('div');
-        tempDiv.innerHTML = (node.nodeValue || '').replace(regex, match => `<mark class="${className}">${match}</mark>`);
-        const fragment = document.createDocumentFragment();
-        [...tempDiv.childNodes].forEach(n => fragment.appendChild(n));
-        node.parentNode?.replaceChild(fragment, node);
-      } else if (node.nodeType === Node.ELEMENT_NODE) {
-        node.childNodes.forEach(child => walk(child));
-      }
-    };
+  //   const walk = (node: Node) => {
+  //     if (node.nodeType === Node.TEXT_NODE && regex.test(node.nodeValue || '')) {
+  //       const tempDiv = document.createElement('div');
+  //       tempDiv.innerHTML = (node.nodeValue || '').replace(regex, match => `<mark class="${className}">${match}</mark>`);
+  //       const fragment = document.createDocumentFragment();
+  //       [...tempDiv.childNodes].forEach(n => fragment.appendChild(n));
+  //       node.parentNode?.replaceChild(fragment, node);
+  //     } else if (node.nodeType === Node.ELEMENT_NODE) {
+  //       node.childNodes.forEach(child => walk(child));
+  //     }
+  //   };
 
-    walk(doc.body);
+  //   walk(doc.body);
 
-    return doc.body.innerHTML;
-  };
+  //   return doc.body.innerHTML;
+  // };
 
-    const applyContentHighlights = (html: string, phrases: string[], className: string) => {
-    const parser = new DOMParser();
-    const doc = parser.parseFromString(html, 'text/html');
+  //   const applyContentHighlights = (html: string, phrases: string[], className: string) => {
+  //   const parser = new DOMParser();
+  //   const doc = parser.parseFromString(html, 'text/html');
 
-    const regex = new RegExp(`\\b(${phrases.map(escapeRegex).join('|')})\\b`, 'gi');
+  //   const regex = new RegExp(`\\b(${phrases.map(escapeRegex).join('|')})\\b`, 'gi');
 
-    const walk = (node: Node) => {
-      if (node.nodeType === Node.TEXT_NODE && regex.test(node.nodeValue || '')) {
-        const tempDiv = document.createElement('div');
-        tempDiv.innerHTML = (node.nodeValue || '').replace(regex, match => `<mark class="${className}">${match}</mark>`);
-        const fragment = document.createDocumentFragment();
-        [...tempDiv.childNodes].forEach(n => fragment.appendChild(n));
-        node.parentNode?.replaceChild(fragment, node);
-      } else if (node.nodeType === Node.ELEMENT_NODE) {
-        node.childNodes.forEach(child => walk(child));
-      }
-    };
+  //   const walk = (node: Node) => {
+  //     if (node.nodeType === Node.TEXT_NODE && regex.test(node.nodeValue || '')) {
+  //       const tempDiv = document.createElement('div');
+  //       tempDiv.innerHTML = (node.nodeValue || '').replace(regex, match => `<mark class="${className}">${match}</mark>`);
+  //       const fragment = document.createDocumentFragment();
+  //       [...tempDiv.childNodes].forEach(n => fragment.appendChild(n));
+  //       node.parentNode?.replaceChild(fragment, node);
+  //     } else if (node.nodeType === Node.ELEMENT_NODE) {
+  //       node.childNodes.forEach(child => walk(child));
+  //     }
+  //   };
 
-    walk(doc.body);
+  //   walk(doc.body);
 
-    return doc.body.innerHTML;
-  };
+  //   return doc.body.innerHTML;
+  // };
 
   function highlightTextNode(node: Text, regex: RegExp, errorType: string, doc: Document) {
     const parent = node.parentNode;
@@ -330,14 +333,14 @@ const Loom: FC = () => {
     elements.forEach((el, index) => {
       // Highlight regex-based errors using highlightTextNode
       for (const [errorType, regex] of Object.entries(regexMap)) {
-        const errorList = (formatErrors as any)[errorType] as FormattingError[] | undefined;
+        const errorList = (formatErrors as any)[errorType] as FormatError[] | undefined;
         if (!errorList || errorList.length === 0) continue;
 
         const matchedErrors = errorList.filter(err => err.paragraphIndex === index);
         if (matchedErrors.length === 0) continue;
 
         const treeWalker = doc.createTreeWalker(el, NodeFilter.SHOW_TEXT);
-        let node: Text | null;
+        let node: Text | null;  
         while ((node = treeWalker.nextNode() as Text | null)) {
           if (regex.test(node.textContent || '')) {
             regex.lastIndex = 0;
@@ -428,21 +431,21 @@ const Loom: FC = () => {
     setHighlightedHtml(newHtml);
   };
 
-  const highlightFormattingPhrases = (phrases: string[]) => {
-    console.log('[highlightFormattingPhrases] received phrases:', phrases);
-    const cleanHtml = htmlString.replace(/<mark[^>]*>(.*?)<\/mark>/gi, '$1');
+  // const highlightFormattingPhrases = (phrases: string[]) => {
+  //   console.log('[highlightFormattingPhrases] received phrases:', phrases);
+  //   const cleanHtml = htmlString.replace(/<mark[^>]*>(.*?)<\/mark>/gi, '$1');
 
-    if (!phrases.length) return setHighlightedHtml(null);
+  //   if (!phrases.length) return setHighlightedHtml(null);
 
-    const sorted = [...phrases]
-      .map(p => p.trim())
-      .filter(Boolean)
-      .sort((a, b) => b.length - a.length); // Longer phrases first
+  //   const sorted = [...phrases]
+  //     .map(p => p.trim())
+  //     .filter(Boolean)
+  //     .sort((a, b) => b.length - a.length); // Longer phrases first
 
-    const newHtml = applyFormatHighlights(cleanHtml, sorted, 'bg-red-300 text-red-700 rounded-sm px-1');
+  //   const newHtml = applyFormatHighlights(cleanHtml, sorted, 'bg-red-300 text-red-700 rounded-sm px-1');
 
-    setHighlightedHtml(newHtml);
-  };
+  //   setHighlightedHtml(newHtml);
+  // };
 
 
   const removeHighlights = () => setHighlightedHtml(null);
@@ -457,7 +460,7 @@ const Loom: FC = () => {
   }, [focusKeyword, alternateEsq, editMode]);
 
 
-const highlightContent = (headings: string[], repeatedWords: string[]) => {
+const highlightContent = (repeatedWords: string[]) => {
   const cleanHtml = htmlString.replace(/<mark[^>]*>(.*?)<\/mark>/gi, '$1');
 
   const parser = new DOMParser();
@@ -466,80 +469,73 @@ const highlightContent = (headings: string[], repeatedWords: string[]) => {
   const sections: { level: string; text: string; wordCount: number }[] = [];
 
   // Highlight sections over 300 words
-  const highlightSections = () => {
-    const children = Array.from(doc.body.children);
-    let buffer: Element[] = [];
-    let sectionStartIndex = -1;
+const highlightSections = () => {
+  const children = Array.from(doc.body.children);
+  let buffer: Element[] = [];
+  let sectionStartIndex = -1;
 
-    for (let i = 0; i < children.length; i++) {
-      const el = children[i];
-      const tag = el.tagName.toUpperCase();
+  for (let i = 0; i < children.length; i++) {
+    const el = children[i];
+    const tag = el.tagName.toUpperCase();
 
-      if (/^H[1-6]$/.test(tag)) {
-        // Evaluate previous section
-        if (buffer.length && sectionStartIndex !== -1) {
-          const sectionText = buffer.map(n => n.textContent || '').join(' ');
-          const wordCount = sectionText.trim().split(/\s+/).length;
+    if (/^H[1-6]$/.test(tag)) {
+      // Process previous section if exists
+      if (buffer.length && sectionStartIndex !== -1) {
+        // Exclude heading from the word count
+        const sectionBodyOnly = buffer.slice(1); // skip heading
+        const sectionText = sectionBodyOnly.map(n => n.textContent || '').join(' ');
+        const wordCount = sectionText.trim().split(/\s+/).length;
 
-          if (wordCount > 300) {
-            const wrapper = document.createElement('mark');
-            wrapper.className = 'bg-[#cccccc] text-red-800 block';
-            wrapper.title = `Section contains ${wordCount} words`;
+        if (wordCount > 300) {
+          const wrapper = document.createElement('mark');
+          wrapper.className = 'bg-[#cccccc] text-red-800 block';
+          wrapper.title = `Section contains ${wordCount} words`;
 
-            for (let j = sectionStartIndex; j < i; j++) {
-              wrapper.appendChild(children[j].cloneNode(true));
-            }
+          buffer.forEach(node => wrapper.appendChild(node.cloneNode(true)));
 
-            children[sectionStartIndex].replaceWith(wrapper);
-            for (let j = sectionStartIndex + 1; j < i; j++) {
-              children[j].remove();
-            }
+          children[sectionStartIndex].replaceWith(wrapper);
+          for (let j = sectionStartIndex + 1; j < i; j++) {
+            children[j].remove();
           }
-
-          // Save heading info
-          const headingText = children[sectionStartIndex]?.textContent?.trim() || '';
-          sections.push({
-            level: children[sectionStartIndex]?.tagName.toUpperCase() || 'H1',
-            text: headingText,
-            wordCount,
-          });
         }
 
-        buffer = [el];
-        sectionStartIndex = i;
-      } else if (sectionStartIndex !== -1) {
-        buffer.push(el);
+        // Record section info
+        const headingText = buffer[0]?.textContent?.trim() || '';
+        const headingTag = buffer[0]?.tagName?.toUpperCase() || 'H1';
+        sections.push({ level: headingTag, text: headingText, wordCount });
+      }
+
+      buffer = [el];
+      sectionStartIndex = i;
+    } else if (sectionStartIndex !== -1) {
+      buffer.push(el);
+    }
+  }
+
+  // Handle final section
+  if (buffer.length && sectionStartIndex !== -1) {
+    const sectionBodyOnly = buffer.slice(1);
+    const sectionText = sectionBodyOnly.map(n => n.textContent || '').join(' ');
+    const wordCount = sectionText.trim().split(/\s+/).length;
+
+    if (wordCount > 300) {
+      const wrapper = document.createElement('mark');
+      wrapper.className = 'bg-[#cccccc] text-red-800 block';
+      wrapper.title = `Section contains ${wordCount} words`;
+
+      buffer.forEach(node => wrapper.appendChild(node.cloneNode(true)));
+
+      children[sectionStartIndex].replaceWith(wrapper);
+      for (let j = sectionStartIndex + 1; j < children.length; j++) {
+        children[j].remove();
       }
     }
 
-    if (buffer.length && sectionStartIndex !== -1) {
-      const sectionText = buffer.map(n => n.textContent || '').join(' ');
-      const wordCount = sectionText.trim().split(/\s+/).length;
-
-      if (wordCount > 300) {
-        const wrapper = document.createElement('mark');
-        wrapper.className = 'bg-[#cccccc] text-red-800 block';
-        wrapper.title = `Section contains ${wordCount} words`;
-
-        for (let j = sectionStartIndex; j < children.length; j++) {
-          wrapper.appendChild(children[j].cloneNode(true));
-        }
-
-        children[sectionStartIndex].replaceWith(wrapper);
-        for (let j = sectionStartIndex + 1; j < children.length; j++) {
-          children[j].remove();
-        }
-      }
-
-      // Save final heading info
-      const headingText = children[sectionStartIndex]?.textContent?.trim() || '';
-      sections.push({
-        level: children[sectionStartIndex]?.tagName.toUpperCase() || 'H1',
-        text: headingText,
-        wordCount,
-      });
-    }
-  };
+    const headingText = buffer[0]?.textContent?.trim() || '';
+    const headingTag = buffer[0]?.tagName?.toUpperCase() || 'H1';
+    sections.push({ level: headingTag, text: headingText, wordCount });
+  }
+};
 
   // Highlight repeated sentence starts
     const highlightRepeatedSentences = () => {
@@ -549,6 +545,7 @@ const highlightContent = (headings: string[], repeatedWords: string[]) => {
         if (node.nodeType === Node.TEXT_NODE && node.parentNode?.nodeName !== 'SCRIPT') {
           const text = node.nodeValue || '';
           const sentences = text.match(/[^.!?]+(?:[.!?]+|$)/g);
+          console.log('Sentences:', sentences);
           if (!sentences || sentences.length < 3) return;
 
           let i = 0;
@@ -572,7 +569,8 @@ const highlightContent = (headings: string[], repeatedWords: string[]) => {
               count++;
             }
 
-            const isRepeated = count >= 3 && repeatedWordsLower.includes(startWord);
+            const isRepeated = count >= 3;
+            console.log('Checking startWord:', startWord, 'against:', repeatedWordsLower);
 
             for (let k = 0; k < count; k++) {
               const s = sentences[i + k].trim();
@@ -611,6 +609,7 @@ const removeContentHighlights = () => {
   const cleanHtml = htmlString.replace(/<mark[^>]*>(.*?)<\/mark>/gi, '$1');
   setHighlightedHtml(cleanHtml);
 };
+
 
 
   return (
@@ -715,10 +714,17 @@ const removeContentHighlights = () => {
             ) : (
               <div className={clsx('border border-black/17.5 rounded-md p-4 bg-white', minHeightStyle)}>
                 {highlightedHtml ? (
-                  <div className="prose dark:text-black" dangerouslySetInnerHTML={{ __html: highlightedHtml }} />
+                  <div
+                    className="prose dark:text-black"
+                    dangerouslySetInnerHTML={{ __html: addHeadingIds(highlightedHtml) }}
+                  />
                 ) : (
-                  <div className="prose dark:text-black" dangerouslySetInnerHTML={{ __html: htmlString }} />
+                  <div
+                    className="prose dark:text-black"
+                    dangerouslySetInnerHTML={{ __html: addHeadingIds(htmlString) }}
+                  />
                 )}
+
               </div>
             )}
           </div>
@@ -744,14 +750,14 @@ const removeContentHighlights = () => {
                   return;
                 }
 
-                setFormatErrors(errors);
-                const newHtml = highlightAllErrorsInHTML(htmlString, errors);
+                setFormatErrors(errors as ErrorList);
+                const newHtml = highlightAllErrorsInHTML(htmlString, errors as ErrorList);
                 setHighlightedHtml(newHtml);
               }}
 
               onRemoveFormatHighlight={removeFormatHighlights}
-              onHighlightContent={(headings, repeatedWords) => {
-              highlightContent(headings, repeatedWords);
+              onHighlightContent={(repeatedWords) => {
+              highlightContent(repeatedWords);
               }}
               onRemoveContentHighlight={removeContentHighlights}
               highlightedContentSections={highlightedContentSections}

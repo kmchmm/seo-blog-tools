@@ -39,8 +39,8 @@ interface ErrorList {
 
 interface LinkDetail {
   url: string;
-  anchor: string;
-  location: string;
+  anchor?: string;
+  location?: string;
 }
 
 interface LinkIssue {
@@ -60,7 +60,7 @@ interface LoomProps {
   onHighlight: (phrases: string[]) => void;
   onRemoveHighlight: () => void;
   onFixAll: (newHtml: string) => void;
-  onFormatHighlight: (errors: ErrorList) => void; // ✅ Corrected here
+  onFormatHighlight: (errors: ErrorList) => void; 
   onRemoveFormatHighlight: () => void;
   onHighlightContent?: (headings: string[], repeatedWords: string[]) => void;
   onRemoveContentHighlight: () => void;
@@ -224,14 +224,20 @@ const formatList = (htmlString: string) => {
   return p.innerHTML;
 }
 
-
-const groupLinksByLocation = (links: LinkDetail[]) => {
-  return links.reduce((acc, link) => {
-    if (!acc[link.location]) acc[link.location] = [];
-    acc[link.location].push(link);
-    return acc;
-  }, {} as Record<string, LinkDetail[]>);
+type CustomSearchResult = {
+  id: string;
+  term: string;
+  count: number;
 };
+
+
+// const groupLinksByLocation = (links: LinkDetail[]) => {
+//   return links.reduce((acc, link) => {
+//     if (!acc[link.location]) acc[link.location] = [];
+//     acc[link.location].push(link);
+//     return acc;
+//   }, {} as Record<string, LinkDetail[]>);
+// };
 
 
 // const panels = [
@@ -265,7 +271,7 @@ export const LoomSidebar: FC<LoomProps> = ({
   const [highlightActive, setHighlightActive] = useState(false);
   const [hasCheckedViolations, setHasCheckedViolations] = useState(false);
   const [customSearchTerm, setCustomSearchTerm] = useState('');
-  const [customSearchResults, setCustomSearchResults] = useState<{ term: string; count: number }[]>([]);
+  const [customSearchResults, setCustomSearchResults] = useState<CustomSearchResult[]>([]);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
   const [activeHighlights, setActiveHighlights] = useState<string[]>([]);
@@ -301,28 +307,40 @@ export const LoomSidebar: FC<LoomProps> = ({
   const [hasKeywordChecked, setHasKeywordChecked] = useState(false);
 
 
-  const [loading, setLoading] = useState(false);
+  // const [loading, setLoading] = useState(false);
+  const [loading] = useState(false);
 
-  const [formatErrors, setFormatErrors] = useState({
-    multipleSpaceErrors: [],
-    emDashErrors: [],
-    titleCaseErrors: [],
-    leadingTrailingSpaceErrors: [],
-    spaceBeforePunctuationErrors: [],
-    missingPunctuationErrors: [],
-  });
+type ErrorList = {
+  multipleSpaceErrors: any[];
+  emDashErrors: any[];
+  titleCaseErrors: any[];
+  leadingTrailingSpaceErrors: any[];
+  spaceBeforePunctuationErrors: any[];
+  missingPunctuationErrors: any[];
+};
 
-
-const [linkErrors, setLinkErrors] = useState<{
+const [formatErrors, setFormatErrors] = useState<ErrorList>({
+  multipleSpaceErrors: [],
+  emDashErrors: [],
+  titleCaseErrors: [],
+  leadingTrailingSpaceErrors: [],
+  spaceBeforePunctuationErrors: [],
+  missingPunctuationErrors: [],
+});
+  
+type LinkErrors = {
   invalidLinks: string[];
   missingTrailingSlash: string[];
   duplicateLinks: string[];
   brokenLinks: string[];
   identicalAnchors: string[];
   invalidAnchors: string[];
-  internalLinks: string[];
+  internalLinks: LinkDetail[];  // must be objects, not strings
   externalLinks: string[];
-} | null>(null);
+};
+
+const [linkErrors, setLinkErrors] = useState<LinkErrors | null>(null);
+
 
 
 
@@ -515,7 +533,7 @@ const [linkErrors, setLinkErrors] = useState<{
 
     return results;
   };
-
+  
   const handleAddOpenModal = () => {
     setIsAddModalOpen(true); 
   };
@@ -604,8 +622,13 @@ const [linkErrors, setLinkErrors] = useState<{
 
     setCustomSearchResults((prev) => [
       ...prev,
-      { term: customSearchTerm, count: matchCount },
+      {
+        id: crypto.randomUUID(), // or use any unique ID generator
+        term: customSearchTerm,
+        count: matchCount
+      }
     ]);
+
 
     if (matchCount > 0) {
       setHighlightActive(true);
@@ -663,6 +686,18 @@ const [linkErrors, setLinkErrors] = useState<{
 //   setHighlightActive(true);
 // };
 
+  type ErrorKey = keyof ErrorList;
+
+  function isErrorKey(key: string): key is ErrorKey {
+    return [
+      'multipleSpaceErrors',
+      'emDashErrors',
+      'titleCaseErrors',
+      'leadingTrailingSpaceErrors',
+      'spaceBeforePunctuationErrors',
+      'missingPunctuationErrors'
+    ].includes(key);
+  }
   
   const renderErrorList = (
     errors: { heading?: string; sentence: string }[],
@@ -671,7 +706,9 @@ const [linkErrors, setLinkErrors] = useState<{
   ) => {
     const handleHeaderClick = (type: string) => {
       // Optional: highlight all sentences under this error type
-      const phrasesToHighlight = formatErrors[type] || [];
+  const phrasesToHighlight: FormatError[] = isErrorKey(type)
+    ? formatErrors[type]
+    : [];
       onHighlight(phrasesToHighlight.map((e: any) => e.sentence));
       setHighlightActive(true);
     };
@@ -778,7 +815,6 @@ const [linkErrors, setLinkErrors] = useState<{
     const doc = parser.parseFromString(text, 'text/html');
 
     const paragraphs = Array.from(doc.body.querySelectorAll('p, h1, h2, h3, h4, h5, h6'));
-
   paragraphs.forEach((el) => {
     let fixedText = el.textContent || '';
     const tagName = el.tagName.toUpperCase();
@@ -889,10 +925,17 @@ useEffect(() => {
     setContentHeadings(highlightedContentSections);
     setContentHeadingCount(highlightedContentSections.length);
 
-    const bigSections = highlightedContentSections.filter(h => h.wordCount > 300);
+    const bigSections = highlightedContentSections
+      .filter(h => h.wordCount > 300)
+      .map(section => ({
+        heading: section.text,      // map 'text' to 'heading'
+        wordCount: section.wordCount
+      }));
+
     setSectionsOver300Words(bigSections);
   }
 }, [highlightedContentSections]);
+
 
 // const totalContentErrors =
 //   sectionsOver300Words.length + sameStartWordSequences.length;
@@ -912,34 +955,39 @@ const contentErrorMessage =
     setHasLinkChecked(true);    
   };
 
-  const checkAnalyzeLink = () => {
-    if (!text) return;
 
-    const result = analyzeLinks(text);
-    console.log('analyzeLinks result:', result);
-    setLinkErrors(result);
+const checkAnalyzeLink = () => {
+  if (!text) return;
 
-    if (typeof onLinkIssues === 'function') {
-      const issues: LinkIssue[] = [];
+  // analyzeLinks should return the full LinkErrors object,
+  // with internalLinks as LinkDetail[]
+  const result = analyzeLinks(text);
 
-      Object.entries(result).forEach(([type, details]) => {
-        if (Array.isArray(details)) {
-          details.forEach((entry) => {
-            if (typeof entry === 'string') {
-              issues.push({ type, url: entry }); // For legacy formats like identicalAnchors
-            } else {
-              issues.push({ type, url: entry.url, anchor: entry.anchor });
-            }
-          });
-        }
-      });
+  console.log('analyzeLinks result:', result);
 
-        onLinkIssues(issues);
+  // Set full result as-is (do NOT map internalLinks to string[])
+  setLinkErrors(result);
+
+  if (typeof onLinkIssues === 'function') {
+    const issues: LinkIssue[] = [];
+
+    Object.entries(result).forEach(([type, details]) => {
+      if (Array.isArray(details)) {
+        details.forEach((entry) => {
+          if (typeof entry === 'string') {
+            issues.push({ type, url: entry });
+          } else {
+            issues.push({ type, url: entry.url, anchor: entry.anchor });
+          }
+        });
       }
+    });
 
-    setLinkShowResults(true); // enable UI showing the results
-
+    onLinkIssues(issues);
   }
+
+  setLinkShowResults(true);
+};
 
 const formatErrorLabel = (label: string) =>
   label.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase());
@@ -981,10 +1029,10 @@ const linkErrorMessage =
     
   }
 
-  const keywordErrorMessage =
-  totalContentErrors === 0
-    ? 'No keyword issues found! Good job! 🎉'
-    : `Analysis was cancelled or failed.`;
+  // const keywordErrorMessage =
+  // totalContentErrors === 0
+  //   ? 'No keyword issues found! Good job! 🎉'
+  //   : `Analysis was cancelled or failed.`;
 
 
   const handleAnalyzeKeyword= () => {
@@ -1777,7 +1825,11 @@ const linkErrorMessage =
                         Object.entries(linkErrors).forEach(([type, urls]) => {
                           if (Array.isArray(urls)) {
                             urls.forEach((url) => {
-                              issues.push({ type, url });
+                          if (typeof url === 'string') {
+                            issues.push({ type, url });
+                          } else {
+                            issues.push({ type, url: url.url, anchor: url.anchor });
+}
                             });
                           }
                         });
@@ -1861,7 +1913,7 @@ const linkErrorMessage =
                                         }}
                                         className="text-blue-600 underline hover:text-blue-800 cursor-pointer"
                                       >
-                                        {url}
+                                        {typeof url === 'string' ? url : url.url}
                                       </button>
                                     </li>
                                   ))}
@@ -1877,7 +1929,7 @@ const linkErrorMessage =
                               className="mt-2"
                               header={
                                 <div className="flex items-center justify-between w-full">
-                                  <span>Internal Links (Grouped by Heading)</span>
+                                  <span>Internal Links</span>
                                   {linkShowResults && (
                                     <div
                                       className={`w-[40px] text-right rounded-2xl px-2 ${
@@ -1895,7 +1947,7 @@ const linkErrorMessage =
                                   linkErrors.internalLinks
                                     .filter((l) => typeof l !== 'string')
                                     .reduce((grouped: Record<string, LinkDetail[]>, link: any) => {
-                                      const location = link.location || 'Unknown Section';
+                                      const location = link.location || ''; 
                                       if (!grouped[location]) grouped[location] = [];
                                       grouped[location].push(link);
                                       return grouped;
@@ -1913,15 +1965,15 @@ const linkErrorMessage =
                                   ).map(([location, links]) => (
                                     <li key={location}>
                                       <h4 className="font-semibold text-black mb-1">{location}</h4>
-                                      <ul className="list-disc list-inside space-y-1">
+                                      <ul className="!list-disc list-inside space-y-1">
                                         {links.map((link, i) => (
                                           <li
                                             key={`${location}-${i}`}
                                             onClick={() => scrollToLink(link.url)}
-                                            className="text-blue-400 underline hover:text-blue-950 break-words whitespace-pre-wrap text-left w-full cursor-pointer"
+                                            className="text-blue-400 no-underline hover:text-blue-950 break-words whitespace-pre-wrap text-left w-full cursor-pointer flex flex-col"
                                           >
-                                            <span className="font-medium text-black-600 mr-1">{link.anchor || '(no anchor)'}</span>
-                                            — {link.url}
+                                            <span className="font-bold !text-black-100 mr-1 !no-underline">{link.anchor || '(no anchor)'}</span>
+                                            <span>— {link.url}</span>
                                           </li>
                                         ))}
                                       </ul>
