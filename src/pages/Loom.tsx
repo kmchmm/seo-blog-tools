@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { FC, useMemo, useRef, useState, useEffect } from 'react';
 import clsx from 'clsx';
 import '../assets/css/Loom.css';
@@ -5,25 +6,32 @@ import '../assets/css/Loom.css';
 import { Editor } from '@tinymce/tinymce-react';
 import { Editor as TinyMCEEditor } from 'tinymce';
 
-import { LoomSidebar } from '../components/LoomSidebar';
+import { LoomSidebar } from '../components/loom/LoomSidebar';
 import { addHeadingIds } from '../utils/sb37HTMLHelper';
+import { useFocusKeywordFormValidate, useKeywordAnalysis } from '../hooks';
+import {
+  checkPixelLength,
+  highlightKeywordsInDiv,
+  removeKeywordHighlights,
+} from '../components/loom/helpers';
+import {
+  DESC_CONSTRAINTS,
+  EDITOR_MIN_HEIGHT,
+  otherKeywords,
+  TITLE_CONSTRAINTS,
+} from '../components/loom/contants';
+import { CustomHTMLElement } from '../hooks/useKeywordAnalysis';
+import { Input } from '../components/common';
 
-
-const errorLengthStyle = 'bg-red-200';
-const warningLengthStyle = 'bg-yellow-200';
-const perfectLengthStyle = 'bg-green-100';
-
-interface CONSTRAINT {
-  WARNING: number;
-  PERFECT: number;
-  MAX: number;
-}
+export const errorLengthStyle = 'bg-red-200';
+export const warningLengthStyle = 'bg-yellow-200';
+export const perfectLengthStyle = 'bg-green-100';
 
 interface FormatError {
   paragraphIndex: number;
   message?: string;
-  start: number; 
-  end: number; 
+  start: number;
+  end: number;
   errorSubType?: 'leading' | 'trailing';
 }
 
@@ -106,20 +114,7 @@ const TINYMCE_API_KEY = 'p964xz9rbfvw8dgzbv2k8vpw3n70suinf499l1nmbl1ajhks';
 //   return doc.body.innerHTML;
 // };
 
-const EDITOR_MIN_HEIGHT = 450;
 const minHeightStyle = 'min-h-[450px]';
-
-const TITLE_CONSTRAINTS: CONSTRAINT = {
-  WARNING: 250,
-  PERFECT: 350,
-  MAX: 510,
-};
-
-const DESC_CONSTRAINTS: CONSTRAINT = {
-  WARNING: 530,
-  PERFECT: 1060,
-  MAX: 1360,
-};
 
 const modeActive = clsx(
   'bg-black-100 text-white-100',
@@ -127,25 +122,6 @@ const modeActive = clsx(
   'dark:bg-yellow-100 dark:text-blue-600 dark:border-blue-600',
   'dark:shadow-[inset_0_0px_5px_theme(color-shadow-200),inset_0_1px_8px_0_theme(color-shadow-200)]'
 );
-
-const checkPixelLength = (text: string, constraint: CONSTRAINT) => {
-  const temp = document.createElement('span');
-  temp.style.fontSize = '16px';
-  temp.style.whiteSpace = 'nowrap';
-  temp.style.visibility = 'hidden';
-  temp.textContent = text;
-  document.body.appendChild(temp);
-  const width = temp.offsetWidth;
-  document.body.removeChild(temp);
-
-  const indicatorWidth = constraint.MAX > width ? (width / constraint.MAX) * 100 : 100;
-
-  let style = errorLengthStyle;
-  if (width >= constraint.WARNING && width < constraint.PERFECT) style = warningLengthStyle;
-  if (width >= constraint.PERFECT && width < constraint.MAX) style = perfectLengthStyle;
-
-  return { style, width: { width: `${indicatorWidth}%` } };
-};
 
 const Loom: FC = () => {
   const [htmlString, setHtmlString] = useState<string>('');
@@ -158,7 +134,10 @@ const Loom: FC = () => {
   const editorRef = useRef<TinyMCEEditor | null>(null);
 
   const titleStyle = useMemo(() => checkPixelLength(title, TITLE_CONSTRAINTS), [title]);
-  const descStyle = useMemo(() => checkPixelLength(description, DESC_CONSTRAINTS), [description]);
+  const descStyle = useMemo(
+    () => checkPixelLength(description, DESC_CONSTRAINTS),
+    [description]
+  );
 
   const [, setFormatErrors] = useState<ErrorList | null>(null);
   // const [setFormatErrors] = useState<ErrorList | null>(null);
@@ -168,12 +147,48 @@ const Loom: FC = () => {
   >([]);
 
   // const [linkIssues, setLinkIssues] = useState<LinkIssue[] | null>(null);
-  // const hasLoaded = useRef(false);
 
+  const divRef = useRef<CustomHTMLElement | React.Ref<Editor> | null>(null);
 
+  const { results, runAnalysis, error } = useKeywordAnalysis();
+  const {
+    error: errorValidate,
+    helperText,
+    validate,
+    resetError,
+  } = useFocusKeywordFormValidate();
 
-  const escapeRegex = (str: string) =>
-    str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const handleAnalyze = () => {
+    if (validate(focusKeyword)) {
+      runAnalysis({
+        altKeyphrase: alternateEsq,
+        container: divRef.current as CustomHTMLElement,
+        editMode,
+        focusKeyphrase: focusKeyword,
+        otherKeywords: otherKeywords,
+      });
+      resetError();
+    }
+  };
+
+  const onKeywordShowHighlightClick = () => {
+    const container = (divRef.current as HTMLElement) ?? null;
+    if (!container || !focusKeyword) return;
+
+    // Optional: remove existing highlights first
+    container.innerHTML = container.innerHTML.replace(/<mark[^>]*>(.*?)<\/mark>/gi, '$1');
+
+    highlightKeywordsInDiv(container, focusKeyword, alternateEsq);
+  };
+
+  const onKeywordRemoveHighlightClick = () => {
+    const container = divRef.current as HTMLElement | null;
+    if (!container) return;
+
+    removeKeywordHighlights(container);
+  };
+
+  const escapeRegex = (str: string) => str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
   const applyHighlights = (html: string, phrases: string[], className: string) => {
     const parser = new DOMParser();
@@ -184,7 +199,10 @@ const Loom: FC = () => {
     const walk = (node: Node) => {
       if (node.nodeType === Node.TEXT_NODE && regex.test(node.nodeValue || '')) {
         const tempDiv = document.createElement('div');
-        tempDiv.innerHTML = (node.nodeValue || '').replace(regex, match => `<mark class="${className}">${match}</mark>`);
+        tempDiv.innerHTML = (node.nodeValue || '').replace(
+          regex,
+          match => `<mark class="${className}">${match}</mark>`
+        );
         const fragment = document.createDocumentFragment();
         [...tempDiv.childNodes].forEach(n => fragment.appendChild(n));
         node.parentNode?.replaceChild(fragment, node);
@@ -197,7 +215,6 @@ const Loom: FC = () => {
 
     return doc.body.innerHTML;
   };
-
 
   // const applyFormatHighlights = (html: string, phrases: string[], className: string) => {
   //   const parser = new DOMParser();
@@ -245,7 +262,12 @@ const Loom: FC = () => {
   //   return doc.body.innerHTML;
   // };
 
-  function highlightTextNode(node: Text, regex: RegExp, errorType: string, doc: Document) {
+  function highlightTextNode(
+    node: Text,
+    regex: RegExp,
+    errorType: string,
+    doc: Document
+  ) {
     const parent = node.parentNode;
     if (!parent) return;
 
@@ -340,7 +362,7 @@ const Loom: FC = () => {
         if (matchedErrors.length === 0) continue;
 
         const treeWalker = doc.createTreeWalker(el, NodeFilter.SHOW_TEXT);
-        let node: Text | null;  
+        let node: Text | null;
         while ((node = treeWalker.nextNode() as Text | null)) {
           if (regex.test(node.textContent || '')) {
             regex.lastIndex = 0;
@@ -350,7 +372,9 @@ const Loom: FC = () => {
       }
 
       // Missing punctuation errors: highlight last word if paragraph missing punctuation
-      const missingPunctuationErrors = (formatErrors.missingPunctuationErrors || []).filter(err => err.paragraphIndex === index);
+      const missingPunctuationErrors = (
+        formatErrors.missingPunctuationErrors || []
+      ).filter(err => err.paragraphIndex === index);
       if (missingPunctuationErrors.length > 0) {
         const textContent = el.textContent?.trimEnd() || '';
         if (!/[.?!]$/.test(textContent)) {
@@ -371,7 +395,8 @@ const Loom: FC = () => {
       }
 
       // Title case errors: highlight lowercase-start words
-      const titleErrors = formatErrors?.titleCaseErrors?.filter(err => err.paragraphIndex === index) ?? [];
+      const titleErrors =
+        formatErrors?.titleCaseErrors?.filter(err => err.paragraphIndex === index) ?? [];
       if (titleErrors.length > 0) {
         const treeWalker = doc.createTreeWalker(el, NodeFilter.SHOW_TEXT);
         let node: Text | null;
@@ -381,7 +406,11 @@ const Loom: FC = () => {
           const frag = doc.createDocumentFragment();
 
           words.forEach(word => {
-            if (word.trim() && word[0] === word[0].toLowerCase() && /[a-z]/.test(word[0])) {
+            if (
+              word.trim() &&
+              word[0] === word[0].toLowerCase() &&
+              /[a-z]/.test(word[0])
+            ) {
               const mark = doc.createElement('mark');
               mark.className = 'bg-red-300 text-red-700 rounded-sm px-1';
               mark.title = 'Title case error';
@@ -400,7 +429,9 @@ const Loom: FC = () => {
       }
 
       // === Highlight whole paragraph if it has leading/trailing space errors ===
-      const leadingTrailingErrors = (formatErrors.leadingTrailingSpaceErrors || []).filter(err => err.paragraphIndex === index);
+      const leadingTrailingErrors = (
+        formatErrors.leadingTrailingSpaceErrors || []
+      ).filter(err => err.paragraphIndex === index);
 
       if (leadingTrailingErrors.length > 0) {
         // Wrap entire paragraph text inside one <mark>
@@ -418,7 +449,6 @@ const Loom: FC = () => {
 
     return doc.body.innerHTML;
   }
-
 
   useEffect(() => {
     console.log('[Editor HTML]', htmlString);
@@ -447,7 +477,6 @@ const Loom: FC = () => {
   //   setHighlightedHtml(newHtml);
   // };
 
-
   const removeHighlights = () => setHighlightedHtml(null);
   const removeFormatHighlights = () => setHighlightedHtml(null);
 
@@ -457,32 +486,64 @@ const Loom: FC = () => {
     } else {
       removeHighlights();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [focusKeyword, alternateEsq, editMode]);
 
+  const highlightContent = (repeatedWords: string[]) => {
+    const cleanHtml = htmlString.replace(/<mark[^>]*>(.*?)<\/mark>/gi, '$1');
 
-const highlightContent = (repeatedWords: string[]) => {
-  const cleanHtml = htmlString.replace(/<mark[^>]*>(.*?)<\/mark>/gi, '$1');
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(cleanHtml, 'text/html');
 
-  const parser = new DOMParser();
-  const doc = parser.parseFromString(cleanHtml, 'text/html');
+    const sections: { level: string; text: string; wordCount: number }[] = [];
 
-  const sections: { level: string; text: string; wordCount: number }[] = [];
+    // Highlight sections over 300 words
+    const highlightSections = () => {
+      const children = Array.from(doc.body.children);
+      let buffer: Element[] = [];
+      let sectionStartIndex = -1;
 
-  // Highlight sections over 300 words
-const highlightSections = () => {
-  const children = Array.from(doc.body.children);
-  let buffer: Element[] = [];
-  let sectionStartIndex = -1;
+      for (let i = 0; i < children.length; i++) {
+        const el = children[i];
+        const tag = el.tagName.toUpperCase();
 
-  for (let i = 0; i < children.length; i++) {
-    const el = children[i];
-    const tag = el.tagName.toUpperCase();
+        if (/^H[1-6]$/.test(tag)) {
+          // Process previous section if exists
+          if (buffer.length && sectionStartIndex !== -1) {
+            // Exclude heading from the word count
+            const sectionBodyOnly = buffer.slice(1); // skip heading
+            const sectionText = sectionBodyOnly.map(n => n.textContent || '').join(' ');
+            const wordCount = sectionText.trim().split(/\s+/).length;
 
-    if (/^H[1-6]$/.test(tag)) {
-      // Process previous section if exists
+            if (wordCount > 300) {
+              const wrapper = document.createElement('mark');
+              wrapper.className = 'bg-[#cccccc] text-red-800 block';
+              wrapper.title = `Section contains ${wordCount} words`;
+
+              buffer.forEach(node => wrapper.appendChild(node.cloneNode(true)));
+
+              children[sectionStartIndex].replaceWith(wrapper);
+              for (let j = sectionStartIndex + 1; j < i; j++) {
+                children[j].remove();
+              }
+            }
+
+            // Record section info
+            const headingText = buffer[0]?.textContent?.trim() || '';
+            const headingTag = buffer[0]?.tagName?.toUpperCase() || 'H1';
+            sections.push({ level: headingTag, text: headingText, wordCount });
+          }
+
+          buffer = [el];
+          sectionStartIndex = i;
+        } else if (sectionStartIndex !== -1) {
+          buffer.push(el);
+        }
+      }
+
+      // Handle final section
       if (buffer.length && sectionStartIndex !== -1) {
-        // Exclude heading from the word count
-        const sectionBodyOnly = buffer.slice(1); // skip heading
+        const sectionBodyOnly = buffer.slice(1);
         const sectionText = sectionBodyOnly.map(n => n.textContent || '').join(' ');
         const wordCount = sectionText.trim().split(/\s+/).length;
 
@@ -494,50 +555,18 @@ const highlightSections = () => {
           buffer.forEach(node => wrapper.appendChild(node.cloneNode(true)));
 
           children[sectionStartIndex].replaceWith(wrapper);
-          for (let j = sectionStartIndex + 1; j < i; j++) {
+          for (let j = sectionStartIndex + 1; j < children.length; j++) {
             children[j].remove();
           }
         }
 
-        // Record section info
         const headingText = buffer[0]?.textContent?.trim() || '';
         const headingTag = buffer[0]?.tagName?.toUpperCase() || 'H1';
         sections.push({ level: headingTag, text: headingText, wordCount });
       }
+    };
 
-      buffer = [el];
-      sectionStartIndex = i;
-    } else if (sectionStartIndex !== -1) {
-      buffer.push(el);
-    }
-  }
-
-  // Handle final section
-  if (buffer.length && sectionStartIndex !== -1) {
-    const sectionBodyOnly = buffer.slice(1);
-    const sectionText = sectionBodyOnly.map(n => n.textContent || '').join(' ');
-    const wordCount = sectionText.trim().split(/\s+/).length;
-
-    if (wordCount > 300) {
-      const wrapper = document.createElement('mark');
-      wrapper.className = 'bg-[#cccccc] text-red-800 block';
-      wrapper.title = `Section contains ${wordCount} words`;
-
-      buffer.forEach(node => wrapper.appendChild(node.cloneNode(true)));
-
-      children[sectionStartIndex].replaceWith(wrapper);
-      for (let j = sectionStartIndex + 1; j < children.length; j++) {
-        children[j].remove();
-      }
-    }
-
-    const headingText = buffer[0]?.textContent?.trim() || '';
-    const headingTag = buffer[0]?.tagName?.toUpperCase() || 'H1';
-    sections.push({ level: headingTag, text: headingText, wordCount });
-  }
-};
-
-  // Highlight repeated sentence starts
+    // Highlight repeated sentence starts
     const highlightRepeatedSentences = () => {
       const repeatedWordsLower = repeatedWords.map(w => w.toLowerCase());
 
@@ -597,23 +626,25 @@ const highlightSections = () => {
       walk(doc.body);
     };
 
-  highlightSections();
-  highlightRepeatedSentences();
+    highlightSections();
+    highlightRepeatedSentences();
 
-  const newHtml = doc.body.innerHTML;
-  setHighlightedHtml(newHtml);
-  setHighlightedContentSections(sections); // <- Save section info to your state
-};
+    const newHtml = doc.body.innerHTML;
+    setHighlightedHtml(newHtml);
+    setHighlightedContentSections(sections); // <- Save section info to your state
+  };
 
-const removeContentHighlights = () => {
-  const cleanHtml = htmlString.replace(/<mark[^>]*>(.*?)<\/mark>/gi, '$1');
-  setHighlightedHtml(cleanHtml);
-};
-
-
+  const removeContentHighlights = () => {
+    const cleanHtml = htmlString.replace(/<mark[^>]*>(.*?)<\/mark>/gi, '$1');
+    setHighlightedHtml(cleanHtml);
+  };
 
   return (
-    <div className={clsx('flex flex-col items-center w-full pt-4 px-3', 'bg-white-100 dark:bg-blue-600')}>
+    <div
+      className={clsx(
+        'flex flex-col items-center w-full pt-4 px-3',
+        'bg-white-100 dark:bg-blue-600'
+      )}>
       <h1 className="text-black-100 dark:text-white-100 text-5xl">AK Loom</h1>
       <p className="text-left italic self-start">For writers by developers</p>
 
@@ -621,10 +652,25 @@ const removeContentHighlights = () => {
         <section className="w-full py-2 gap-5 flex flex-row mb-5">
           <div className="w-1/2">
             <label>Meta Title</label>
-            {title && <span> - {title.length} {title.length > 1 ? 'characters' : 'character'}</span>}
-            <input type="text" value={title} className="!w-full py-2" onChange={(e) => setTitle(e.target.value)} />
+            {title && (
+              <span>
+                {' '}
+                - {title.length} {title.length > 1 ? 'characters' : 'character'}
+              </span>
+            )}
+            <input
+              type="text"
+              value={title}
+              className="!w-full py-2"
+              onChange={e => setTitle(e.target.value)}
+            />
             <div className="w-full h-4 bg-gray-400 rounded-md overflow-hidden mb-5">
-              <div className={clsx('h-full transition-width duration-600 ease-[ease]', titleStyle.style)} style={titleStyle.width}></div>
+              <div
+                className={clsx(
+                  'h-full transition-width duration-600 ease-[ease]',
+                  titleStyle.style
+                )}
+                style={titleStyle.width}></div>
             </div>
 
             <label>Meta Description</label>
@@ -633,10 +679,15 @@ const removeContentHighlights = () => {
               value={description}
               placeholder="Meta Description"
               className="w-full min-h-10 h-25 my-2 dark:text-black-200"
-              onChange={(e) => setDescription(e.target.value)}
+              onChange={e => setDescription(e.target.value)}
             />
             <div className="w-full h-4 bg-gray-400 rounded-md overflow-hidden">
-              <div className={clsx('h-full transition-width duration-600 ease-[ease]', descStyle.style)} style={descStyle.width}></div>
+              <div
+                className={clsx(
+                  'h-full transition-width duration-600 ease-[ease]',
+                  descStyle.style
+                )}
+                style={descStyle.width}></div>
             </div>
           </div>
 
@@ -645,7 +696,9 @@ const removeContentHighlights = () => {
             <div className="border border-black/17.5 rounded-md p-4 bg-white flex-1 flex flex-col dark:text-black-200">
               <span>Arash Law</span>
               <cite className="text-[12px] leading-[18px]"></cite>
-              <h3 className="text-xl truncate text-blue-1000 leading-[1.2] font-medium">{title}</h3>
+              <h3 className="text-xl truncate text-blue-1000 leading-[1.2] font-medium">
+                {title}
+              </h3>
               <span className="text-black-200/75 wrap-break-word">{description}</span>
             </div>
           </div>
@@ -654,15 +707,25 @@ const removeContentHighlights = () => {
         <section className="w-full py-2 gap-5 flex flex-row">
           <div className="flex-1 flex flex-col">
             <div className="flex flex-row gap-5 mb-4">
-              <div className="w-1/2">
+              {/* <div className="w-1/2">
                 <label>Focus Keyphrase</label>
                 <input
+                  required
                   type="text"
                   value={focusKeyword}
                   className="!w-full py-2"
-                  onChange={(e) => setFocusKeyword(e.target.value)}
+                  onChange={e => setFocusKeyword(e.target.value)}
                 />
-              </div>
+              </div> */}
+              <Input
+                id="focus-keyword"
+                label="Focus Keyphrase"
+                name="focus-keyword"
+                onInputChange={e => setFocusKeyword(e.target.value)}
+                value={focusKeyword}
+                error={errorValidate}
+                helperText={helperText || 'Keyphrase is required'}
+              />
               <div className="w-1/2">
                 <label>Alternate ESQ</label>
                 <input
@@ -670,18 +733,34 @@ const removeContentHighlights = () => {
                   value={alternateEsq}
                   placeholder="(optional)"
                   className="!w-full py-2"
-                  onChange={(e) => setAlternateEsq(e.target.value)}
+                  onChange={e => setAlternateEsq(e.target.value)}
                 />
               </div>
             </div>
 
             <div className="flex-row flex justify-end mb-2">
-              <span className={clsx('font-medium text-base py-[6px] px-[12px]', 'rounded-md border', editMode ? modeActive : '')}
-                onClick={() => { removeHighlights(); setEditMode(true); }}>
+              <span
+                className={clsx(
+                  'font-medium text-base py-[6px] px-[12px]',
+                  'rounded-md border',
+                  editMode ? modeActive : ''
+                )}
+                onClick={() => {
+                  removeHighlights();
+                  setEditMode(true);
+                }}>
                 Edit
               </span>
-              <span className={clsx('font-medium text-base py-[6px] px-[12px]', 'rounded-md border', !editMode ? modeActive : '')}
-                onClick={() => { highlightPhrases([focusKeyword, alternateEsq].filter(Boolean)); setEditMode(false); }}>
+              <span
+                className={clsx(
+                  'font-medium text-base py-[6px] px-[12px]',
+                  'rounded-md border',
+                  !editMode ? modeActive : ''
+                )}
+                onClick={() => {
+                  highlightPhrases([focusKeyword, alternateEsq].filter(Boolean));
+                  setEditMode(false);
+                }}>
                 Show Output
               </span>
             </div>
@@ -703,47 +782,66 @@ const removeContentHighlights = () => {
                   placeholder: 'Type here...',
                   toolbar_mode: 'floating',
                   plugins: [
-                    'anchor', 'charmap', 'codesample', 'emoticons',
-                    'image', 'link', 'media', 'searchreplace',
-                    'table', 'visualblocks', 'wordcount'
+                    'anchor',
+                    'charmap',
+                    'codesample',
+                    'emoticons',
+                    'image',
+                    'link',
+                    'media',
+                    'searchreplace',
+                    'table',
+                    'visualblocks',
+                    'wordcount',
                   ],
-                  toolbar: 'blocks fontsize | bold italic underline | link image | alignleft indent outdent | emoticons charmap | removeformat',
-                  content_style: 'body { font-family:Helvetica,Arial,sans-serif; font-size:14px }',
+                  toolbar:
+                    'blocks fontsize | bold italic underline | link image | alignleft indent outdent | emoticons charmap | removeformat',
+                  content_style:
+                    'body { font-family:Helvetica,Arial,sans-serif; font-size:14px }',
                 }}
+                ref={divRef as React.Ref<Editor>}
               />
             ) : (
-              <div className={clsx('border border-black/17.5 rounded-md p-4 bg-white', minHeightStyle)}>
+              <div
+                className={clsx(
+                  'border border-black/17.5 rounded-md p-4 bg-white',
+                  minHeightStyle
+                )}>
                 {highlightedHtml ? (
                   <div
                     className="prose dark:text-black"
                     dangerouslySetInnerHTML={{ __html: addHeadingIds(highlightedHtml) }}
+                    ref={divRef as React.Ref<HTMLDivElement>}
                   />
                 ) : (
                   <div
                     className="prose dark:text-black"
                     dangerouslySetInnerHTML={{ __html: addHeadingIds(htmlString) }}
+                    ref={divRef as React.Ref<HTMLDivElement>}
                   />
                 )}
-
               </div>
             )}
           </div>
 
           <div className="sticky top-4 self-start max-h-screen overflow-y-auto">
             <LoomSidebar
+              error={error}
+              keywordAnalysisResult={results}
+              handleAnalyze={handleAnalyze}
               text={htmlString}
               keyword={focusKeyword}
               metaTitle={title}
               metaDescription={description}
               onHighlight={highlightPhrases}
               onRemoveHighlight={removeHighlights}
-              onFixAll={(newHtml) => {
+              onFixAll={newHtml => {
                 setHtmlString(newHtml);
                 if (editorRef.current) {
                   editorRef.current.setContent(newHtml);
                 }
               }}
-              onFormatHighlight={(errors) => {
+              onFormatHighlight={errors => {
                 // Validate input
                 if (!errors || typeof errors !== 'object' || Array.isArray(errors)) {
                   console.error('Invalid formatErrors object received:', errors);
@@ -754,19 +852,19 @@ const removeContentHighlights = () => {
                 const newHtml = highlightAllErrorsInHTML(htmlString, errors as ErrorList);
                 setHighlightedHtml(newHtml);
               }}
-
               onRemoveFormatHighlight={removeFormatHighlights}
-              onHighlightContent={(repeatedWords) => {
-              highlightContent(repeatedWords);
+              onHighlightContent={repeatedWords => {
+                highlightContent(repeatedWords);
               }}
               onRemoveContentHighlight={removeContentHighlights}
               highlightedContentSections={highlightedContentSections}
-
-              onLinkIssues={(issues) => {
+              onLinkIssues={issues => {
                 const highlighted = highlightLinkIssuesInHtml(htmlString, issues);
                 setHighlightedHtml(highlighted);
                 setEditMode(false);
               }}
+              onKeywordShowHighlightClick={onKeywordShowHighlightClick}
+              onKeywordRemoveHighlightClick={onKeywordRemoveHighlightClick}
             />
           </div>
         </section>
