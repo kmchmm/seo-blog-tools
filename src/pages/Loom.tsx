@@ -168,7 +168,7 @@ const Loom: FC = () => {
   >([]);
 
   // const [linkIssues, setLinkIssues] = useState<LinkIssue[] | null>(null);
-
+  // const hasLoaded = useRef(false);
 
 
 

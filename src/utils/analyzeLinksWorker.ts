@@ -5,86 +5,96 @@ interface LinkDetail {
 }
 
 export function analyzeLinks(htmlString: string): {
-  invalidLinks: string[];
-  missingTrailingSlash: string[];
-  duplicateLinks: string[];
-  brokenLinks: string[];
-  identicalAnchors: string[];
-  invalidAnchors: string[];
+  invalidLinks: LinkDetail[];
+  missingTrailingSlash: LinkDetail[];
+  duplicateLinks: LinkDetail[];
+  brokenLinks: LinkDetail[]; // Placeholder
+  identicalAnchors: LinkDetail[];
+  invalidAnchors: LinkDetail[];
   internalLinks: LinkDetail[];
-  externalLinks: string[];
+  externalLinks: LinkDetail[];
 } {
   const parser = new DOMParser();
   const doc = parser.parseFromString(htmlString, 'text/html');
   const links = Array.from(doc.querySelectorAll('a'));
 
-  const invalidLinks: string[] = [];
-  const missingTrailingSlash: string[] = [];
-  const duplicateLinks: string[] = [];
-  const brokenLinks: string[] = []; // Stubbed — async fetch check required
-  const identicalAnchors: string[] = [];
-  const invalidAnchors: string[] = [];
+  const invalidLinks: LinkDetail[] = [];
+  const missingTrailingSlash: LinkDetail[] = [];
+  const duplicateLinks: LinkDetail[] = [];
+  const brokenLinks: LinkDetail[] = []; // You can fill this later using async HEAD/GET
+  const identicalAnchors: LinkDetail[] = [];
+  const invalidAnchors: LinkDetail[] = [];
 
   const internalLinks: LinkDetail[] = [];
-  const externalLinks: Set<string> = new Set();
+  const externalLinks: LinkDetail[] = [];
 
-  const linkSet: Set<string> = new Set();
-  const anchorTexts: Record<string, number> = {};
+  const linkSet = new Set<string>();
+  const anchorMap = new Map<string, LinkDetail[]>();
 
-  const hasTrailingSlash = (url: string) =>
-    url.endsWith('/') || url.includes('.') || url.includes('?') || url.includes('#');
+  const hasTrailingSlash = (url: string) => url.endsWith('/');
 
   links.forEach((link) => {
-    const href = link.getAttribute('href')?.trim() || '';
-    const anchor = link.textContent?.trim() || '';
-    const heading = link.closest('section')?.querySelector('h1,h2,h3,h4,h5,h6')?.textContent?.trim() || '';
+    const rawHref = link.getAttribute('href') || '';
+    const href = rawHref.trim().replace(/&amp;/g, '&');
+    const anchor = (link.textContent || '').trim();
+    const heading = link.closest('section')?.querySelector('h1,h2,h3,h4,h5,h6')?.textContent?.trim() || 'Unknown Section';
 
-    const isInternal = href.startsWith('/') || href.startsWith('https://arashlaw.com');
+    const normalizedUrl = href.startsWith('http') ? href : `https://arashlaw.com${href}`;
 
-    // 1. Invalid links
-    if (!href || href === '#') {
-      invalidLinks.push(href || '(empty)');
+    const linkDetail: LinkDetail = {
+      url: normalizedUrl,
+      anchor,
+      location: heading,
+    };
+
+    // Invalid link detection
+    const isInvalidLink = !href || href === '#' || href.startsWith('#');
+    if (isInvalidLink) {
+      invalidLinks.push(linkDetail);
+      return;
     }
 
-    // 2. Missing trailing slash for internal URLs
-    if (href && isInternal && !hasTrailingSlash(href)) {
-      missingTrailingSlash.push(href);
+    const isInternal = href.startsWith('/') || href.includes('arashlaw.com');
+
+    // Missing trailing slash on internal URLs
+    if (isInternal && !hasTrailingSlash(href)) {
+      missingTrailingSlash.push(linkDetail);
     }
 
-    // 3. Duplicate links
+    // Duplicate link detection
     if (linkSet.has(href)) {
-      duplicateLinks.push(href);
+      duplicateLinks.push(linkDetail);
     } else {
       linkSet.add(href);
     }
 
-    // 4. Identical anchor texts
+    // Track anchor text frequency for identical anchors
     if (anchor) {
-      anchorTexts[anchor] = (anchorTexts[anchor] || 0) + 1;
+      if (!anchorMap.has(anchor)) anchorMap.set(anchor, []);
+      anchorMap.get(anchor)!.push(linkDetail);
     }
 
-    // 5. Invalid anchor text
+    // Detect invalid anchor text (leading/trailing punctuation or space)
     const hasInvalidWhitespaceOrPunctuation = /^[\s\p{P}]+|[\s\p{P}]+$/u.test(anchor);
     if (anchor && hasInvalidWhitespaceOrPunctuation) {
-      invalidAnchors.push(anchor);
+      invalidAnchors.push(linkDetail);
     }
 
-    // 6. Internal/external classification
-    if (isInternal && href) {
-      const normalized = href.startsWith('http') ? href : `https://arashlaw.com${href}`;
-      internalLinks.push({
-        url: normalized,
-        anchor,
-        location: heading || 'Unknown Section',
-      });
-    } else if (href.startsWith('http')) {
-      externalLinks.add(href);
+    // Add to internal/external lists
+    if (isInternal) {
+      internalLinks.push(linkDetail);
+    } else {
+      externalLinks.push(linkDetail);
     }
   });
 
-  for (const [text, count] of Object.entries(anchorTexts)) {
-    if (count > 1) {
-      identicalAnchors.push(text);
+  // Identify identical anchors (same anchor text with different URLs)
+  for (const [anchorText, linkDetails] of anchorMap.entries()) {
+    if (linkDetails.length > 1) {
+      const uniqueUrls = new Set(linkDetails.map(ld => ld.url));
+      if (uniqueUrls.size > 1) {
+        identicalAnchors.push(...linkDetails);
+      }
     }
   }
 
@@ -96,6 +106,6 @@ export function analyzeLinks(htmlString: string): {
     identicalAnchors,
     invalidAnchors,
     internalLinks,
-    externalLinks: Array.from(externalLinks),
+    externalLinks,
   };
 }
