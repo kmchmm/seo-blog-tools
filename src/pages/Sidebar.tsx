@@ -45,7 +45,7 @@ const Sidebar: FC = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const { toolsAccess, loadingGetTools } = use(UserContext);
   const sidebarRef = useRef<HTMLDivElement>(null); // Create a reference for the sidebar
-  console.log(`loadingGetTools`, loadingGetTools);
+
   const RaketMenuItem = (itemProps: RaketMenuItemProps) => {
     const { children } = itemProps;
 
@@ -131,7 +131,7 @@ const Sidebar: FC = () => {
         </div>
       );
     }
-    console.log(`toolsAccess`, toolsAccess);
+
     return (
       <ul>
         <li>
