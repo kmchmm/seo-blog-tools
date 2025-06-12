@@ -177,7 +177,7 @@ export function highlightKeywordsInDiv(
         });
       });
     }
-    console.log(`modifiedText`, modifiedText);
+
     if (originalText !== modifiedText) {
       el.innerHTML = modifiedText;
     }
