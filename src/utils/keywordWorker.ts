@@ -27,11 +27,6 @@ function normalizeTextToWords(text: string): string[] {
     .filter(Boolean);
 }
 
-const getSentences = (text: string) => {
-  const sentences = text.match(/[^.!?]+[.!?]?/g) || [];
-  return sentences;
-};
-
 // --- Word Count + Density ---
 export function getWordCount(text: string): number {
   return normalizeTextToWords(text).length;
@@ -43,40 +38,29 @@ export function getKeywordDensity(text: string, totalKeywordCount: number): numb
 }
 
 // --- Keyword Matching Core ---
-function countForKeyphrase(text: string, focusKeyphrase: string): number {
-  if (!focusKeyphrase.trim()) return 0;
+function countForKeyphrase(words: string[], keyphrase: string): number {
+  const locationStopWords = ['county', 'counties', 'city', 'cities'];
+  const keyWords = normalizeTextToWords(keyphrase).filter(
+    w => !locationStopWords.includes(w)
+  );
 
-  const keyphraseWords = normalizeTextToWords(focusKeyphrase).filter(Boolean);
-  if (keyphraseWords.length === 0) return 0;
+  if (keyWords.length === 0) return 0;
 
-  const sentences = getSentences(text);
-  let matchCount = 0;
-  console.log(`sentences`, sentences.length);
-  for (const sentence of sentences) {
-    const sentenceWords = normalizeTextToWords(sentence);
-    const wordSet = new Set(sentenceWords);
-
-    const allWordsMatch = keyphraseWords.every(word => wordSet.has(word));
-    if (allWordsMatch) {
-      matchCount++;
-    }
-  }
-  console.log(`${focusKeyphrase} match`, matchCount);
-  return matchCount;
+  return countExactMatches(words, keyWords);
 }
 
-// function countExactMatches(words: string[], phraseWords: string[]): number {
-//   let count = 0;
-//   const len = phraseWords.length;
+function countExactMatches(words: string[], phraseWords: string[]): number {
+  let count = 0;
+  const len = phraseWords.length;
 
-//   for (let i = 0; i <= words.length - len; i++) {
-//     if (phraseWords.every((w, j) => words[i + j] === w)) {
-//       count++;
-//     }
-//   }
+  for (let i = 0; i <= words.length - len; i++) {
+    if (phraseWords.every((w, j) => words[i + j] === w)) {
+      count++;
+    }
+  }
 
-//   return count;
-// }
+  return count;
+}
 
 // --- Updated Function (Excludes H1s) ---
 export function countKeywordMatchesFromHtml({
@@ -91,9 +75,10 @@ export function countKeywordMatchesFromHtml({
   altKeyphrase?: string;
 }) {
   const cleanText = getCleanText({ container, editMode });
+  const words = normalizeTextToWords(cleanText);
 
-  const focus = countForKeyphrase(cleanText, focusKeyphrase);
-  const alt = altKeyphrase ? countForKeyphrase(cleanText, altKeyphrase) : 0;
+  const focus = countForKeyphrase(words, focusKeyphrase);
+  const alt = altKeyphrase ? countForKeyphrase(words, altKeyphrase) : 0;
 
   return {
     focusCount: focus,
@@ -283,6 +268,7 @@ export function analyzeSections({
 
   const isSectionOptimized = (content: string): boolean => {
     const sentences = content.match(/[^.!?]+[.!?]?/g) || [];
+
     return sentences.some(sentence => {
       const words = new Set(normalizeTextToWords(sentence));
       return focusWords.every(w => words.has(w));
