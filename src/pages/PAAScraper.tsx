@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import axios from 'axios';
 import { IBtnType } from '../types';
-import { Button } from '../components/Button';
+import { Button } from '../components/common';
 import { Loading } from '../components/Loading';
 import clsx from 'clsx';
 

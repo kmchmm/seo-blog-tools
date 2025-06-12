@@ -650,7 +650,7 @@ const toggleHighlightLinks = () => {
   return (
     <div
       className={clsx(
-        'flex flex-col items-center w-full pt-4 px-3',
+        'flex flex-col items-center w-[90%] pt-4 px-3 m-auto',
         'bg-white-100 dark:bg-blue-600'
       )}>
       <h1 className="text-black-100 dark:text-white-100 text-5xl">AK Loom</h1>
@@ -662,18 +662,6 @@ const toggleHighlightLinks = () => {
             <label>Meta Title</label>
             {title && <span> - {title.length} {title.length > 1 ? 'characters' : 'character'}</span>}
             <input type="text" value={title} className="!w-full py-2 " onChange={(e) => setTitle(e.target.value)} />
-            {title && (
-              <span>
-                {' '}
-                - {title.length} {title.length > 1 ? 'characters' : 'character'}
-              </span>
-            )}
-            <input
-              type="text"
-              value={title}
-              className="!w-full py-2"
-              onChange={e => setTitle(e.target.value)}
-            />
             <div className="w-full h-4 bg-gray-400 rounded-md overflow-hidden mb-5">
               <div
                 className={clsx(

@@ -2,7 +2,7 @@ import { FC, use, useEffect } from 'react';
 import clsx from 'clsx';
 import { Link } from 'react-router-dom';
 import { UserContext } from '../context/UserContext';
-import { Button } from '../components/Button';
+import { Button } from '../components/common';
 
 const Logout: FC = () => {
   const { logout } = use(UserContext);

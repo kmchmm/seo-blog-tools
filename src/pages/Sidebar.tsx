@@ -23,6 +23,7 @@ import HTMLCleaner from '../assets/icons/html-cleaner.svg?react';
 import DupeKiller from '../assets/icons/dupe-killer.svg?react';
 
 import { TOOLS, TOOL_ROUTES } from '../types';
+import { Loading } from '../components/Loading';
 
 interface RaketMenuItemProps extends React.LiHTMLAttributes<HTMLButtonElement> {
   children?: React.ReactNode;
@@ -42,9 +43,9 @@ const menuItemSvgStyle = '[&_svg]:h-6';
 
 const Sidebar: FC = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const { toolsAccess } = use(UserContext);
+  const { toolsAccess, loadingGetTools } = use(UserContext);
   const sidebarRef = useRef<HTMLDivElement>(null); // Create a reference for the sidebar
-
+  console.log(`loadingGetTools`, loadingGetTools);
   const RaketMenuItem = (itemProps: RaketMenuItemProps) => {
     const { children } = itemProps;
 
@@ -109,7 +110,7 @@ const Sidebar: FC = () => {
       document.removeEventListener('keydown', trapTabFocus);
     }
 
-    () => {
+    return () => {
       document.removeEventListener('keydown', trapTabFocus);
     };
   }, [isSidebarOpen, trapTabFocus]);
@@ -121,6 +122,186 @@ const Sidebar: FC = () => {
       document.body.style.overflow = '';
     }
   }, [isSidebarOpen]);
+
+  const renderListContent = () => {
+    if (loadingGetTools) {
+      return (
+        <div className="text-center">
+          <Loading />
+        </div>
+      );
+    }
+    console.log(`toolsAccess`, toolsAccess);
+    return (
+      <ul>
+        <li>
+          <h3 className="p-1 dark:text-yellow-100">OCTO TOOLS</h3>
+          <ul className="p-2">
+            {toolsAccess.includes(TOOLS.NEWS) && (
+              <RaketMenuItem>
+                <Link tabIndex={isSidebarOpen ? 0 : -1} to={TOOL_ROUTES.NEWS}>
+                  <NewsIcon />
+                  <span>NEWS Scraper</span>
+                </Link>
+              </RaketMenuItem>
+            )}
+            {toolsAccess.includes(TOOLS.PAA) && (
+              <RaketMenuItem>
+                <Link tabIndex={isSidebarOpen ? 0 : -1} to={TOOL_ROUTES.PAA}>
+                  <GoogleIcon />
+                  <span>GPAA Scraper</span>
+                </Link>
+              </RaketMenuItem>
+            )}
+            {toolsAccess.includes(TOOLS.GMAP) && (
+              <RaketMenuItem>
+                <Link tabIndex={isSidebarOpen ? 0 : -1} to={TOOL_ROUTES.GMAP}>
+                  <MapsIcon />
+                  <span>GMAP Scraper</span>
+                </Link>
+              </RaketMenuItem>
+            )}
+          </ul>
+        </li>
+        <li>
+          <h3 className="p-1 dark:text-yellow-100">SEO TOOLS</h3>
+          <ul className="p-2">
+            {toolsAccess.includes(TOOLS.JEDI_INSIGHTS) && (
+              <RaketMenuItem>
+                <Link tabIndex={isSidebarOpen ? 0 : -1} to={TOOL_ROUTES.JEDI_INSIGHTS}>
+                  <JediInsightsIcon />
+                  <span>Jedi Insights</span>
+                </Link>
+              </RaketMenuItem>
+            )}
+            {toolsAccess.includes(TOOLS.SERP_RANK) && (
+              <RaketMenuItem>
+                <Link tabIndex={isSidebarOpen ? 0 : -1} to={TOOL_ROUTES.SERP_RANK}>
+                  <SERPRankIcon />
+                  <span>SERP Rank</span>
+                </Link>
+              </RaketMenuItem>
+            )}
+            {toolsAccess.includes(TOOLS.HUNTER) && (
+              <RaketMenuItem>
+                <Link tabIndex={isSidebarOpen ? 0 : -1} to={TOOL_ROUTES.HUNTER}>
+                  <HunterIcon />
+                  <span>Hunter</span>
+                </Link>
+              </RaketMenuItem>
+            )}
+            {toolsAccess.includes(TOOLS.HARVESTER) && (
+              <RaketMenuItem>
+                <Link tabIndex={isSidebarOpen ? 0 : -1} to={TOOL_ROUTES.HARVESTER}>
+                  <P1HarvesterIcon />
+                  <span>P1 Harvester</span>
+                </Link>
+              </RaketMenuItem>
+            )}
+
+            <RaketMenuItem>
+              <Link tabIndex={isSidebarOpen ? 0 : -1} to={TOOL_ROUTES.GEO_TAGGER}>
+                <GeoTaggerIcon />
+                <span>Geo Tagger</span>
+              </Link>
+            </RaketMenuItem>
+          </ul>
+        </li>
+        <li>
+          <h3 className="p-1 dark:text-yellow-100">PUBLISHING TOOLS</h3>
+          <ul className="p-2">
+            {toolsAccess.includes(TOOLS.CROSS_SITE_POSTING) && (
+              <RaketMenuItem>
+                <Link
+                  tabIndex={isSidebarOpen ? 0 : -1}
+                  to={TOOL_ROUTES.CROSS_SITE_POSTING}>
+                  <CrossSite />
+                  <span>CrossSite Poster</span>
+                </Link>
+              </RaketMenuItem>
+            )}
+            {toolsAccess.includes(TOOLS.KOMPASS) && (
+              <RaketMenuItem>
+                <Link tabIndex={isSidebarOpen ? 0 : -1} to={TOOL_ROUTES.KOMPASS}>
+                  <Kompass />
+                  <span>Kompass</span>
+                </Link>
+              </RaketMenuItem>
+            )}
+            {toolsAccess.includes(TOOLS.LOOM) && (
+              <RaketMenuItem>
+                <Link tabIndex={isSidebarOpen ? 0 : -1} to={TOOL_ROUTES.LOOM}>
+                  <Loom />
+                  <span>Loom</span>
+                </Link>
+              </RaketMenuItem>
+            )}
+          </ul>
+        </li>
+        <li>
+          <h3 className="p-1 dark:text-yellow-100">HR MANAGEMENT</h3>
+          <ul className="p-2">
+            {toolsAccess.includes(TOOLS.CHRONOS) && (
+              <RaketMenuItem>
+                <Link tabIndex={isSidebarOpen ? 0 : -1} to={TOOL_ROUTES.CHRONOS}>
+                  <Chronos />
+                  <span>Chronos</span>
+                </Link>
+              </RaketMenuItem>
+            )}
+            {toolsAccess.includes(TOOLS.MONITORING) && (
+              <RaketMenuItem>
+                <Link tabIndex={isSidebarOpen ? 0 : -1} to={TOOL_ROUTES.MONITORING}>
+                  <AKPHub />
+                  <span>AKPHub Monitoring</span>
+                </Link>
+              </RaketMenuItem>
+            )}
+          </ul>
+        </li>
+        <li>
+          <h3 className="p-1 dark:text-yellow-100">EXTENSIONS</h3>
+          <ul className="p-2">
+            {toolsAccess.includes(TOOLS.CHAT) && (
+              <RaketMenuItem>
+                <Link tabIndex={isSidebarOpen ? 0 : -1} to={TOOL_ROUTES.CHAT}>
+                  <ChatWidget />
+                  <span>CHAT WIDGET</span>
+                </Link>
+              </RaketMenuItem>
+            )}
+          </ul>
+        </li>
+        <li>
+          <h3 className="p-1 dark:text-yellow-100">PBN's HQ</h3>
+          <ul className="p-2"></ul>
+        </li>
+        <li>
+          <h3 className="p-1 dark:text-yellow-100">FREE TOOLS</h3>
+          <ul className="p-2">
+            <RaketMenuItem>
+              <Link tabIndex={isSidebarOpen ? 0 : -1} to={TOOL_ROUTES.TITLE_TWEAK}>
+                <TitleTweak />
+                <span>Title Tweak</span>
+              </Link>
+            </RaketMenuItem>
+            <RaketMenuItem>
+              <Link tabIndex={isSidebarOpen ? 0 : -1} to={TOOL_ROUTES.HTML_CLEANER}>
+                <HTMLCleaner />
+                <span>HTML Cleaner</span>
+              </Link>
+            </RaketMenuItem>
+            <RaketMenuItem>
+              <Link tabIndex={isSidebarOpen ? 0 : -1} to={TOOL_ROUTES.DUPE_KILLER}>
+                <DupeKiller />
+                <span>Dupe Killer</span>
+              </Link>
+            </RaketMenuItem>
+          </ul>
+        </li>
+      </ul>
+    );
+  };
 
   useEffect(() => {
     // Add event listener for click outside the sidebar
@@ -164,173 +345,7 @@ const Sidebar: FC = () => {
             <span>AK RAKET</span>
           </Link>
         </h2>
-        <ul>
-          <li>
-            <h3 className="p-1 dark:text-yellow-100">OCTO TOOLS</h3>
-            <ul className="p-2">
-              {toolsAccess.includes(TOOLS.NEWS) && (
-                <RaketMenuItem>
-                  <Link tabIndex={isSidebarOpen ? 0 : -1} to={TOOL_ROUTES.NEWS}>
-                    <NewsIcon />
-                    <span>NEWS Scraper</span>
-                  </Link>
-                </RaketMenuItem>
-              )}
-              {toolsAccess.includes(TOOLS.PAA) && (
-                <RaketMenuItem>
-                  <Link tabIndex={isSidebarOpen ? 0 : -1} to={TOOL_ROUTES.PAA}>
-                    <GoogleIcon />
-                    <span>GPAA Scraper</span>
-                  </Link>
-                </RaketMenuItem>
-              )}
-              {toolsAccess.includes(TOOLS.GMAP) && (
-                <RaketMenuItem>
-                  <Link tabIndex={isSidebarOpen ? 0 : -1} to={TOOL_ROUTES.GMAP}>
-                    <MapsIcon />
-                    <span>GMAP Scraper</span>
-                  </Link>
-                </RaketMenuItem>
-              )}
-            </ul>
-          </li>
-          <li>
-            <h3 className="p-1 dark:text-yellow-100">SEO TOOLS</h3>
-            <ul className="p-2">
-              {toolsAccess.includes(TOOLS.JEDI_INSIGHTS) && (
-                <RaketMenuItem>
-                  <Link tabIndex={isSidebarOpen ? 0 : -1} to={TOOL_ROUTES.JEDI_INSIGHTS}>
-                    <JediInsightsIcon />
-                    <span>Jedi Insights</span>
-                  </Link>
-                </RaketMenuItem>
-              )}
-              {toolsAccess.includes(TOOLS.SERP_RANK) && (
-                <RaketMenuItem>
-                  <Link tabIndex={isSidebarOpen ? 0 : -1} to={TOOL_ROUTES.SERP_RANK}>
-                    <SERPRankIcon />
-                    <span>SERP Rank</span>
-                  </Link>
-                </RaketMenuItem>
-              )}
-              {toolsAccess.includes(TOOLS.HUNTER) && (
-                <RaketMenuItem>
-                  <Link tabIndex={isSidebarOpen ? 0 : -1} to={TOOL_ROUTES.HUNTER}>
-                    <HunterIcon />
-                    <span>Hunter</span>
-                  </Link>
-                </RaketMenuItem>
-              )}
-              {toolsAccess.includes(TOOLS.HARVESTER) && (
-                <RaketMenuItem>
-                  <Link tabIndex={isSidebarOpen ? 0 : -1} to={TOOL_ROUTES.HARVESTER}>
-                    <P1HarvesterIcon />
-                    <span>P1 Harvester</span>
-                  </Link>
-                </RaketMenuItem>
-              )}
-
-              <RaketMenuItem>
-                <Link tabIndex={isSidebarOpen ? 0 : -1} to={TOOL_ROUTES.GEO_TAGGER}>
-                  <GeoTaggerIcon />
-                  <span>Geo Tagger</span>
-                </Link>
-              </RaketMenuItem>
-            </ul>
-          </li>
-          <li>
-            <h3 className="p-1 dark:text-yellow-100">PUBLISHING TOOLS</h3>
-            <ul className="p-2">
-              {toolsAccess.includes(TOOLS.CROSS_SITE_POSTING) && (
-                <RaketMenuItem>
-                  <Link
-                    tabIndex={isSidebarOpen ? 0 : -1}
-                    to={TOOL_ROUTES.CROSS_SITE_POSTING}>
-                    <CrossSite />
-                    <span>CrossSite Poster</span>
-                  </Link>
-                </RaketMenuItem>
-              )}
-              {toolsAccess.includes(TOOLS.KOMPASS) && (
-                <RaketMenuItem>
-                  <Link tabIndex={isSidebarOpen ? 0 : -1} to={TOOL_ROUTES.KOMPASS}>
-                    <Kompass />
-                    <span>Kompass</span>
-                  </Link>
-                </RaketMenuItem>
-              )}
-              {toolsAccess.includes(TOOLS.LOOM) && (
-                <RaketMenuItem>
-                  <Link tabIndex={isSidebarOpen ? 0 : -1} to={TOOL_ROUTES.LOOM}>
-                    <Loom />
-                    <span>Loom</span>
-                  </Link>
-                </RaketMenuItem>
-              )}
-            </ul>
-          </li>
-          <li>
-            <h3 className="p-1 dark:text-yellow-100">HR MANAGEMENT</h3>
-            <ul className="p-2">
-              {toolsAccess.includes(TOOLS.CHRONOS) && (
-                <RaketMenuItem>
-                  <Link tabIndex={isSidebarOpen ? 0 : -1} to={TOOL_ROUTES.CHRONOS}>
-                    <Chronos />
-                    <span>Chronos</span>
-                  </Link>
-                </RaketMenuItem>
-              )}
-              {toolsAccess.includes(TOOLS.MONITORING) && (
-                <RaketMenuItem>
-                  <Link tabIndex={isSidebarOpen ? 0 : -1} to={TOOL_ROUTES.MONITORING}>
-                    <AKPHub />
-                    <span>AKPHub Monitoring</span>
-                  </Link>
-                </RaketMenuItem>
-              )}
-            </ul>
-          </li>
-          <li>
-            <h3 className="p-1 dark:text-yellow-100">EXTENSIONS</h3>
-            <ul className="p-2">
-              {toolsAccess.includes(TOOLS.CHAT) && (
-                <RaketMenuItem>
-                  <Link tabIndex={isSidebarOpen ? 0 : -1} to={TOOL_ROUTES.CHAT}>
-                    <ChatWidget />
-                    <span>CHAT WIDGET</span>
-                  </Link>
-                </RaketMenuItem>
-              )}
-            </ul>
-          </li>
-          <li>
-            <h3 className="p-1 dark:text-yellow-100">PBN's HQ</h3>
-            <ul className="p-2"></ul>
-          </li>
-          <li>
-            <h3 className="p-1 dark:text-yellow-100">FREE TOOLS</h3>
-            <ul className="p-2">
-              <RaketMenuItem>
-                <Link tabIndex={isSidebarOpen ? 0 : -1} to={TOOL_ROUTES.TITLE_TWEAK}>
-                  <TitleTweak />
-                  <span>Title Tweak</span>
-                </Link>
-              </RaketMenuItem>
-              <RaketMenuItem>
-                <Link tabIndex={isSidebarOpen ? 0 : -1} to={TOOL_ROUTES.HTML_CLEANER}>
-                  <HTMLCleaner />
-                  <span>HTML Cleaner</span>
-                </Link>
-              </RaketMenuItem>
-              <RaketMenuItem>
-                <Link tabIndex={isSidebarOpen ? 0 : -1} to={TOOL_ROUTES.DUPE_KILLER}>
-                  <DupeKiller />
-                  <span>Dupe Killer</span>
-                </Link>
-              </RaketMenuItem>
-            </ul>
-          </li>
-        </ul>
+        {renderListContent()}
       </div>
 
       {/* Add overlay when sidebar is open

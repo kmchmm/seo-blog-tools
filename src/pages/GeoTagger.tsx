@@ -2,7 +2,7 @@ import { ChangeEvent, DragEvent, FC, use, useEffect, useRef, useState } from 're
 import axios from 'axios';
 import clsx from 'clsx';
 import { ToastContext } from '../context/ToastContext';
-import { Button } from '../components/Button';
+import { Button } from '../components/common';
 
 import { FaUpload } from 'react-icons/fa';
 
@@ -173,6 +173,7 @@ const GeoTagger: FC = () => {
       const response = await axios.post(`${API_URL_WRITE}`, formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
+
         },
         responseType: 'blob',
       });
@@ -211,6 +212,7 @@ const GeoTagger: FC = () => {
       const response = await axios.post(`${API_URL_WRITE}`, formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
+
         },
         responseType: 'blob',
       });
@@ -278,10 +280,10 @@ const GeoTagger: FC = () => {
     // Encode the file using the FileReader API
     const reader = new FileReader();
     reader.onloadend = () => {
-      const img = new Image;
-      img.onload = function() {
-          setOriginalWidth(String(img.width));
-          setCustomWidth(img.width);
+      const img = new Image();
+      img.onload = function () {
+        setOriginalWidth(String(img.width));
+        setCustomWidth(img.width);
       };
       const dataURI = reader.result as string;
       img.src = dataURI;
@@ -364,9 +366,7 @@ const GeoTagger: FC = () => {
         </section>
       </div>
       <section>
-        <p className="my-2 text-center">
-          Original Width: {originalWidth}
-        </p>        
+        <p className="my-2 text-center">Original Width: {originalWidth}</p>
         <div className="my-2">
           <input
             className="m-1 cursor-pointer"
@@ -404,8 +404,7 @@ const GeoTagger: FC = () => {
             onChange={e => setCustomWidth(Number(e.target.value))}
             className={clsx(
               '!w-35 !rounded-l-none',
-              (imgWidth !== 0 || !optimize) ?
-                'cursor-not-allowed opacity-50 ' : ''
+              imgWidth !== 0 || !optimize ? 'cursor-not-allowed opacity-50 ' : ''
             )}
           />
         </div>

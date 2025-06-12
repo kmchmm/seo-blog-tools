@@ -1,7 +1,7 @@
 import { FC, KeyboardEvent, useState } from 'react';
 import clsx from 'clsx';
 
-import { Button } from '../components/Button';
+import { Button } from '../components/common';
 import { Keyword } from '../components/Keyword';
 import Info from '../assets/icons/info.svg?react';
 
@@ -13,20 +13,20 @@ const Kompass: FC = () => {
     // check if already added
     const newKeywords = [...keywords];
     if (!newKeywords.includes(keywordValue)) {
-      newKeywords.push(keywordValue)
+      newKeywords.push(keywordValue);
       setKeywords(newKeywords);
       setKeywordValue('');
     }
-  }
+  };
 
   const onRemove = (keyword: string) => {
     const newKeywords = [...keywords];
     const indexRemove = newKeywords.indexOf(keyword);
     if (indexRemove > -1) {
-      newKeywords.splice(indexRemove,1);
+      newKeywords.splice(indexRemove, 1);
       setKeywords(newKeywords);
-    }      
-  }
+    }
+  };
 
   const inputKeyDown = (event: KeyboardEvent) => {
     if (event.key === 'Enter') {
@@ -47,12 +47,15 @@ const Kompass: FC = () => {
         <div>
           <label className="font-bold align-middle mr-1">KEYWORDS</label>
           <Info className="inline-block align-middle w-4 peer" />
-          <span className={clsx(
-            'bg-gray-500 text-white absolute z-50 rounded-sm pointer-events-none',
-            'py-2 px-3 font-medium text-xs opacity-0 peer-hover:opacity-100',
-            'origin-[center_top] transform-[translate(-90px,30px)]',
-            'transition-[opacity,transform] duration-[200ms,133ms]'
-          )}>Press Enter to add keyword</span>
+          <span
+            className={clsx(
+              'bg-gray-500 text-white absolute z-50 rounded-sm pointer-events-none',
+              'py-2 px-3 font-medium text-xs opacity-0 peer-hover:opacity-100',
+              'origin-[center_top] transform-[translate(-90px,30px)]',
+              'transition-[opacity,transform] duration-[200ms,133ms]'
+            )}>
+            Press Enter to add keyword
+          </span>
         </div>
         <div>
           <input
@@ -63,10 +66,10 @@ const Kompass: FC = () => {
             onChange={e => setKeywordValue(e.target.value)}
           />
           <Button>Compare & Analyze</Button>
-          <div className="py-2 flex gap-2" >
-            {keywords.map(
-              keyword => <Keyword key={keyword} keyword={keyword} onRemove={onRemove}/>
-            )}
+          <div className="py-2 flex gap-2">
+            {keywords.map(keyword => (
+              <Keyword key={keyword} keyword={keyword} onRemove={onRemove} />
+            ))}
           </div>
         </div>
       </section>

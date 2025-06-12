@@ -1,90 +1,37 @@
-import { createContext, useEffect, useState } from 'react';
-import supabase from '../utils/supabaseInit.js';
+import { createContext, FC, PropsWithChildren, useEffect, useState } from 'react';
+import { initialState, initUserData } from './auth/initialState.js';
+import { UserData } from './auth/types.js';
+import useGetToolsAccess from '../hooks/useGetToolsAccess.js';
 
 const LOCAL_STORAGE_USER_KEY = 'ak_ph_user_data';
 
-interface UserData {
-  id: number;
-  profilegrid_id: number;
-  username: string;
-  email: string;
-  birthdate: string;
-  full_name: string;
-  nickname: string;
-  cover_photo: string;
-  profile_picture: string;
-  gender: string;
-  department: string;
-  country: string;
-  position: string;
-  city: string;
-  about_me: string;
-  employment: string;
-  date_hired: string;
-  regularization_date: string;
-  date_created: string;
-  date_deleted: string;
-  active: boolean;
-}
+// eslint-disable-next-line react-refresh/only-export-components
+export const UserContext = createContext(initialState);
 
-const initUserData = {
-  id: 0,
-  profilegrid_id: 0,
-  username: '',
-  email: '',
-  birthdate: '',
-  full_name: '',
-  nickname: '',
-  cover_photo: '',
-  profile_picture: '',
-  gender: '',
-  department: '',
-  country: '',
-  position: '',
-  city: '',
-  about_me: '',
-  employment: '',
-  date_hired: '',
-  regularization_date: '',
-  date_created: '',
-  date_deleted: '',
-  active: false,
-};
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type
+type ProviderProps = {};
 
-interface UserContextProps {
-  userData: UserData;
-  setUserData: Function;
-  logout: Function;
-  toolsAccess: String[];
-  setToolsAccess: Function;
-}
-
-interface ToolsResults {
-  id: number;
-  created_at: string;
-  department: string;
-  tool_access: {
-    access: String[];
-  };
-}
-
-export const UserContext = createContext<UserContextProps>({
-  userData: initUserData,
-  setUserData: () => {},
-  logout: () => {},
-  toolsAccess: [],
-  setToolsAccess: () => {},
-});
-
-//@todo: remove any, use proper typing for children
-export const Provider = ({ children }: any) => {
+export const Provider: FC<PropsWithChildren<ProviderProps>> = ({ children }) => {
   const [userData, setUserData] = useState<UserData>(initUserData);
-  const [toolsAccess, setToolsAccess] = useState<String[]>([]);
+
+  const {
+    sendRequest,
+    toolsAccess,
+    handleSetToolsAccess,
+    errorMessage,
+    loading: loadingGetTools,
+  } = useGetToolsAccess();
 
   const logout = () => {
     setUserData(initUserData);
-    setToolsAccess([]);
+    handleSetToolsAccess([]);
   };
+
+  useEffect(() => {
+    if (errorMessage) {
+      console.log(`errorMessage`, errorMessage);
+    }
+  }, [errorMessage]);
 
   useEffect(() => {
     const savedData = localStorage.getItem(LOCAL_STORAGE_USER_KEY);
@@ -99,32 +46,10 @@ export const Provider = ({ children }: any) => {
     }
   }, []);
 
-  const fetchTools = async (department: string) => {
-    try {
-      if (department) {
-        const toolsResult = await supabase
-          .from('department_access')
-          .select('*')
-          .eq('department', department.toLowerCase().replace(/\s+/g, '-'));
-
-        const toolsData = toolsResult?.data;
-        if (toolsData && toolsData[0]) {
-          const tools: String[] = (toolsData[0] as ToolsResults)['tool_access']['access'];
-          setToolsAccess(tools);
-        }
-
-        return;
-      }
-      setToolsAccess([]);
-    } catch (e) {
-      setToolsAccess([]);
-      console.log('ERROR FETCHING TOOLS ACCESS');
-    }
-  };
-
   useEffect(() => {
     localStorage.setItem(LOCAL_STORAGE_USER_KEY, JSON.stringify(userData));
-    fetchTools(userData.department);
+    sendRequest(userData.department);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userData]);
 
   return (
@@ -134,7 +59,8 @@ export const Provider = ({ children }: any) => {
         setUserData,
         logout,
         toolsAccess,
-        setToolsAccess,
+        handleSetToolsAccess,
+        loadingGetTools,
       }}>
       {children}
     </UserContext>

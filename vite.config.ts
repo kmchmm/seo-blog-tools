@@ -9,5 +9,5 @@ export default defineConfig({
   define: {
     'process.env': {},
   },
-  base: '/frontend-v2/'
+  base: '/frontend-v2',
 });
