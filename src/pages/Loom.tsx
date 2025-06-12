@@ -175,6 +175,8 @@ const Loom: FC = () => {
       });
       resetError();
     }
+
+    setEditMode(false);
   };
 
   const onKeywordShowHighlightClick = () => {
@@ -495,7 +497,7 @@ const toggleHighlightLinks = () => {
     } else {
       removeHighlights();
     }
-  }, [focusKeyword, alternateEsq, editMode, results]);
+  }, [editMode, results]);
 
   const highlightContent = (repeatedWords: string[]) => {
     const cleanHtml = htmlString.replace(/<mark[^>]*>(.*?)<\/mark>/gi, '$1');

@@ -7,19 +7,24 @@ export const textToHtml = (text: string) => {
   return doc;
 };
 
-export function getTextExcludingH1FromHTML(html: string): string {
+function getTextExcludingH1FromHTML(html: string): string {
   const parser = new DOMParser();
   const doc = parser.parseFromString(html, 'text/html');
 
+  // Remove <h1> headings
   doc.querySelectorAll('h1').forEach(h1 => h1.remove());
 
-  return doc.body.textContent || '';
+  // Separate block elements with line breaks
+  const blocks = Array.from(doc.body.children);
+  return blocks.map(el => el.textContent?.trim() || '').join('.\n');
 }
 
-export function getTextExcludingH1FromElement(container: HTMLElement): string {
+function getTextExcludingH1FromElement(container: HTMLElement): string {
   const clone = container.cloneNode(true) as HTMLElement;
   clone.querySelectorAll('h1').forEach(h1 => h1.remove());
-  return clone.textContent || '';
+
+  const blocks = Array.from(clone.children);
+  return blocks.map(el => el.textContent?.trim() || '').join('.\n');
 }
 
 export function getCleanText({
