@@ -1,7 +1,7 @@
 import { getHeadings } from '../components/loom/helpers';
 import { CustomHTMLElement, KeywordAnalysisResult } from '../hooks/useKeywordAnalysis';
 import { AnalyzeDocumentInput, Section } from '../types/loom';
-import { htmlToPlainText } from './formatter';
+import { getCleanText, textToHtml } from './formatter';
 
 // --- Normalization Utilities ---
 export function normalizeEsqKeyword(keyword: string): string {
@@ -27,9 +27,9 @@ function normalizeTextToWords(text: string): string[] {
     .filter(Boolean);
 }
 
-// --- Word + Density Utilities ---
+// --- Word Count + Density ---
 export function getWordCount(text: string): number {
-  return text.trim().split(/\s+/).filter(Boolean).length;
+  return normalizeTextToWords(text).length;
 }
 
 export function getKeywordDensity(text: string, totalKeywordCount: number): number {
@@ -37,49 +37,16 @@ export function getKeywordDensity(text: string, totalKeywordCount: number): numb
   return totalWords === 0 ? 0 : (totalKeywordCount / totalWords) * 100;
 }
 
-// --- Keyword Match Count ---
-function countForKeyphrase(
-  words: string[],
-  wordFreq: Map<string, number>,
-  keyphrase: string
-): number {
+// --- Keyword Matching Core ---
+function countForKeyphrase(words: string[], keyphrase: string): number {
+  const locationStopWords = ['county', 'counties', 'city', 'cities'];
   const keyWords = normalizeTextToWords(keyphrase).filter(
-    w => !['county', 'counties', 'city', 'cities'].includes(w)
+    w => !locationStopWords.includes(w)
   );
 
   if (keyWords.length === 0) return 0;
 
-  const exact = countExactMatches(words, keyWords);
-  const partial = keyWords.length >= 3 ? countPartialMatches(words, keyWords) : 0;
-
-  return exact + partial;
-}
-
-export function countKeywordMatches(
-  text: string,
-  focusKeyphrase: string,
-  altKeyphrase?: string
-) {
-  const words = normalizeTextToWords(text);
-
-  const wordFreq = buildWordFrequency(words);
-
-  const focus = countForKeyphrase(words, wordFreq, focusKeyphrase);
-  const alt = altKeyphrase ? countForKeyphrase(words, wordFreq, altKeyphrase) : 0;
-
-  return {
-    focusCount: focus,
-    altCount: alt,
-    total: focus + alt,
-  };
-}
-
-function buildWordFrequency(words: string[]): Map<string, number> {
-  const freq = new Map<string, number>();
-  for (const word of words) {
-    freq.set(word, (freq.get(word) || 0) + 1);
-  }
-  return freq;
+  return countExactMatches(words, keyWords);
 }
 
 function countExactMatches(words: string[], phraseWords: string[]): number {
@@ -95,17 +62,29 @@ function countExactMatches(words: string[], phraseWords: string[]): number {
   return count;
 }
 
-function countPartialMatches(words: string[], phraseWords: string[]): number {
-  let count = 0;
-  const required = Math.min(2, phraseWords.length - 1);
+// --- Updated Function (Excludes H1s) ---
+export function countKeywordMatchesFromHtml({
+  container,
+  editMode,
+  focusKeyphrase,
+  altKeyphrase,
+}: {
+  container: CustomHTMLElement;
+  focusKeyphrase: string;
+  editMode: boolean;
+  altKeyphrase?: string;
+}) {
+  const cleanText = getCleanText({ container, editMode });
+  const words = normalizeTextToWords(cleanText);
 
-  for (let i = 0; i <= words.length - phraseWords.length; i++) {
-    const window = words.slice(i, i + phraseWords.length);
-    const matches = phraseWords.filter(w => window.includes(w));
-    if (matches.length >= required) count++;
-  }
+  const focus = countForKeyphrase(words, focusKeyphrase);
+  const alt = altKeyphrase ? countForKeyphrase(words, altKeyphrase) : 0;
 
-  return count;
+  return {
+    focusCount: focus,
+    altCount: alt,
+    total: focus + alt,
+  };
 }
 
 // --- Headings Analysis ---
@@ -196,8 +175,7 @@ export function checkSectionsWithoutFocus(
 
   if (editMode) {
     const html = containerElement.currentContent;
-    const parser = new DOMParser();
-    const doc = parser.parseFromString(html, 'text/html');
+    const doc = textToHtml(html);
     children = Array.from(doc.body.children);
   } else {
     children = Array.from(containerElement.children);
@@ -253,8 +231,8 @@ export function analyzeSections({
   let elements;
   if (editMode) {
     const html = container.currentContent;
-    const parser = new DOMParser();
-    const doc = parser.parseFromString(html, 'text/html');
+
+    const doc = textToHtml(html);
     elements = Array.from(doc.body.children);
   } else {
     elements = Array.from(container.children);
@@ -340,10 +318,15 @@ export function analyzeDocument({
   otherKeywords,
   editMode,
 }: AnalyzeDocumentInput): KeywordAnalysisResult {
-  const plainText = container.innerText || htmlToPlainText(container.currentContent);
+  const plainText = getCleanText({ container, editMode });
 
-  const keywordCounts = countKeywordMatches(plainText, focusKeyphrase, altKeyphrase);
-  const density = getKeywordDensity(plainText, keywordCounts.total);
+  const keywordCounts = countKeywordMatchesFromHtml({
+    container,
+    focusKeyphrase,
+    altKeyphrase,
+    editMode,
+  });
+  const density = getKeywordDensity(plainText, keywordCounts.focusCount);
   const headingAnalysis = analyzeHeadings({
     container,
     editMode,
@@ -378,6 +361,8 @@ export function analyzeDocument({
   });
 
   return {
+    focusKeyphrase,
+    altKeyphrase,
     density,
     totalKeywordCount: keywordCounts.total,
     keywordCounts,

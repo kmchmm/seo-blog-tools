@@ -22,6 +22,8 @@ export type KeywordAnalysisResult = {
       count: number;
     }>;
   }>;
+  focusKeyphrase: string;
+  altKeyphrase: string;
 };
 
 export interface CustomHTMLElement extends HTMLElement {

@@ -1,6 +1,7 @@
 import { KeywordAnalysisResult } from '../../hooks/useKeywordAnalysis';
 import { Accordion } from '../Accordion';
-import { getBadgeColor } from './helpers';
+import { Alert } from '../common';
+import { getHeaderBadgeColor } from './helpers';
 
 type Props = {
   result: KeywordAnalysisResult | null;
@@ -23,7 +24,7 @@ const KeywordResultSection = ({ result }: Props) => {
         <strong>Keyword Density:</strong>
         <span className="text-blue-200 font-bold">{density.toFixed(2)}%</span>
       </p>
-      {altCount && altCount !== 0 && (
+      {altCount === 0 ? null : (
         <p className="flex justify-between items-center">
           <strong>Total Alt Count:</strong>
           <span className="text-blue-200 font-bold">{altCount}</span>
@@ -33,9 +34,15 @@ const KeywordResultSection = ({ result }: Props) => {
       <Accordion
         header="H2 & H3 Optimization"
         badge={headingAnalysis.percent}
-        badgeColor={getBadgeColor(headingAnalysis.percent)}>
+        badgeColor={getHeaderBadgeColor(headingAnalysis.percent)}>
         <div className="flex flex-col gap-y-2">
           <ul className="list-disc ml-4">
+            {headingAnalysis.percent <= 75 ? (
+              <Alert type="success" message="Good results" />
+            ) : (
+              <Alert message="Must be equal to or lower than 75%!" type="error" />
+            )}
+
             {headingAnalysis.headings.map(heading => (
               <li key={heading.text}>
                 <p>
@@ -57,13 +64,14 @@ const KeywordResultSection = ({ result }: Props) => {
       <Accordion
         header="Per Section Optimization"
         badge={sectionAnalysis.percent}
-        badgeColor={getBadgeColor(sectionAnalysis.percent)}>
-        {sectionAnalysis.withoutFocus.length > 0 && (
-          <div className="mt-2 border border-red-200 rounded bg-red-50 p-3 text-sm">
-            <p className="text-red-600 font-medium mb-1 flex items-center gap-1">
-              ⚠️ Please make sure each section has the focus keyphrase.
-            </p>
-          </div>
+        badgeColor={sectionAnalysis.percent === 100 ? 'green' : 'red'}>
+        {sectionAnalysis.withoutFocus.length > 0 ? (
+          <Alert
+            message="Please make sure each section has the focus keyphrase."
+            type="error"
+          />
+        ) : (
+          <Alert message="Good results" type="success" />
         )}
 
         {sectionAnalysis.withoutFocus.length > 0 && (

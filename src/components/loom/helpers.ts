@@ -5,6 +5,7 @@ import {
   warningLengthStyle,
 } from '../../pages/Loom';
 import { CONSTRAINT, HeadingEntry } from '../../types/loom';
+import { textToHtml } from '../../utils/formatter';
 
 export const formatList = (htmlString: string) => {
   const p = document.createElement('p');
@@ -48,34 +49,57 @@ export function getHeadings({
   container: CustomHTMLElement;
   editMode: boolean;
 }): HeadingEntry[] {
-  let html = '';
-  if (editMode) {
-    html = container.currentContent;
-  } else {
-    html = container.innerHTML;
+  const html = editMode ? container.currentContent : container.innerHTML;
+
+  const doc = textToHtml(html);
+  const children = Array.from(doc.body.children);
+
+  const combinedHeadings: HeadingEntry[] = [];
+  let buffer: string[] = [];
+  let currentLevel: 'H2' | 'H3' | null = null;
+
+  for (const el of children) {
+    const tag = el.tagName?.toUpperCase();
+
+    if (tag === 'H2' || tag === 'H3') {
+      const text = el.textContent?.trim();
+      if (text) {
+        if (!currentLevel) {
+          currentLevel = tag as 'H2' | 'H3';
+        }
+        buffer.push(text);
+      }
+    } else {
+      if (buffer.length > 0 && currentLevel) {
+        combinedHeadings.push({
+          level: currentLevel,
+          text: buffer.join(' '),
+        });
+        buffer = [];
+        currentLevel = null;
+      }
+    }
   }
 
-  const parser = new DOMParser();
-  const doc = parser.parseFromString(html, 'text/html');
+  if (buffer.length > 0 && currentLevel) {
+    combinedHeadings.push({
+      level: currentLevel,
+      text: buffer.join(' '),
+    });
+  }
 
-  const headings = Array.from(doc.querySelectorAll('h2, h3'));
-
-  return headings.map(h => ({
-    level: h.tagName as 'H2' | 'H3',
-    text: h.textContent?.trim() || '',
-  }));
+  return combinedHeadings;
 }
 
-export const getBadgeColor = (percent: number) => {
-  if (percent >= 70) return 'green';
-  if (percent >= 50) return 'gray';
+export const getHeaderBadgeColor = (percent: number) => {
+  if (percent <= 75) return 'green';
+
   return 'red';
 };
 
 function normalizeToSingular(word: string): string {
   return word.replace(/ies$/, 'y').replace(/es$/, '').replace(/s$/, '');
 }
-
 export function highlightKeywordsInDiv(
   container: HTMLElement,
   focusKeyword: string,
@@ -83,32 +107,66 @@ export function highlightKeywordsInDiv(
 ) {
   if (!container || !focusKeyword.trim()) return;
 
-  const buildPattern = (keyword: string) => {
-    const base = normalizeToSingular(keyword.trim().toLowerCase());
-    return `(${base}|${base}s|${base}es|${base.replace(/y$/, 'ies')})`;
-  };
+  const escapeRegex = (str: string) => str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
-  const patterns: string[] = [];
-
-  if (focusKeyword.trim()) patterns.push(buildPattern(focusKeyword));
-  if (alternateKeyword?.trim()) patterns.push(buildPattern(alternateKeyword));
-
-  const regex = new RegExp(`\\b(${patterns.join('|')})\\b`, 'gi');
-
-  const walk = (node: Node) => {
-    if (node.nodeType === Node.TEXT_NODE) {
-      const text = node.nodeValue;
-      if (!text || !regex.test(text)) return;
-
-      const span = document.createElement('span');
-      span.innerHTML = text.replace(regex, `<mark class="bg-yellow-200">$&</mark>`);
-      node.parentNode?.replaceChild(span, node);
-    } else if (node.nodeType === Node.ELEMENT_NODE && node.nodeName !== 'SCRIPT') {
-      Array.from(node.childNodes).forEach(walk);
+  const expandVariants = (word: string): string[] => {
+    const base = normalizeToSingular(word);
+    const forms = [base];
+    if (!base.endsWith('s')) {
+      forms.push(`${base}s`, `${base}es`);
+      if (base.endsWith('y')) forms.push(base.replace(/y$/, 'ies'));
+    } else {
+      if (base.endsWith('ies')) forms.push(base.replace(/ies$/, 'y'));
+      else if (base.endsWith('es')) forms.push(base.replace(/es$/, ''));
+      else forms.push(base.replace(/s$/, ''));
     }
+    return [...new Set(forms)];
   };
 
-  walk(container);
+  const buildAllPhraseRegex = (phrase: string): RegExp[] => {
+    const words = phrase.trim().toLowerCase().split(/\s+/);
+    const variants = words.map(expandVariants);
+
+    const combinations: string[][] = [[]];
+    for (const wordVariants of variants) {
+      const next: string[][] = [];
+      for (const combo of combinations) {
+        for (const variant of wordVariants) {
+          next.push([...combo, variant]);
+        }
+      }
+      combinations.splice(0, combinations.length, ...next);
+    }
+
+    return combinations.map(combo => {
+      const pattern = combo.map(escapeRegex).join('[\\s\\-.,]+');
+      return new RegExp(`\\b(${pattern})\\b`, 'gi');
+    });
+  };
+
+  const focusRegexes = buildAllPhraseRegex(focusKeyword);
+  const altRegexes = alternateKeyword?.trim()
+    ? buildAllPhraseRegex(alternateKeyword)
+    : [];
+
+  const allRegexes = [...focusRegexes, ...altRegexes];
+
+  const elements = container.querySelectorAll('p, h2, h3, h4, h5, h6');
+
+  elements.forEach(el => {
+    const originalText = el.textContent || '';
+    let modifiedText = originalText;
+
+    allRegexes.forEach(re => {
+      modifiedText = modifiedText.replace(re, match => {
+        return `<mark class="bg-[#FEF08A]">${match}</mark>`;
+      });
+    });
+
+    if (originalText !== modifiedText) {
+      el.innerHTML = modifiedText;
+    }
+  });
 }
 
 export function removeKeywordHighlights(container: HTMLElement) {

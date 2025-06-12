@@ -151,6 +151,7 @@ const Loom: FC = () => {
   const divRef = useRef<CustomHTMLElement | React.Ref<Editor> | null>(null);
 
   const { results, runAnalysis, error } = useKeywordAnalysis();
+
   const {
     error: errorValidate,
     helperText,
@@ -175,8 +176,8 @@ const Loom: FC = () => {
     const container = (divRef.current as HTMLElement) ?? null;
     if (!container || !focusKeyword) return;
 
-    // Optional: remove existing highlights first
-    container.innerHTML = container.innerHTML.replace(/<mark[^>]*>(.*?)<\/mark>/gi, '$1');
+    // // Optional: remove existing highlights first
+    // container.innerHTML = container.innerHTML.replace(/<mark[^>]*>(.*?)<\/mark>/gi, '$1');
 
     highlightKeywordsInDiv(container, focusKeyword, alternateEsq);
   };
@@ -482,7 +483,8 @@ const Loom: FC = () => {
 
   useEffect(() => {
     if (!editMode) {
-      highlightPhrases([focusKeyword, alternateEsq].filter(Boolean));
+      // highlightPhrases([focusKeyword, alternateEsq].filter(Boolean));
+      highlightKeywordsInDiv(divRef.current as HTMLElement, focusKeyword, alternateEsq);
     } else {
       removeHighlights();
     }

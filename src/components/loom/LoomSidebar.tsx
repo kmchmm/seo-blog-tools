@@ -794,22 +794,19 @@ export const LoomSidebar: FC<LoomProps> = ({
     setHasLinkChecked(true);
   };
 
-  const checkAnalyzeLink = () => {
+  const checkAnalyzeLink = async () => {
     if (!text) return;
 
-    // analyzeLinks should return the full LinkErrors object,
-    // with internalLinks as LinkDetail[]
-    const result = analyzeLinks(text);
-
+    const result = await analyzeLinks(text);
     console.log('analyzeLinks result:', result);
 
-    // Set full result as-is (do NOT map internalLinks to string[])
     setLinkErrors(result);
 
     if (typeof onLinkIssues === 'function') {
       const issues: LinkIssue[] = [];
 
       Object.entries(result).forEach(([type, details]) => {
+        console.log(`Type: ${type}, Details:`, details);
         if (Array.isArray(details)) {
           details.forEach(entry => {
             if (typeof entry === 'string') {
@@ -848,13 +845,17 @@ export const LoomSidebar: FC<LoomProps> = ({
       : 'Some link issues found! Please review.⚠️';
 
   const scrollToLink = (url: string) => {
-    const el = document.querySelector(`a[href="${url}"]`);
-    if (el) {
-      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      el.classList.add('ring-2', 'ring-offset-2', 'ring-yellow-300');
-      setTimeout(() => {
-        el.classList.remove('ring-2', 'ring-offset-2', 'ring-yellow-300');
-      }, 2000);
+    try {
+      const el = document.querySelector(`a[href="${CSS.escape(url)}"]`);
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        el.classList.add('bg-green-100', '!text-white');
+        setTimeout(() => {
+          el.classList.remove('bg-green-100', '!text-white');
+        }, 2000);
+      }
+    } catch (e) {
+      console.warn(`Failed to scroll to link: ${url}`, e);
     }
   };
 
@@ -944,50 +945,51 @@ export const LoomSidebar: FC<LoomProps> = ({
 
                 <h6 className={resultsHeaderStyle}>YOAST SEO ANALYSIS</h6>
                 <Accordion header="Problems" className="mb-2">
-                  {seoProblems.map((result: AssessmentResult) => {
-                    return (
-                      <li
-                        className={errorListStyle}
-                        dangerouslySetInnerHTML={{
-                          __html: formatList(result.text),
-                        }}></li>
-                    );
-                  })}
+                  {seoProblems.map((result: AssessmentResult, index: number) => (
+                    <li
+                      key={`seo-problem-${index}`}
+                      className={errorListStyle}
+                      dangerouslySetInnerHTML={{
+                        __html: formatList(result.text),
+                      }}
+                    />
+                  ))}
                 </Accordion>
                 <Accordion header="Good results">
-                  {seoAchievements.map((result: AssessmentResult) => {
-                    return (
-                      <li
-                        className={passListStyle}
-                        dangerouslySetInnerHTML={{
-                          __html: formatList(result.text),
-                        }}></li>
-                    );
-                  })}
+                  {seoAchievements.map((result: AssessmentResult, index: number) => (
+                    <li
+                      key={`seo-good-${index}`}
+                      className={passListStyle}
+                      dangerouslySetInnerHTML={{
+                        __html: formatList(result.text),
+                      }}
+                    />
+                  ))}
                 </Accordion>
-
                 <h6 className={resultsHeaderStyle}>YOAST READABILITY ANALYSIS</h6>
                 <Accordion header="Problems" className="mb-2">
-                  {readabilityProblems.map((result: AssessmentResult) => {
-                    return (
-                      <li
-                        className={errorListStyle}
-                        dangerouslySetInnerHTML={{
-                          __html: formatList(result.text),
-                        }}></li>
-                    );
-                  })}
+                  {readabilityProblems.map((result: AssessmentResult, index: number) => (
+                    <li
+                      key={`readability-problem-${index}`}
+                      className={errorListStyle}
+                      dangerouslySetInnerHTML={{
+                        __html: formatList(result.text),
+                      }}
+                    />
+                  ))}
                 </Accordion>
                 <Accordion header="Good results">
-                  {readabilityAchievements.map((result: AssessmentResult) => {
-                    return (
+                  {readabilityAchievements.map(
+                    (result: AssessmentResult, index: number) => (
                       <li
+                        key={`readability-problem-${index}`}
                         className={passListStyle}
                         dangerouslySetInnerHTML={{
                           __html: formatList(result.text),
-                        }}></li>
-                    );
-                  })}
+                        }}
+                      />
+                    )
+                  )}
                 </Accordion>
               </div>
             </TabPanel>
@@ -1734,27 +1736,7 @@ export const LoomSidebar: FC<LoomProps> = ({
                 Analyze Links
               </Button>
               <div className="flex mt-5 gap-2 mb-1">
-                <Button
-                  onClick={() => {
-                    if (!linkErrors || !onLinkIssues) return;
-
-                    const issues: LinkIssue[] = [];
-
-                    Object.entries(linkErrors).forEach(([type, urls]) => {
-                      if (Array.isArray(urls)) {
-                        urls.forEach(url => {
-                          if (typeof url === 'string') {
-                            issues.push({ type, url });
-                          } else {
-                            issues.push({ type, url: url.url, anchor: url.anchor });
-                          }
-                        });
-                      }
-                    });
-
-                    onLinkIssues(issues); // ✅ Send issues to Loom.tsx for highlighting
-                  }}
-                  className="w-1/2 text-sm !bg-white text-black !border-black-200 border rounded-none hover:shadow-none hover:!bg-black-200 hover:text-white dark:hover:shadow-none dark:!text-black-200 dark:hover:!text-white">
+                <Button className="w-1/2 text-sm !bg-white text-black !border-black-200 border rounded-none hover:shadow-none hover:!bg-black-200 hover:text-white dark:hover:shadow-none dark:!text-black-200 dark:hover:!text-white">
                   Show Highlights
                 </Button>
 
@@ -1789,10 +1771,54 @@ export const LoomSidebar: FC<LoomProps> = ({
                             )}
                           </div>
                         }>
+                        {(() => {
+                          const requiredLinks = [
+                            {
+                              url: 'https://arashlaw.com/practice-areas/car-accident-lawyers/',
+                              label: 'Car Accident PA',
+                            },
+                          ];
+
+                          const allLinkURLs = linkErrors
+                            ? [
+                                ...(linkErrors.internalLinks || []),
+                                ...(linkErrors.externalLinks || []),
+                              ].map(link => (typeof link === 'string' ? link : link.url))
+                            : [];
+
+                          const missingCriticalLinks = requiredLinks.filter(
+                            req => !allLinkURLs.includes(req.url)
+                          );
+
+                          return (
+                            <>
+                              {missingCriticalLinks.length > 0 && (
+                                <div className="mb-4 text-red-600 bg-red-50 border border-red-200 rounded p-3 text-sm">
+                                  <strong className="block mb-1">⚠️ ALERT:</strong>
+                                  <ul className="list-disc list-inside space-y-1">
+                                    {missingCriticalLinks.map((item, i) => (
+                                      <li key={`missing-${i}`}>
+                                        No link to <strong>{item.label}</strong>. Please
+                                        add:{' '}
+                                        <a
+                                          href={item.url}
+                                          className="!text-blue-800 underline hover:!text-blue-300"
+                                          target="_blank"
+                                          rel="noopener noreferrer">
+                                          {item.url}
+                                        </a>
+                                      </li>
+                                    ))}
+                                  </ul>
+                                </div>
+                              )}
+                            </>
+                          );
+                        })()}
+
                         <ul className="text-left list-none list-inside space-y-3 text-sm">
                           {linkErrors &&
                             Object.entries(linkErrors).map(([key, value]) => {
-                              // Only show real error types (skip internal/external links)
                               const isErrorType = [
                                 'invalidLinks',
                                 'missingTrailingSlash',
@@ -1802,62 +1828,52 @@ export const LoomSidebar: FC<LoomProps> = ({
                                 'invalidAnchors',
                               ].includes(key);
 
-                              if (
-                                !isErrorType ||
-                                !Array.isArray(value) ||
-                                value.length === 0
-                              ) {
-                                return null;
-                              }
+                              if (!isErrorType || !Array.isArray(value)) return null;
+
+                              // Group errors by location
+                              const groupedByLocation = (value as LinkDetail[]).reduce(
+                                (acc, link) => {
+                                  const loc = link.location || 'Unknown Section';
+                                  if (!acc[loc]) acc[loc] = [];
+                                  acc[loc].push(link);
+                                  return acc;
+                                },
+                                {} as Record<string, LinkDetail[]>
+                              );
 
                               return (
                                 <li key={key}>
                                   <strong>
                                     {formatErrorLabel(key)} ({value.length}):
                                   </strong>
-                                  <ul className="pl-5 mt-1 space-y-1 list-decimal">
-                                    {value.map((url, idx) => (
-                                      <li
-                                        key={`${key}-${idx}`}
-                                        className="!cursor-pointer">
-                                        <button
-                                          onClick={() => {
-                                            if (!url || url === '#') return;
-                                            try {
-                                              const el = document.querySelector(
-                                                `[href="${url}"]`
-                                              );
-                                              if (el) {
-                                                el.scrollIntoView({
-                                                  behavior: 'smooth',
-                                                  block: 'center',
-                                                });
-                                                el.classList.add(
-                                                  'ring-2',
-                                                  'ring-offset-2',
-                                                  'ring-yellow-300'
-                                                );
-                                                setTimeout(() => {
-                                                  el.classList.remove(
-                                                    'ring-2',
-                                                    'ring-offset-2',
-                                                    'ring-yellow-300'
-                                                  );
-                                                }, 2000);
-                                              }
-                                            } catch (e) {
-                                              console.warn(
-                                                `Invalid selector for href: ${url}`,
-                                                e
-                                              );
-                                            }
-                                          }}
-                                          className="text-blue-600 underline hover:text-blue-800 cursor-pointer">
-                                          {typeof url === 'string' ? url : url.url}
-                                        </button>
-                                      </li>
-                                    ))}
-                                  </ul>
+                                  {value.length === 0 ? (
+                                    <div className="text-gray-500 italic">
+                                      No issues found for this type.
+                                    </div>
+                                  ) : (
+                                    <ul className="mt-1 space-y-3 pl-5">
+                                      {Object.entries(groupedByLocation).map(
+                                        ([location, links]) => (
+                                          <li key={location}>
+                                            <ul className="list-disc list-inside space-y-1">
+                                              {links.map((link, i) => (
+                                                <li
+                                                  key={`${key}-${location}-${i}`}
+                                                  className="text-blue-400 no-underline hover:text-blue-950 break-words whitespace-pre-wrap text-left w-full cursor-pointer flex flex-col">
+                                                  <span
+                                                    onClick={() => scrollToLink(link.url)}
+                                                    className="before:content-['•'] before:mr-2 before:text-black hover:before:text-white font-bold !text-black-100 mr-1 !no-underline cursor-pointer hover:bg-green-100 hover:!text-white p-2 list-disc">
+                                                    {link.anchor || '(no anchor)'}
+                                                  </span>
+                                                  <span>— {link.url}</span>
+                                                </li>
+                                              ))}
+                                            </ul>
+                                          </li>
+                                        )
+                                      )}
+                                    </ul>
+                                  )}
                                 </li>
                               );
                             })}
@@ -1908,16 +1924,14 @@ export const LoomSidebar: FC<LoomProps> = ({
                                 )
                             ).map(([location, links]) => (
                               <li key={location}>
-                                <h4 className="font-semibold text-black mb-1">
-                                  {location}
-                                </h4>
                                 <ul className="!list-disc list-inside space-y-1">
                                   {links.map((link, i) => (
                                     <li
                                       key={`${location}-${i}`}
-                                      onClick={() => scrollToLink(link.url)}
                                       className="text-blue-400 no-underline hover:text-blue-950 break-words whitespace-pre-wrap text-left w-full cursor-pointer flex flex-col">
-                                      <span className="font-bold !text-black-100 mr-1 !no-underline">
+                                      <span
+                                        onClick={() => scrollToLink(link.url)}
+                                        className="before:content-['•'] before:mr-2 before:text-black hover:before:text-white font-bold !text-black-100 mr-1 !no-underline cursor-pointer hover:bg-green-100 hover:!text-white p-2">
                                         {link.anchor || '(no anchor)'}
                                       </span>
                                       <span>— {link.url}</span>
@@ -1946,15 +1960,49 @@ export const LoomSidebar: FC<LoomProps> = ({
                             )}
                           </div>
                         }>
-                        <ul className="!text-left list-disc list-inside space-y-1 text-sm">
-                          {(linkErrors?.externalLinks || []).map((link, i) => (
-                            <li
-                              key={`external-${i}`}
-                              onClick={() => scrollToLink(link)}
-                              className="text-blue-400 underline hover:text-blue-950 break-words whitespace-pre-wrap text-left w-full cursor-pointer">
-                              {link}
-                            </li>
-                          ))}
+                        <ul className="!text-left list-none list-inside space-y-2 text-sm">
+                          {Array.isArray(linkErrors?.externalLinks) &&
+                            linkErrors.externalLinks
+                              .filter(l => typeof l !== 'string')
+                              .reduce(
+                                (grouped: Record<string, LinkDetail[]>, link: any) => {
+                                  const location = link.location || 'Unknown Section';
+                                  if (!grouped[location]) grouped[location] = [];
+                                  grouped[location].push(link);
+                                  return grouped;
+                                },
+                                {} as Record<string, LinkDetail[]>
+                              ) &&
+                            Object.entries(
+                              linkErrors.externalLinks
+                                .filter(l => typeof l !== 'string')
+                                .reduce(
+                                  (grouped: Record<string, LinkDetail[]>, link: any) => {
+                                    const location = link.location || 'Unknown Section';
+                                    if (!grouped[location]) grouped[location] = [];
+                                    grouped[location].push(link);
+                                    return grouped;
+                                  },
+                                  {} as Record<string, LinkDetail[]>
+                                )
+                            ).map(([location, links]) => (
+                              <li key={location}>
+                                <ul className="!list-disc list-inside space-y-1">
+                                  {links.map((link, i) => (
+                                    <li
+                                      key={`${location}-external-${i}`}
+                                      className="text-blue-400 no-underline hover:text-blue-950 break-words whitespace-pre-wrap text-left w-full cursor-pointer flex flex-col">
+                                      <span
+                                        onClick={() => scrollToLink(link.url)}
+                                        className="before:content-['•'] before:mr-2 before:text-black hover:before:text-white font-bold !text-black-100 mr-1 !no-underline cursor-pointer hover:bg-green-100 hover:!text-white p-2">
+                                        {link.anchor || '(no anchor)'}
+                                      </span>
+                                      <span>— {link.url}</span>
+                                    </li>
+                                  ))}
+                                </ul>
+                              </li>
+                            ))}
                         </ul>
                       </Accordion>
                     </div>
