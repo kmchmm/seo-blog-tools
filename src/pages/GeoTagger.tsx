@@ -24,10 +24,10 @@ const FORM_DATA_HEADER = {
   'Content-Type': 'multipart/form-data',
 };
 
-const DOWNLOAD_HEADERS = {
-  'Content-Type': 'multipart/form-data',
-  Accept: 'application/json,image/webp,image/png,image/jpg,image/jpg',
-};
+// const DOWNLOAD_HEADERS = {
+//   'Content-Type': 'multipart/form-data',
+//   Accept: 'application/json,image/webp,image/png,image/jpg,image/jpg',
+// };
 
 // convert deg-min-secs to purely degrees (from node-exiftool in api)
 const convertToDegrees = (rawCoords: string) => {
@@ -145,74 +145,83 @@ const GeoTagger: FC = () => {
   };
 
   const previewImg = async () => {
-    if (!file) return;
+    if (!file) {
+      console.log("No file selected.");
+      return;
+    }
+
     try {
-      const response = await axios.post(
-        `${API_URL_WRITE}`,
-        {
-          file,
-          DocumentName: exifName,
-          ImageDescription: exifDesc,
-          GPSLatitude: exifLatitude,
-          GPSLongitude: exifLongitude,
-          GPSLatitudeRef: Number(exifLatitude) > 0 ? 'N' : 'S',
-          GPSLongitudeRef: Number(exifLongitude) > 0 ? 'E' : 'W',
-          optimize,
-          imgWidth: (imgWidth > 0) ? imgWidth : customWidth,
-          quality,
+      console.log("Preparing FormData for preview...");
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('DocumentName', exifName);
+      formData.append('ImageDescription', exifDesc);
+      formData.append('GPSLatitude', exifLatitude);
+      formData.append('GPSLongitude', exifLongitude);
+      formData.append('GPSLatitudeRef', Number(exifLatitude) > 0 ? 'N' : 'S');
+      formData.append('GPSLongitudeRef', Number(exifLongitude) > 0 ? 'E' : 'W');
+      formData.append('optimize', optimize.toString());
+      formData.append('imgWidth', imgWidth > 0 ? imgWidth.toString() : customWidth.toString());
+      formData.append('quality', quality.toString());
+
+      console.log("Sending request to:", API_URL_WRITE);
+      console.log("FormData content preview:");
+      formData.forEach((value, key) => {
+        console.log(`${key}: ${value}`);
+      });
+
+      const response = await axios.post(`${API_URL_WRITE}`, formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
         },
-        {
-          headers: DOWNLOAD_HEADERS,
-          responseType: 'blob',
-        }
-      );
-      const urlCreator = window.URL || window.webkitURL;
-      const imageUrl = urlCreator.createObjectURL(response.data);
-      // always call revokeObjectURL to previous preview url
-      URL.revokeObjectURL(preview);
+        responseType: 'blob',
+      });
+
+      console.log("Received response from server");
+      console.log("Blob size:", response.data.size);
+
+      const imageUrl = URL.createObjectURL(response.data);
+      console.log("Generated image preview URL:", imageUrl);
+
+      URL.revokeObjectURL(preview); // Clean up previous
       showToast('Preview added...');
       setPreview(imageUrl);
     } catch (err) {
       showToast('Preview failed...');
       console.error('Error during API call:', err);
-    } finally {
     }
   };
+
 
   const optimizeAndDL = async () => {
     if (!file) return;
     try {
-      const response = await axios.post(
-        `${API_URL_WRITE}`,
-        {
-          file,
-          DocumentName: exifName,
-          ImageDescription: exifDesc,
-          GPSLatitude: exifLatitude,
-          GPSLongitude: exifLongitude,
-          GPSLatitudeRef: Number(exifLatitude) > 0 ? 'N' : 'S',
-          GPSLongitudeRef: Number(exifLongitude) > 0 ? 'E' : 'W',
-          optimize,
-          imgWidth: (imgWidth > 0) ? imgWidth : customWidth,
-          quality,
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('DocumentName', exifName);
+      formData.append('ImageDescription', exifDesc);
+      formData.append('GPSLatitude', exifLatitude);
+      formData.append('GPSLongitude', exifLongitude);
+      formData.append('GPSLatitudeRef', Number(exifLatitude) > 0 ? 'N' : 'S');
+      formData.append('GPSLongitudeRef', Number(exifLongitude) > 0 ? 'E' : 'W');
+      formData.append('optimize', optimize.toString());
+      formData.append('imgWidth', (imgWidth > 0 ? imgWidth : customWidth).toString());
+      formData.append('quality', quality.toString());
+
+      const response = await axios.post(`${API_URL_WRITE}`, formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
         },
-        {
-          headers: DOWNLOAD_HEADERS,
-          responseType: 'blob',
-        }
-      );
+        responseType: 'blob',
+      });
 
       handleDownload(
         response.data,
-        optimize
-          ? // if optimize is on, replace extension with webp
-            `${getFilename(file.name)}.webp`
-          : file.name
+        optimize ? `${getFilename(file.name)}.webp` : file.name
       );
     } catch (err) {
       showToast('Geotagging/image optimization failed...');
       console.error('Error during API call:', err);
-    } finally {
     }
   };
 
@@ -423,26 +432,38 @@ const GeoTagger: FC = () => {
         </Button>
         <Button onClick={clearAll}>Clear All</Button>
       </section>
-      {file && (
-        <>
-          <label>Original Image</label>
-          <img
-            ref={imgRef}
-            className="maxw-full h-auto justify-self-center"
-            alt="Preview of Original Image"
-          />
-        </>
-      )}
-      {preview && (
-        <>
-          <p>Optimized Image</p>
-          <img
-            className="maxw-full h-auto justify-self-center"
-            alt="Preview of Optimized Image"
-            src={preview}
-          />
-        </>
-      )}
+      <div className="flex justify-between w-fuil gap-2 text-center">
+        {file && (
+          <>
+          <div className="w-full p-2 border border-black">
+            <label className="font-bold">Original Image</label>
+            <img 
+              ref={imgRef}
+              className="maxw-full h-auto justify-self-center"
+              alt="Preview of Original Image"
+            />
+          </div>
+          </>
+        )}
+        {preview && (
+          <>
+          <div className="w-full p-2 border border-black">
+            <label className="font-bold text-center">Optimized Image</label>
+            <img
+              className="maxw-full h-auto justify-self-center"
+              alt="Preview of Optimized Image"
+              src={preview}
+              onLoad={() => console.log("Optimized image loaded successfully.")}
+              onError={(e) => {
+                console.error("Error loading optimized image.");
+                console.log("Image src that failed:", e.currentTarget.src);
+              }}
+            />
+
+          </div>
+          </>
+        )}
+      </div>
     </div>
   );
 };

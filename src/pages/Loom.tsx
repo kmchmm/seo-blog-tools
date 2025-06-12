@@ -141,6 +141,13 @@ const Loom: FC = () => {
   >([]);
 
   // const [linkIssues, setLinkIssues] = useState<LinkIssue[] | null>(null);
+  // const hasLoaded = useRef(false);
+
+  const [highlightLinks, setHighlightLinks] = useState(false);
+
+
+  const escapeRegex = (str: string) =>
+    str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
   const divRef = useRef<CustomHTMLElement | React.Ref<Editor> | null>(null);
 
@@ -186,8 +193,6 @@ const Loom: FC = () => {
 
     removeKeywordHighlights(container);
   };
-
-  const escapeRegex = (str: string) => str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
   const applyHighlights = (html: string, phrases: string[], className: string) => {
     const parser = new DOMParser();
@@ -460,6 +465,10 @@ const Loom: FC = () => {
     setHighlightedHtml(newHtml);
   };
 
+const toggleHighlightLinks = () => {
+  setHighlightLinks((prev) => !prev);
+};
+
   // const highlightFormattingPhrases = (phrases: string[]) => {
   //   console.log('[highlightFormattingPhrases] received phrases:', phrases);
   //   const cleanHtml = htmlString.replace(/<mark[^>]*>(.*?)<\/mark>/gi, '$1');
@@ -651,6 +660,8 @@ const Loom: FC = () => {
         <section className="w-full py-2 gap-5 flex flex-row mb-5">
           <div className="w-1/2">
             <label>Meta Title</label>
+            {title && <span> - {title.length} {title.length > 1 ? 'characters' : 'character'}</span>}
+            <input type="text" value={title} className="!w-full py-2 " onChange={(e) => setTitle(e.target.value)} />
             {title && (
               <span>
                 {' '}
@@ -863,6 +874,9 @@ const Loom: FC = () => {
                 setHighlightedHtml(highlighted);
                 setEditMode(false);
               }}
+
+              // onToggleHighlightLinks={toggleHighlightLinks}  // Pass handler here
+              highlightLinks={highlightLinks}  
               onKeywordShowHighlightClick={onKeywordShowHighlightClick}
               onKeywordRemoveHighlightClick={onKeywordRemoveHighlightClick}
             />

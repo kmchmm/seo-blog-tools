@@ -188,7 +188,7 @@ export const LoomSidebar: FC<LoomProps> = ({
   ////////////////YOAST  TOOL/////////////////////////////
   ////////////////////////////////////////////////////////
   const yoastSEOAnalyze = () => {
-    const url = new URL('../utils/yoastWorker.ts', import.meta.url);
+    const url = new URL('../../utils/yoastWorker.ts', import.meta.url);
     const newWorker = new AnalysisWorkerWrapper(
       new Worker(url, {
         type: 'module',
@@ -490,7 +490,7 @@ export const LoomSidebar: FC<LoomProps> = ({
   //////////////FORMAT QA TOOL////////////////////////////
   ////////////////////////////////////////////////////////
   const runFormatCheck = () => {
-    const worker = new Worker(new URL('../utils/formatErrors.ts', import.meta.url), {
+    const worker = new Worker(new URL('../../utils/formatErrors.ts', import.meta.url), {
       type: 'module',
     });
 
