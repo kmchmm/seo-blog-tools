@@ -5,7 +5,7 @@ import clsx from 'clsx';
 
 import pb from '../utils/pocketbaseInit.js';
 import { scrapeData, modifiedScrapeData, TOOL_ROUTES, IBtnType } from '../types.js';
-import { Button } from '../components/Button';
+import { Button } from '../components/common';
 import { Loading } from '../components/Loading';
 import { OctoBitRecord } from '../components/OctoBitRecord';
 import { MapRecord } from '../components/MapRecord';

@@ -8,19 +8,14 @@ import { UserContext } from '../../context/UserContext.js';
 import { createContentWorker } from '../../utils/contentWorker.js';
 import { analyzeLinks } from '../../utils/analyzeLinksWorker.js';
 
-import { Button } from '../Button.js';
 import { Accordion } from '../Accordion.js';
 import { Summary } from '../Summary.js';
 
 import { Tabs, TabList, Tab, TabPanel } from 'react-aria-components';
 import YoastIcon from '../../assets/icons/yoast.svg?react';
-import { GoAlert } from 'react-icons/go';
-import { GoChecklist } from 'react-icons/go';
-import { GoLaw } from 'react-icons/go';
-import { GoLink } from 'react-icons/go';
-import { GoSearch } from 'react-icons/go';
-import { FaTrash } from 'react-icons/fa';
-import { FaCheckCircle, FaTimesCircle } from 'react-icons/fa';
+import { GoAlert, GoChecklist, GoLaw, GoLink, GoSearch } from 'react-icons/go';
+
+import { FaCheckCircle, FaTimesCircle, FaTrash } from 'react-icons/fa';
 import {
   AssessmentResult,
   CustomSearchResult,
@@ -34,7 +29,7 @@ import { VIOLATION_PHRASES } from './contants.js';
 import { formatList } from './helpers.js';
 import { KeywordAnalysisResult } from '../../hooks/useKeywordAnalysis.js';
 import KeywordResultSection from './KeywordResultSection.js';
-import Alert from '../common/Alert.js';
+import { Button, Alert } from '../common';
 
 interface LoomProps {
   text: string;

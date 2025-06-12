@@ -10,7 +10,7 @@ import { GoChecklist } from 'react-icons/go';
 import { GoLaw } from 'react-icons/go';
 import { GoLink } from 'react-icons/go';
 import { GoSearch } from 'react-icons/go';
-import { Button } from '../Button';
+import { Button } from '../common';
 
 interface LoomProps {
   text: string;
