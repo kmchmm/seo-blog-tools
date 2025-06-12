@@ -52,7 +52,7 @@ export const Button = (btnProps: ButtonProps) => {
       : 'py-[6px] px-[12px]';
 
   const btnStyle = clsx(
-    'font-medium text-base font-normal leading-[1.5]',
+    'font-medium text-base font-normal leading-[1.5] disabled:pointer-events-none',
     'rounded-md border bg-transparent',
     padding,
     'transition-colors duration-150 ease-in-out',

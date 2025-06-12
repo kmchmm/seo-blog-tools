@@ -34,7 +34,11 @@ const useKeywordAnalysis = () => {
   const [results, setResults] = useState<KeywordAnalysisResult | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const runAnalysis = ({
+  const handleSetKeywordAnalysisError = (message: string) => {
+    setError(message);
+  };
+
+  const runAnalysis = async ({
     container,
     focusKeyphrase,
     altKeyphrase,
@@ -69,7 +73,7 @@ const useKeywordAnalysis = () => {
     }
   };
 
-  return { results, runAnalysis, error };
+  return { results, runAnalysis, error, handleSetKeywordAnalysisError };
 };
 
 export default useKeywordAnalysis;

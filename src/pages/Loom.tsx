@@ -12,6 +12,7 @@ import { useFocusKeywordFormValidate, useKeywordAnalysis } from '../hooks';
 import {
   checkPixelLength,
   highlightKeywordsInDiv,
+  normalizeUrl,
   removeKeywordHighlights,
 } from '../components/loom/helpers';
 import {
@@ -50,13 +51,6 @@ interface LinkIssue {
   anchor?: string;
   location?: string;
 }
-
-// Normalize URLs for matching
-const normalizeUrl = (url: string): string => {
-  if (url.startsWith('http')) return url;
-  if (url.startsWith('/')) return `https://arashlaw.com${url}`;
-  return url;
-};
 
 function highlightLinkIssuesInHtml(html: string, issues: LinkIssue[]): string {
   const parser = new DOMParser();
@@ -150,7 +144,8 @@ const Loom: FC = () => {
 
   const divRef = useRef<CustomHTMLElement | React.Ref<Editor> | null>(null);
 
-  const { results, runAnalysis, error } = useKeywordAnalysis();
+  const { results, runAnalysis, error, handleSetKeywordAnalysisError } =
+    useKeywordAnalysis();
 
   const {
     error: errorValidate,
@@ -160,6 +155,9 @@ const Loom: FC = () => {
   } = useFocusKeywordFormValidate();
 
   const handleAnalyze = () => {
+    if (!htmlString) {
+      handleSetKeywordAnalysisError('No HTML string found.');
+    }
     if (validate(focusKeyword)) {
       runAnalysis({
         altKeyphrase: alternateEsq,
@@ -488,8 +486,7 @@ const Loom: FC = () => {
     } else {
       removeHighlights();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [focusKeyword, alternateEsq, editMode]);
+  }, [focusKeyword, alternateEsq, editMode, results]);
 
   const highlightContent = (repeatedWords: string[]) => {
     const cleanHtml = htmlString.replace(/<mark[^>]*>(.*?)<\/mark>/gi, '$1');
@@ -740,10 +737,10 @@ const Loom: FC = () => {
               </div>
             </div>
 
-            <div className="flex-row flex justify-end mb-2">
+            <div className="flex-row flex justify-end mb-2 gap-x-2">
               <span
                 className={clsx(
-                  'font-medium text-base py-[6px] px-[12px]',
+                  'font-medium text-base py-[6px] px-[12px] cursor-pointer',
                   'rounded-md border',
                   editMode ? modeActive : ''
                 )}
@@ -755,7 +752,7 @@ const Loom: FC = () => {
               </span>
               <span
                 className={clsx(
-                  'font-medium text-base py-[6px] px-[12px]',
+                  'font-medium text-base py-[6px] px-[12px] cursor-pointer',
                   'rounded-md border',
                   !editMode ? modeActive : ''
                 )}
@@ -828,6 +825,7 @@ const Loom: FC = () => {
 
           <div className="sticky top-4 self-start max-h-screen overflow-y-auto">
             <LoomSidebar
+              editMode={editMode}
               error={error}
               keywordAnalysisResult={results}
               handleAnalyze={handleAnalyze}

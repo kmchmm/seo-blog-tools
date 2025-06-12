@@ -231,7 +231,6 @@ export function analyzeSections({
   let elements;
   if (editMode) {
     const html = container.currentContent;
-
     const doc = textToHtml(html);
     elements = Array.from(doc.body.children);
   } else {
@@ -261,22 +260,26 @@ export function analyzeSections({
     }
   }
 
-  // Push the last section
   if (currentHeading && buffer.trim()) {
     sections.push({ heading: currentHeading, content: buffer });
   }
 
   const focusWords = normalizeTextToWords(focusKeyphrase).filter(Boolean);
 
-  const isSectionOptimized = (content: string) => {
-    const wordsInText = new Set(normalizeTextToWords(content));
-    return focusWords.every(w => wordsInText.has(w));
+  const isSectionOptimized = (content: string): boolean => {
+    const sentences = content.match(/[^.!?]+[.!?]?/g) || [];
+
+    return sentences.some(sentence => {
+      const words = new Set(normalizeTextToWords(sentence));
+      return focusWords.every(w => words.has(w));
+    });
   };
 
   const unoptimized = sections.filter(section => {
     if (!section.content.trim()) return false;
     return !isSectionOptimized(section.content);
   });
+
   const optimized = sections.filter(section => {
     if (!section.content.trim()) return false;
     return isSectionOptimized(section.content);

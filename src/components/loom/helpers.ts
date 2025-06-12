@@ -7,6 +7,13 @@ import {
 import { CONSTRAINT, HeadingEntry } from '../../types/loom';
 import { textToHtml } from '../../utils/formatter';
 
+// Normalize URLs for matching
+export const normalizeUrl = (url: string): string => {
+  if (url.startsWith('http')) return url;
+  if (url.startsWith('/')) return `https://arashlaw.com${url}`;
+  return url;
+};
+
 export const formatList = (htmlString: string) => {
   const p = document.createElement('p');
   p.innerHTML = htmlString;
@@ -149,7 +156,7 @@ export function highlightKeywordsInDiv(
     ? buildAllPhraseRegex(alternateKeyword)
     : [];
 
-  const allRegexes = [...focusRegexes, ...altRegexes];
+  const allRegexes = { focusRegex: [...focusRegexes], altRegex: [...altRegexes] };
 
   const elements = container.querySelectorAll('p, h2, h3, h4, h5, h6');
 
@@ -157,12 +164,20 @@ export function highlightKeywordsInDiv(
     const originalText = el.textContent || '';
     let modifiedText = originalText;
 
-    allRegexes.forEach(re => {
+    allRegexes.focusRegex.forEach(re => {
       modifiedText = modifiedText.replace(re, match => {
-        return `<mark class="bg-[#FEF08A]">${match}</mark>`;
+        return `<mark class="bg-[#00ffff]">${match}</mark>`;
       });
     });
 
+    if (alternateKeyword) {
+      allRegexes.altRegex.forEach(re => {
+        modifiedText = modifiedText.replace(re, match => {
+          return `<mark class="bg-[#00ff00]">${match}</mark>`;
+        });
+      });
+    }
+    console.log(`modifiedText`, modifiedText);
     if (originalText !== modifiedText) {
       el.innerHTML = modifiedText;
     }

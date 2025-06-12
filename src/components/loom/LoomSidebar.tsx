@@ -34,6 +34,7 @@ import { VIOLATION_PHRASES } from './contants.js';
 import { formatList } from './helpers.js';
 import { KeywordAnalysisResult } from '../../hooks/useKeywordAnalysis.js';
 import KeywordResultSection from './KeywordResultSection.js';
+import Alert from '../common/Alert.js';
 
 interface LoomProps {
   text: string;
@@ -54,6 +55,7 @@ interface LoomProps {
   error: string | null;
   onKeywordShowHighlightClick: () => void;
   onKeywordRemoveHighlightClick: () => void;
+  editMode: boolean;
 }
 
 const tabHeaderStyle = clsx(
@@ -101,6 +103,7 @@ export const LoomSidebar: FC<LoomProps> = ({
   error,
   onKeywordShowHighlightClick,
   onKeywordRemoveHighlightClick,
+  editMode,
 }) => {
   const { userData } = useContext(UserContext);
   const [showSummary, setShowSummary] = useState<boolean>(false);
@@ -2013,17 +2016,20 @@ export const LoomSidebar: FC<LoomProps> = ({
 
             <TabPanel id="Keyword" className="flex-1">
               <Button
+                disabled={!keyword || !text}
                 onClick={handleAnalyzeKeyword}
                 className="w-full !bg-[#2563ea] hover:!bg-blue-1000 text-white border-0 hover:shadow-none rounded-none dark:hover:shadow-none dark:!text-white">
                 Analyze Keywords
               </Button>
               <div className="flex mt-5 gap-2 mb-1">
                 <Button
+                  disabled={!keywordAnalysisResult || editMode}
                   className="w-1/2 text-sm  !bg-white  text-black !border-black-200 border rounded-none hover:shadow-none hover:!bg-black-200 hover:text-white dark:hover:shadow-none dark:!text-black-200 dark:hover:!text-white"
                   onClick={onShowHighlightClick}>
                   Show Highlights
                 </Button>
                 <Button
+                  disabled={!keywordAnalysisResult || editMode}
                   className="w-1/2 text-sm !bg-[#EF4444] border-[#EF4444]  text-white border hover:!bg-red-700 hover:!border-red-700 rounded-none hover:shadow-none dark:hover:shadow-none dark:!text-white"
                   onClick={onKeywordRemoveHighlightClick}>
                   Remove Highlights
@@ -2032,14 +2038,9 @@ export const LoomSidebar: FC<LoomProps> = ({
 
               {hasKeywordChecked && (
                 <div>
-                  {error && (
-                    <div
-                      className={`my-4 text-sm font-medium py-4 text-center ${totalLinkErrors === 0 ? '!bg-[#e6f6e9] !text-green-100' : 'bg-[#faeaea] text-red-600'}`}>
-                      {linkErrorMessage || error}
-                    </div>
-                  )}
+                  {error && <Alert message={error || linkErrorMessage} type="error" />}
 
-                  {keywordAnalysisResult && (
+                  {keywordAnalysisResult && !error && (
                     <div className="">
                       <KeywordResultSection result={keywordAnalysisResult} />
                     </div>
