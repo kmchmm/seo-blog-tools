@@ -1,4 +1,3 @@
-// src/App.tsx
 import { FC, JSX, use } from 'react';
 import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
 
@@ -76,7 +75,7 @@ const App: FC = () => {
         <Route element={<Layout />}>
           <Route path="/" element={<HomePage />} />
 
-          {/* 🔐 Protected tool routes */}
+          {/*  Private tool routes */}
           {toolRoutes.map(({ path, toolKey, element }) => (
             <Route
               key={path}
@@ -85,7 +84,7 @@ const App: FC = () => {
             />
           ))}
 
-          {/* 🔓 Public tool routes */}
+          {/*  Public tool routes */}
           <Route path={TOOL_ROUTES.GEO_TAGGER} element={<GeoTaggerPage />} />
           <Route path={TOOL_ROUTES.TITLE_TWEAK} element={<TitleTweakPage />} />
           <Route path={TOOL_ROUTES.HTML_CLEANER} element={<HtmlCleanerPage />} />
