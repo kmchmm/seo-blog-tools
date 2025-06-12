@@ -46,37 +46,25 @@ export function getKeywordDensity(text: string, totalKeywordCount: number): numb
 function countForKeyphrase(text: string, focusKeyphrase: string): number {
   if (!focusKeyphrase.trim()) return 0;
 
-  const keyphraseWords = normalizeTextToWords(focusKeyphrase).filter(Boolean);
+  const keyphraseWords = normalizeTextToWords(focusKeyphrase);
   if (keyphraseWords.length === 0) return 0;
 
   const sentences = getSentences(text);
   let matchCount = 0;
-  console.log(`sentences`, sentences.length);
+
   for (const sentence of sentences) {
     const sentenceWords = normalizeTextToWords(sentence);
     const wordSet = new Set(sentenceWords);
 
     const allWordsMatch = keyphraseWords.every(word => wordSet.has(word));
+
     if (allWordsMatch) {
       matchCount++;
     }
   }
-  console.log(`${focusKeyphrase} match`, matchCount);
+
   return matchCount;
 }
-
-// function countExactMatches(words: string[], phraseWords: string[]): number {
-//   let count = 0;
-//   const len = phraseWords.length;
-
-//   for (let i = 0; i <= words.length - len; i++) {
-//     if (phraseWords.every((w, j) => words[i + j] === w)) {
-//       count++;
-//     }
-//   }
-
-//   return count;
-// }
 
 // --- Updated Function (Excludes H1s) ---
 export function countKeywordMatchesFromHtml({
