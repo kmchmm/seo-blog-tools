@@ -27,7 +27,8 @@ export type State = {
   setUserData: (userData: UserData) => void;
   logout: () => void;
   toolsAccess: string[];
-  setToolsAccess: (tools: string[]) => void;
+  handleSetToolsAccess: (tools: string[]) => void;
+  loadingGetTools: boolean;
 };
 
 export interface ToolsResults {

@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import axios from 'axios';
 import { IBtnType } from '../types';
-import { Button } from '../components/Button';
+import { Button } from '../components/common';
 import { Loading } from '../components/Loading';
 import clsx from 'clsx';
 
@@ -192,10 +192,11 @@ const NewsScraper: React.FC = () => {
                 <td className="!text-center whitespace-nowrap">
                   <div>{article.date}</div>
                   {article.time && (
-                    <div className="text-sm text-gray-500 dark:text-gray-200 mt-1">{article.time}</div>
+                    <div className="text-sm text-gray-500 dark:text-gray-200 mt-1">
+                      {article.time}
+                    </div>
                   )}
                 </td>
-
               </tr>
             ))}
           </tbody>

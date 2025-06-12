@@ -8,7 +8,7 @@ import { html } from '@codemirror/lang-html';
 import { encode } from 'html-entities';
 import { html_beautify, HTMLBeautifyOptions } from 'js-beautify';
 
-import { Button } from '../components/Button';
+import { Button } from '../components/common';
 
 interface handleDescendantProps {
   element: Element;
@@ -296,25 +296,27 @@ const prettifyXML = (xml: String) => {
   xml = xml.replace(/(\r\n|\n|\r)/gm, '\u0020').replace(/>\s+</g, '><');
   xml = xml.replace(/(>)(<)(\/*)/g, '$1\r\n$2$3');
 
-  return xml
-    .split('\r\n')
-    // .map((node, index) => {
-    .map((node) => {
-      //XML elements now split into lines
-      let indent = 0;
-      if (node.match(/.+<\/\w[^>]*>$/)) {
-        indent = 0;
-      } else if (node.match(/^<\/\w/) && pad > 0) {
-        pad -= 1;
-      } else if (node.match(/^<[\w^>]*[^\/]>.*$/)) {
-        indent = 1;
-      } else {
-        indent = 0;
-      }
-      pad += indent;
-      return padding.repeat(pad - indent) + node;
-    })
-    .join('\r\n');
+  return (
+    xml
+      .split('\r\n')
+      // .map((node, index) => {
+      .map(node => {
+        //XML elements now split into lines
+        let indent = 0;
+        if (node.match(/.+<\/\w[^>]*>$/)) {
+          indent = 0;
+        } else if (node.match(/^<\/\w/) && pad > 0) {
+          pad -= 1;
+        } else if (node.match(/^<[\w^>]*[^\/]>.*$/)) {
+          indent = 1;
+        } else {
+          indent = 0;
+        }
+        pad += indent;
+        return padding.repeat(pad - indent) + node;
+      })
+      .join('\r\n')
+  );
 };
 
 const HtmlCleaner: FC = () => {

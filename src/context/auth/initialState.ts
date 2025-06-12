@@ -29,5 +29,6 @@ export const initialState: State = {
   setUserData: () => {},
   logout: () => {},
   toolsAccess: [],
-  setToolsAccess: () => {},
+  handleSetToolsAccess: () => {},
+  loadingGetTools: false,
 };
