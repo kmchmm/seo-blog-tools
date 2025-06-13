@@ -9,5 +9,17 @@ export default defineConfig({
   define: {
     'process.env': {},
   },
+
   base: '/frontend-v2',
+
+  build: {
+    rollupOptions: {
+      input: {
+        main: 'index.html',
+      },
+      output: {
+        entryFileNames: '[name].js',
+      },
+    },
+  },
 });

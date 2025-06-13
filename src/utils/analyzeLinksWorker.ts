@@ -89,7 +89,7 @@ export function analyzeLinks(htmlString: string): {
   });
 
   // Identify identical anchors (same anchor text with different URLs)
-  for (const [anchorText, linkDetails] of anchorMap.entries()) {
+  for (const [, linkDetails] of anchorMap.entries()) {
     if (linkDetails.length > 1) {
       const uniqueUrls = new Set(linkDetails.map(ld => ld.url));
       if (uniqueUrls.size > 1) {

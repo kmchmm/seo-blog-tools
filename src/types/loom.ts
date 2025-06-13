@@ -42,14 +42,14 @@ export interface AssessmentResult {
 }
 
 export type LinkErrors = {
-  invalidLinks: string[];
-  missingTrailingSlash: string[];
-  duplicateLinks: string[];
-  brokenLinks: string[];
-  identicalAnchors: string[];
-  invalidAnchors: string[];
-  internalLinks: LinkDetail[]; // must be objects, not strings
-  externalLinks: string[];
+  invalidLinks: LinkDetail[];
+  missingTrailingSlash: LinkDetail[];
+  duplicateLinks: LinkDetail[];
+  brokenLinks: LinkDetail[]; // Placeholder
+  identicalAnchors: LinkDetail[];
+  invalidAnchors: LinkDetail[];
+  internalLinks: LinkDetail[];
+  externalLinks: LinkDetail[];
 };
 
 export type CustomSearchResult = {

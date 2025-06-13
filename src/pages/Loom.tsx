@@ -143,7 +143,7 @@ const Loom: FC = () => {
   // const [linkIssues, setLinkIssues] = useState<LinkIssue[] | null>(null);
   // const hasLoaded = useRef(false);
 
-  const [highlightLinks, setHighlightLinks] = useState(false);
+  // const [highlightLinks, ] = useState(false);
 
 
   const escapeRegex = (str: string) =>
@@ -467,9 +467,9 @@ const Loom: FC = () => {
     setHighlightedHtml(newHtml);
   };
 
-const toggleHighlightLinks = () => {
-  setHighlightLinks((prev) => !prev);
-};
+// const toggleHighlightLinks = () => {
+//   setHighlightLinks((prev) => !prev);
+// };
 
   // const highlightFormattingPhrases = (phrases: string[]) => {
   //   console.log('[highlightFormattingPhrases] received phrases:', phrases);
@@ -738,7 +738,7 @@ const toggleHighlightLinks = () => {
               </div>
             </div>
 
-            <div className="flex-row flex justify-end mb-2 gap-x-2">
+            <div className="flex-row flex justify-end mb-2 gap-x-2 sticky top-0 bg-white z-10 p-2 border-b">
               <span
                 className={clsx(
                   'font-medium text-base py-[6px] px-[12px] cursor-pointer',
@@ -866,7 +866,7 @@ const toggleHighlightLinks = () => {
               }}
 
               // onToggleHighlightLinks={toggleHighlightLinks}  // Pass handler here
-              highlightLinks={highlightLinks}  
+              // highlightLinks={highlightLinks}  
               onKeywordShowHighlightClick={onKeywordShowHighlightClick}
               onKeywordRemoveHighlightClick={onKeywordRemoveHighlightClick}
             />

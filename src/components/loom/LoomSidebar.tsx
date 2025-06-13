@@ -651,33 +651,73 @@ export const LoomSidebar: FC<LoomProps> = ({
     const parser = new DOMParser();
     const doc = parser.parseFromString(text, 'text/html');
 
+    const isHeading = (tag: string) => /^H[1-6]$/.test(tag.toUpperCase());
+
     const paragraphs = Array.from(doc.body.querySelectorAll('p, h1, h2, h3, h4, h5, h6'));
+
     paragraphs.forEach(el => {
-      let fixedText = el.textContent || '';
       const tagName = el.tagName.toUpperCase();
 
-      // Fix multiple spaces
-      fixedText = fixedText.replace(/[ \u00A0]{2,}/g, ' ');
+      // Traverse child nodes without destroying inline formatting
+      const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT, null);
 
-      // Fix em dash spacing
-      fixedText = fixedText.replace(/ ?— ?/g, ' — ');
+      while (walker.nextNode()) {
+        const node = walker.currentNode as Text;
+        let text = node.nodeValue ?? '';
 
-      // Fix leading/trailing spaces
-      fixedText = fixedText.trim();
+        // 1. Normalize multiple spaces
+        text = text.replace(/[ \u00A0]{2,}/g, ' ');
 
-      // Fix space before punctuation
-      fixedText = fixedText.replace(/ ([.,;:!?])/g, '$1');
+        // 2. Normalize em dash (U+2014) spacing
+        text = text.replace(/\s*\u2014\s*/g, ' — ');
 
-      // Title Case Headings
-      if (tagName.startsWith('H')) {
-        fixedText = toTitleCase(fixedText);
+        // 3. Fix space before punctuation
+        text = text.replace(/ ([.,;:!?])/g, '$1');
+
+        // 4. Trim inner node text
+        text = text.trim();
+
+        node.nodeValue = text;
       }
 
-      el.textContent = fixedText;
+      // Title Case headings only (on display text)
+      if (isHeading(tagName)) {
+        const temp = document.createElement('div');
+        temp.innerHTML = el.innerHTML;
+        const textOnly = temp.textContent || '';
+        el.innerHTML = el.innerHTML.replace(textOnly, toTitleCase(textOnly));
+      }
     });
 
-    onFixAll(doc.body.innerHTML);
+    const updatedHtml = doc.body.innerHTML;
+    onFixAll(updatedHtml); // Update editor/html content
+
+    // ✅ Then, run format check
+    const worker = new Worker(new URL('../../utils/formatErrors.ts', import.meta.url), {
+      type: 'module',
+    });
+
+    const preprocessed = updatedHtml.replace(/<br\s*\/?>/gi, '\n');
+    const formatDoc = parser.parseFromString(preprocessed, 'text/html');
+
+    const formatParagraphs = Array.from(
+      formatDoc.body.querySelectorAll('p, h1, h2, h3, h4, h5, h6')
+    ).map(el => {
+      const htmlEl = el as HTMLElement;
+      return {
+        text: htmlEl.innerText.trim(),
+        heading: isHeading(htmlEl.tagName) ? htmlEl.tagName.toUpperCase() : null,
+      };
+    });
+
+    worker.onmessage = e => {
+      setFormatErrors(e.data);
+      worker.terminate();
+    };
+
+    worker.postMessage(formatParagraphs);
   };
+
 
   ////////////////////////////////////////////////////////
   //////////////CONTENT QA TOOL///////////////////////////
