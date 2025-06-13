@@ -5,7 +5,6 @@ import { AnalysisWorkerWrapper, Paper } from 'yoastseo';
 import { Modal } from '../Modal.js';
 import supabase from '../../utils/supabaseInit.js';
 import { UserContext } from '../../context/UserContext.js';
-import { createContentWorker } from '../../utils/contentWorker.js';
 import { analyzeLinks } from '../../utils/analyzeLinksWorker.js';
 
 import { Accordion } from '../Accordion.js';
@@ -18,6 +17,7 @@ import { GoAlert, GoChecklist, GoLaw, GoLink, GoSearch } from 'react-icons/go';
 import { FaCheckCircle, FaTimesCircle, FaTrash } from 'react-icons/fa';
 import {
   AssessmentResult,
+  ContentIssueReport,
   CustomSearchResult,
   ErrorList,
   FormatError,
@@ -27,9 +27,13 @@ import {
 } from '../../types/loom.js';
 import { VIOLATION_PHRASES } from './contants.js';
 import { formatList } from './helpers.js';
-import { KeywordAnalysisResult } from '../../hooks/useKeywordAnalysis.js';
+import {
+  CustomHTMLElement,
+  KeywordAnalysisResult,
+} from '../../hooks/useKeywordAnalysis.js';
 import KeywordResultSection from './KeywordResultSection.js';
 import { Button, Alert } from '../common';
+import ContentIssuesResultSection from './ContentIssuesResultSection.js';
 
 interface LoomProps {
   text: string;
@@ -41,7 +45,8 @@ interface LoomProps {
   onFixAll: (newHtml: string) => void;
   onFormatHighlight: (errors: ErrorList) => void;
   onRemoveFormatHighlight: () => void;
-  onHighlightContent?: (headings: string[], repeatedWords: string[]) => void;
+  // onHighlightContent?: (headings: string[], repeatedWords: string[]) => void;
+  onHighlightContent: () => void;
   onRemoveContentHighlight: () => void;
   highlightedContentSections?: { level: string; text: string; wordCount: number }[];
   onLinkIssues?: (issues: LinkIssue[]) => void;
@@ -50,7 +55,10 @@ interface LoomProps {
   error: string | null;
   onKeywordShowHighlightClick: () => void;
   onKeywordRemoveHighlightClick: () => void;
+  onCheckContentIssuesClick: () => void;
   editMode: boolean;
+  contentIssuesResult: ContentIssueReport | null;
+  contentIssuesErrorMessage: string;
 }
 
 const tabHeaderStyle = clsx(
@@ -98,7 +106,10 @@ export const LoomSidebar: FC<LoomProps> = ({
   error,
   onKeywordShowHighlightClick,
   onKeywordRemoveHighlightClick,
+  onCheckContentIssuesClick,
   editMode,
+  contentIssuesErrorMessage,
+  contentIssuesResult,
 }) => {
   const { userData } = useContext(UserContext);
   const [showSummary, setShowSummary] = useState<boolean>(false);
@@ -132,22 +143,6 @@ export const LoomSidebar: FC<LoomProps> = ({
     Record<string, { heading: string; id: string }[]>
   >({});
   const [showResults, setShowResults] = useState(false);
-
-  const workerRef = useRef<Worker | null>(null);
-  const [wordCount, setWordCount] = useState<number | null>(null);
-  const [contentHeadings, setContentHeadings] = useState<
-    { level: string; text: string; wordCount: number }[]
-  >([]);
-  const [contentHeadingCount, setContentHeadingCount] = useState(0);
-  const [sameStartWordSequences, setSameStartWordSequences] = useState<
-    { startIndex: number; word: string }[]
-  >([]);
-  const [sectionsOver300Words, setSectionsOver300Words] = useState<
-    { heading: string; wordCount: number }[]
-  >([]);
-  const [hasContentChecked, setHasContentChecked] = useState(false);
-  const [totalContentErrors, setTotalContentErrors] = useState(0);
-  const [contentShowResults, setContentShowResults] = useState(false);
 
   const [hasLinkChecked, setHasLinkChecked] = useState(false);
   const [linkShowResults, setLinkShowResults] = useState(false);
@@ -267,11 +262,6 @@ export const LoomSidebar: FC<LoomProps> = ({
 
     return allMatches;
   };
-
-  // useEffect(() => {
-  //   const foundViolations = checkForViolations();
-  //   console.log("Found violations:", foundViolations);
-  // }, [text]);
 
   const checkForDictionaryViolations = () => {
     const allMatches: string[] = [];
@@ -513,20 +503,6 @@ export const LoomSidebar: FC<LoomProps> = ({
     worker.postMessage(paragraphs);
   };
 
-  //   const checkFormatting = () => {
-  //     // Run your formatting checks and update `formatErrors` accordingly
-  //     const results = runAllFormatChecks(); // <- Your custom function
-  //     setFormatErrors(results);
-  //     setShowResults(true);
-  //   };
-  // const handleHeaderClick = (type: string) => {
-  //   // You can call onHighlight with relevant phrases or do any action you want here.
-  //   // For example, highlight all sentences related to this error type.
-  //   const phrasesToHighlight = formatErrors[type] || [];
-  //   onHighlight(phrasesToHighlight);
-  //   setHighlightActive(true);
-  // };
-
   type ErrorKey = keyof ErrorList;
 
   function isErrorKey(key: string): key is ErrorKey {
@@ -682,106 +658,10 @@ export const LoomSidebar: FC<LoomProps> = ({
   ////////////////////////////////////////////////////////
   //////////////CONTENT QA TOOL///////////////////////////
   ////////////////////////////////////////////////////////
+
   const checkContentIssues = () => {
-    if (!workerRef.current) {
-      workerRef.current = createContentWorker();
-    }
-
-    const container = document.createElement('div');
-    container.innerHTML = text;
-
-    const emptySpans = container.querySelectorAll('span');
-    emptySpans.forEach(span => {
-      if (!span.textContent || span.textContent.trim() === '') {
-        span.remove();
-      }
-    });
-
-    const headings: { level: string; text: string; wordCount: number }[] = [];
-    const elements = Array.from(container.children);
-
-    for (let i = 0; i < elements.length; i++) {
-      const el = elements[i];
-      const tag = el.tagName.toUpperCase();
-
-      if (/H[1-6]/.test(tag)) {
-        const level = parseInt(tag.substring(1));
-        const headingText = el.textContent?.trim() || '';
-
-        let contentText = '';
-        for (let j = i + 1; j < elements.length; j++) {
-          const sibling = elements[j];
-          const siblingTag = sibling.tagName.toUpperCase();
-          if (/H[1-6]/.test(siblingTag)) break;
-
-          contentText += ' ' + (sibling.textContent || '');
-        }
-
-        const normalizedContent = contentText.replace(/\((\d+)\)/g, '$1');
-        const words = normalizedContent.match(
-          /\b(?:\d+[-]\d+|\d+|[a-zA-Z]{1,}(?:[-'][a-zA-Z]+)*)\b/gi
-        );
-
-        headings.push({
-          level: 'H' + level,
-          text: headingText,
-          wordCount: words ? words.length : 0,
-        });
-      }
-    }
-
-    setContentHeadings(headings);
-    setContentHeadingCount(headings.length);
-
-    const bigSections = headings
-      .filter(h => h.wordCount > 300)
-      .map(h => ({
-        heading: h.text,
-        wordCount: h.wordCount,
-      }));
-    setSectionsOver300Words(bigSections);
-
-    const plainText = container.textContent || '';
-    const normalizedText = plainText.replace(/\((\d+)\)/g, '$1');
-
-    workerRef.current.onmessage = (e: MessageEvent) => {
-      const { wordCount, sameStartWordSequences } = e.data;
-      setWordCount(wordCount);
-      setSameStartWordSequences(sameStartWordSequences || []);
-
-      // ✅ Count total content errors
-      const errorCount = bigSections.length + (sameStartWordSequences?.length || 0);
-      setTotalContentErrors(errorCount);
-      setContentShowResults(true); // enable UI showing the results
-    };
-
-    workerRef.current.postMessage(normalizedText);
-    setHasContentChecked(true);
+    onCheckContentIssuesClick();
   };
-
-  useEffect(() => {
-    if (highlightedContentSections) {
-      setContentHeadings(highlightedContentSections);
-      setContentHeadingCount(highlightedContentSections.length);
-
-      const bigSections = highlightedContentSections
-        .filter((h: any) => h.wordCount > 300)
-        .map((section: any) => ({
-          heading: section.text, // map 'text' to 'heading'
-          wordCount: section.wordCount,
-        }));
-
-      setSectionsOver300Words(bigSections);
-    }
-  }, [highlightedContentSections]);
-
-  // const totalContentErrors =
-  //   sectionsOver300Words.length + sameStartWordSequences.length;
-
-  const contentErrorMessage =
-    totalContentErrors === 0
-      ? 'No content issues found! Good job! 🎉'
-      : `Content issues found! Please review ⚠️`;
 
   ////////////////////////////////////////////////////////
   ///////////////LINK QA TOOL/////////////////////////////
@@ -875,9 +755,18 @@ export const LoomSidebar: FC<LoomProps> = ({
     setHasKeywordChecked(true);
   };
 
-  //TODO:
   const onShowHighlightClick = () => {
     onKeywordShowHighlightClick();
+  };
+
+  const renderKeywordAlert = () => {
+    if (!keyword) {
+      return <Alert message="Enter keyphrase to analyze" type="info" />;
+    }
+    if (keywordAnalysisResult?.focusKeyphrase === keyword) {
+      return <Alert message="Done analyzing" type="success" />;
+    }
+    return <Alert message="Click 'Analyze Keywords again" type="info" />;
   };
 
   return (
@@ -1573,157 +1462,32 @@ export const LoomSidebar: FC<LoomProps> = ({
 
             <TabPanel id="Content">
               <Button
+                disabled={!text}
                 onClick={checkContentIssues}
                 className="w-full !bg-[#2563ea] hover:!bg-blue-1000 text-white border-0 hover:shadow-none rounded-none dark:hover:shadow-none dark:!text-white">
                 Check For Content Issues
               </Button>
               <div className="flex mt-5 gap-2 mb-1">
                 <Button
-                  onClick={() => {
-                    const headings = sectionsOver300Words.map(section => section.heading);
-                    const repeatedWords = sameStartWordSequences.map(seq => seq.word);
-                    onHighlightContent?.(headings, repeatedWords);
-                  }}
+                  disabled={!text || !contentIssuesResult}
+                  // TODO:
+                  onClick={() => onHighlightContent()}
                   className="w-1/2 text-sm !bg-white text-black !border-black-200 border rounded-none hover:shadow-none hover:!bg-black-200 hover:text-white dark:hover:shadow-none dark:!text-black-200 dark:hover:!text-white">
                   Show Highlights
                 </Button>
                 <Button
+                  disabled={!text || !contentIssuesResult}
                   onClick={onRemoveContentHighlight}
                   className="w-1/2 text-sm !bg-[#EF4444] border-[#EF4444]  text-white border hover:!bg-red-700 hover:!border-red-700 rounded-none hover:shadow-none dark:hover:shadow-none dark:!text-white">
                   Remove Highlights
                 </Button>
               </div>
 
-              {hasContentChecked && (
-                <>
-                  <div
-                    className={`my-4 text-sm font-medium py-4 text-center ${totalContentErrors === 0 ? 'bg-[#e6f6e9] text-green-100' : 'bg-[#faeaea] text-red-600'}`}>
-                    {contentErrorMessage}
-                  </div>
-
-                  <div>
-                    <div className="flex justify-between my-4">
-                      <h2 className="font-bold">Total Word Count</h2>
-                      <span className="font-bold">
-                        {wordCount !== null ? wordCount : '—'}
-                      </span>
-                    </div>
-
-                    <div>
-                      <div className="flex justify-between">
-                        <h2 className="!text-left font-bold">Headings</h2>
-                        <span className="font-bold">{contentHeadingCount}</span>
-                      </div>
-                      <Accordion
-                        header="View Details"
-                        className="[&_svg]:hidden border-none [&>div:first-child]:text-blue-400 [&>div:first-child]:underline [&>div:first-child]:underline-offset-4 [&>svg]:hidden">
-                        {contentHeadings.length > 0 ? (
-                          <ul className=" list-disc">
-                            <div className="flex justify-between">
-                              <h4 className="font-bold">Headings</h4>
-                              <span className="text-sm font-bold">Word Count</span>
-                            </div>
-                            {contentHeadings.map((h, i) => (
-                              <div
-                                className="flex justify-between items-center"
-                                key={h.text}>
-                                <li key={i} className="list-none w-full text-sm my-1">
-                                  <strong>{h.level}:</strong> {h.text}
-                                </li>
-                                <span className="w-[80px] text-right text-sm">
-                                  {h.wordCount}
-                                </span>
-                              </div>
-                            ))}
-                          </ul>
-                        ) : (
-                          <p>No headings found.</p>
-                        )}
-                      </Accordion>
-                    </div>
-
-                    <div>
-                      <Accordion
-                        header={
-                          <div className="flex items-center justify-between w-full">
-                            <span>Sections with over 300 words</span>
-                            {contentShowResults && (
-                              <div
-                                className={`w-[40px] text-right rounded-2xl px-2 ${
-                                  sectionsOver300Words.length > 0
-                                    ? 'bg-[#f5ecee]'
-                                    : 'bg-[#e5f5ea]'
-                                }`}>
-                                <span
-                                  className={
-                                    sectionsOver300Words.length > 0
-                                      ? 'text-red-100'
-                                      : 'text-green-100'
-                                  }>
-                                  {sectionsOver300Words.length}
-                                </span>
-                              </div>
-                            )}
-                          </div>
-                        }
-                        className="text-sm">
-                        {sectionsOver300Words.length > 0 ? (
-                          <ul>
-                            {sectionsOver300Words.map((section, idx) => (
-                              <li key={idx}>
-                                <strong>{section.heading}</strong> — {section.wordCount}{' '}
-                                words
-                              </li>
-                            ))}
-                          </ul>
-                        ) : (
-                          <p>No sections over 300 words found.</p>
-                        )}
-                      </Accordion>
-
-                      <Accordion
-                        header={
-                          <div className="flex items-center justify-between w-full">
-                            <span>Same Start Word in 3 Sentences</span>
-                            {contentShowResults && (
-                              <div
-                                className={`w-[40px] text-right rounded-2xl px-2 ${
-                                  sameStartWordSequences.length > 0
-                                    ? 'bg-[#f5ecee]'
-                                    : 'bg-[#e5f5ea]'
-                                }`}>
-                                <span
-                                  className={
-                                    sameStartWordSequences.length > 0
-                                      ? 'text-red-100'
-                                      : 'text-green-100'
-                                  }>
-                                  {sameStartWordSequences.length}
-                                </span>
-                              </div>
-                            )}
-                          </div>
-                        }
-                        className="mt-2 text-sm">
-                        {sameStartWordSequences.length > 0 ? (
-                          <ul className="px-2">
-                            {sameStartWordSequences.map((seq, idx) => (
-                              <li key={idx} className="list-disc px-2">
-                                Starting word: <strong>{seq.word}</strong> at sentence
-                                index {seq.startIndex + 1}
-                              </li>
-                            ))}
-                          </ul>
-                        ) : (
-                          <p>
-                            No sequences of 3 consecutive sentences starting with the same
-                            word.
-                          </p>
-                        )}
-                      </Accordion>
-                    </div>
-                  </div>
-                </>
+              {contentIssuesResult && (
+                <ContentIssuesResultSection
+                  result={contentIssuesResult}
+                  errorMessage={contentIssuesErrorMessage}
+                />
               )}
             </TabPanel>
 
@@ -2034,7 +1798,7 @@ export const LoomSidebar: FC<LoomProps> = ({
               {hasKeywordChecked && (
                 <div>
                   {error && <Alert message={error || linkErrorMessage} type="error" />}
-
+                  {renderKeywordAlert()}
                   {keywordAnalysisResult && !error && (
                     <div className="">
                       <KeywordResultSection result={keywordAnalysisResult} />

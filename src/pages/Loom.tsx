@@ -8,7 +8,11 @@ import { Editor as TinyMCEEditor } from 'tinymce';
 
 import { LoomSidebar } from '../components/loom/LoomSidebar';
 import { addHeadingIds } from '../utils/sb37HTMLHelper';
-import { useFocusKeywordFormValidate, useKeywordAnalysis } from '../hooks';
+import {
+  useContentIssuesAnalysis,
+  useFocusKeywordFormValidate,
+  useKeywordAnalysis,
+} from '../hooks';
 import {
   checkPixelLength,
   highlightKeywordsInDiv,
@@ -23,6 +27,8 @@ import {
 } from '../components/loom/contants';
 import { CustomHTMLElement } from '../hooks/useKeywordAnalysis';
 import { Input } from '../components/common';
+
+import { highlightContentIssuesDiv, removeHighlight } from '../utils/contentWorker';
 
 export const errorLengthStyle = 'bg-red-200';
 export const warningLengthStyle = 'bg-yellow-200';
@@ -96,18 +102,6 @@ function highlightLinkIssuesInHtml(html: string, issues: LinkIssue[]): string {
 
 const TINYMCE_API_KEY = 'p964xz9rbfvw8dgzbv2k8vpw3n70suinf499l1nmbl1ajhks';
 
-// const addHeadingAnchors = (html: string): string => {
-//   const parser = new DOMParser();
-//   const doc = parser.parseFromString(html, 'text/html');
-//   let idCounter = 0;
-
-//   doc.querySelectorAll('h1, h2, h3, h4, h5, h6').forEach(el => {
-//     if (!el.id) el.id = `heading-${idCounter++}`;
-//   });
-
-//   return doc.body.innerHTML;
-// };
-
 const minHeightStyle = 'min-h-[450px]';
 
 const modeActive = clsx(
@@ -143,9 +137,16 @@ const Loom: FC = () => {
   // const [linkIssues, setLinkIssues] = useState<LinkIssue[] | null>(null);
 
   const divRef = useRef<CustomHTMLElement | React.Ref<Editor> | null>(null);
+  const container = divRef.current as CustomHTMLElement;
 
   const { results, runAnalysis, error, handleSetKeywordAnalysisError } =
     useKeywordAnalysis();
+
+  const {
+    errorMessage: contentIssuesErrorMessage,
+    result: contentIssuesResult,
+    runAnalysis: runContentIssues,
+  } = useContentIssuesAnalysis();
 
   const {
     error: errorValidate,
@@ -154,14 +155,14 @@ const Loom: FC = () => {
     resetError,
   } = useFocusKeywordFormValidate();
 
-  const handleAnalyze = () => {
+  const handleKeywordAnalyze = () => {
     if (!htmlString) {
       handleSetKeywordAnalysisError('No HTML string found.');
     }
     if (validate(focusKeyword)) {
       runAnalysis({
         altKeyphrase: alternateEsq,
-        container: divRef.current as CustomHTMLElement,
+        container,
         editMode,
         focusKeyphrase: focusKeyword,
         otherKeywords: otherKeywords,
@@ -172,13 +173,13 @@ const Loom: FC = () => {
     setEditMode(false);
   };
 
+  const onCheckContentIssuesClick = () => {
+    runContentIssues({ container, editMode });
+    setEditMode(false);
+  };
+
   const onKeywordShowHighlightClick = () => {
-    const container = (divRef.current as HTMLElement) ?? null;
     if (!container || !focusKeyword) return;
-
-    // // Optional: remove existing highlights first
-    // container.innerHTML = container.innerHTML.replace(/<mark[^>]*>(.*?)<\/mark>/gi, '$1');
-
     highlightKeywordsInDiv(container, focusKeyword, alternateEsq);
   };
 
@@ -216,52 +217,6 @@ const Loom: FC = () => {
 
     return doc.body.innerHTML;
   };
-
-  // const applyFormatHighlights = (html: string, phrases: string[], className: string) => {
-  //   const parser = new DOMParser();
-  //   const doc = parser.parseFromString(html, 'text/html');
-
-  //   const regex = new RegExp(`\\b(${phrases.map(escapeRegex).join('|')})\\b`, 'gi');
-
-  //   const walk = (node: Node) => {
-  //     if (node.nodeType === Node.TEXT_NODE && regex.test(node.nodeValue || '')) {
-  //       const tempDiv = document.createElement('div');
-  //       tempDiv.innerHTML = (node.nodeValue || '').replace(regex, match => `<mark class="${className}">${match}</mark>`);
-  //       const fragment = document.createDocumentFragment();
-  //       [...tempDiv.childNodes].forEach(n => fragment.appendChild(n));
-  //       node.parentNode?.replaceChild(fragment, node);
-  //     } else if (node.nodeType === Node.ELEMENT_NODE) {
-  //       node.childNodes.forEach(child => walk(child));
-  //     }
-  //   };
-
-  //   walk(doc.body);
-
-  //   return doc.body.innerHTML;
-  // };
-
-  //   const applyContentHighlights = (html: string, phrases: string[], className: string) => {
-  //   const parser = new DOMParser();
-  //   const doc = parser.parseFromString(html, 'text/html');
-
-  //   const regex = new RegExp(`\\b(${phrases.map(escapeRegex).join('|')})\\b`, 'gi');
-
-  //   const walk = (node: Node) => {
-  //     if (node.nodeType === Node.TEXT_NODE && regex.test(node.nodeValue || '')) {
-  //       const tempDiv = document.createElement('div');
-  //       tempDiv.innerHTML = (node.nodeValue || '').replace(regex, match => `<mark class="${className}">${match}</mark>`);
-  //       const fragment = document.createDocumentFragment();
-  //       [...tempDiv.childNodes].forEach(n => fragment.appendChild(n));
-  //       node.parentNode?.replaceChild(fragment, node);
-  //     } else if (node.nodeType === Node.ELEMENT_NODE) {
-  //       node.childNodes.forEach(child => walk(child));
-  //     }
-  //   };
-
-  //   walk(doc.body);
-
-  //   return doc.body.innerHTML;
-  // };
 
   function highlightTextNode(
     node: Text,
@@ -462,32 +417,16 @@ const Loom: FC = () => {
     setHighlightedHtml(newHtml);
   };
 
-  // const highlightFormattingPhrases = (phrases: string[]) => {
-  //   console.log('[highlightFormattingPhrases] received phrases:', phrases);
-  //   const cleanHtml = htmlString.replace(/<mark[^>]*>(.*?)<\/mark>/gi, '$1');
-
-  //   if (!phrases.length) return setHighlightedHtml(null);
-
-  //   const sorted = [...phrases]
-  //     .map(p => p.trim())
-  //     .filter(Boolean)
-  //     .sort((a, b) => b.length - a.length); // Longer phrases first
-
-  //   const newHtml = applyFormatHighlights(cleanHtml, sorted, 'bg-red-300 text-red-700 rounded-sm px-1');
-
-  //   setHighlightedHtml(newHtml);
-  // };
-
   const removeHighlights = () => setHighlightedHtml(null);
   const removeFormatHighlights = () => setHighlightedHtml(null);
 
   useEffect(() => {
     if (!editMode) {
-      // highlightPhrases([focusKeyword, alternateEsq].filter(Boolean));
       highlightKeywordsInDiv(divRef.current as HTMLElement, focusKeyword, alternateEsq);
     } else {
       removeHighlights();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editMode, results]);
 
   const highlightContent = (repeatedWords: string[]) => {
@@ -635,9 +574,16 @@ const Loom: FC = () => {
     setHighlightedContentSections(sections); // <- Save section info to your state
   };
 
+  const onContentIssuesHighlight = () => {
+    highlightContentIssuesDiv(
+      container,
+      contentIssuesResult?.over300Sections || [],
+      contentIssuesResult?.sameWordStreaks || []
+    );
+  };
+
   const removeContentHighlights = () => {
-    const cleanHtml = htmlString.replace(/<mark[^>]*>(.*?)<\/mark>/gi, '$1');
-    setHighlightedHtml(cleanHtml);
+    removeHighlight(container);
   };
 
   return (
@@ -830,7 +776,9 @@ const Loom: FC = () => {
               editMode={editMode}
               error={error}
               keywordAnalysisResult={results}
-              handleAnalyze={handleAnalyze}
+              handleAnalyze={handleKeywordAnalyze}
+              contentIssuesResult={contentIssuesResult}
+              contentIssuesErrorMessage={contentIssuesErrorMessage}
               text={htmlString}
               keyword={focusKeyword}
               metaTitle={title}
@@ -855,9 +803,10 @@ const Loom: FC = () => {
                 setHighlightedHtml(newHtml);
               }}
               onRemoveFormatHighlight={removeFormatHighlights}
-              onHighlightContent={repeatedWords => {
-                highlightContent(repeatedWords);
-              }}
+              // onHighlightContent={repeatedWords => {
+              //   highlightContent(repeatedWords);
+              // }}
+              onHighlightContent={onContentIssuesHighlight}
               onRemoveContentHighlight={removeContentHighlights}
               highlightedContentSections={highlightedContentSections}
               onLinkIssues={issues => {
@@ -867,6 +816,7 @@ const Loom: FC = () => {
               }}
               onKeywordShowHighlightClick={onKeywordShowHighlightClick}
               onKeywordRemoveHighlightClick={onKeywordRemoveHighlightClick}
+              onCheckContentIssuesClick={onCheckContentIssuesClick}
             />
           </div>
         </section>

@@ -4,9 +4,9 @@ import {
   perfectLengthStyle,
   warningLengthStyle,
 } from '../../pages/Loom';
-import { CONSTRAINT, HeadingEntry } from '../../types/loom';
+import { CONSTRAINT, HeadingEntry, HeadingWithOptionalCount } from '../../types/loom';
 import { textToHtml } from '../../utils/formatter';
-import { normalizeKeyword } from '../../utils/keywordWorker';
+import { normalizeKeyword, normalizeTextToWords } from '../../utils/keywordWorker';
 
 // Normalize URLs for matching
 export const normalizeUrl = (url: string): string => {
@@ -50,50 +50,98 @@ export const checkPixelLength = (text: string, constraint: CONSTRAINT) => {
   return { style, width: { width: `${indicatorWidth}%` } };
 };
 
+// --- Word Count + Density ---
+export function getWordCount(text: string): number {
+  return normalizeTextToWords(text).length;
+}
+
+export function getKeywordDensity(text: string, totalKeywordCount: number): number {
+  const totalWords = getWordCount(text);
+  return totalWords === 0 ? 0 : (totalKeywordCount / totalWords) * 100;
+}
+
+export const getSentences = (text: string) => {
+  const sentences = text.match(/[^.!?]+[.!?]?/g) || [];
+  return sentences;
+};
+
+export function createHeadingEntry(
+  level: string,
+  buffer: string[],
+  contentBuffer: string[],
+  withWordCount: boolean
+): HeadingWithOptionalCount {
+  const text = buffer.join(' ');
+  const wordCount = withWordCount ? getWordCount(contentBuffer.join(' ')) : undefined;
+
+  const entry: HeadingWithOptionalCount = {
+    level: level as HeadingEntry['level'],
+    text,
+  };
+
+  if (wordCount !== undefined) {
+    entry.wordCount = wordCount;
+  }
+
+  return entry;
+}
+
+export function isTargetHeading(tag: string, includeAllHeadings: boolean): boolean {
+  return includeAllHeadings ? /^H[1-6]$/.test(tag) : tag === 'H2' || tag === 'H3';
+}
+
 export function getHeadings({
   editMode,
   container,
+  includeAllHeadings = false,
+  withWordCount = false,
 }: {
   container: CustomHTMLElement;
   editMode: boolean;
-}): HeadingEntry[] {
+  includeAllHeadings?: boolean;
+  withWordCount?: boolean;
+}): HeadingWithOptionalCount[] {
   const html = editMode ? container.currentContent : container.innerHTML;
-
   const doc = textToHtml(html);
   const children = Array.from(doc.body.children);
 
-  const combinedHeadings: HeadingEntry[] = [];
+  const combinedHeadings: HeadingWithOptionalCount[] = [];
   let buffer: string[] = [];
-  let currentLevel: 'H2' | 'H3' | null = null;
+  let contentBuffer: string[] = [];
+  let currentLevel: string | null = null;
 
   for (const el of children) {
-    const tag = el.tagName?.toUpperCase();
+    if (!el.tagName) continue;
+    const tag = el.tagName.toUpperCase();
 
-    if (tag === 'H2' || tag === 'H3') {
+    if (isTargetHeading(tag, includeAllHeadings)) {
       const text = el.textContent?.trim();
-      if (text) {
-        if (!currentLevel) {
-          currentLevel = tag as 'H2' | 'H3';
-        }
+      if (!text) continue;
+
+      if (currentLevel === tag && contentBuffer.length === 0) {
         buffer.push(text);
+      } else {
+        if (buffer.length > 0 && currentLevel) {
+          combinedHeadings.push(
+            createHeadingEntry(currentLevel, buffer, contentBuffer, withWordCount)
+          );
+        }
+        buffer = [text];
+        contentBuffer = [];
+        currentLevel = tag;
       }
     } else {
-      if (buffer.length > 0 && currentLevel) {
-        combinedHeadings.push({
-          level: currentLevel,
-          text: buffer.join(' '),
-        });
-        buffer = [];
-        currentLevel = null;
+      const contentText = el.textContent?.trim();
+      if (contentText) {
+        contentBuffer.push(contentText);
       }
     }
   }
 
   if (buffer.length > 0 && currentLevel) {
-    combinedHeadings.push({
-      level: currentLevel,
-      text: buffer.join(' '),
-    });
+    combinedHeadings.push(
+      createHeadingEntry(currentLevel, buffer, contentBuffer, withWordCount)
+    );
   }
 
   return combinedHeadings;

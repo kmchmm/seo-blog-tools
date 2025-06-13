@@ -81,6 +81,27 @@ export type Section = {
 };
 
 export interface HeadingEntry {
-  level: 'H2' | 'H3';
+  level: 'H1' | 'H2' | 'H3' | 'H4' | 'H5' | 'H6';
   text: string;
+  wordCount?: number;
+}
+
+export type HeadingWithOptionalCount = HeadingEntry & Partial<{ wordCount: number }>;
+
+export interface SectionInfo {
+  level: string;
+  text: string;
+  wordCount: number;
+}
+
+export interface SameWordStreak {
+  heading: string;
+  sentences: string[];
+}
+
+export interface ContentIssueReport {
+  over300Sections: SectionInfo[];
+  sameWordStreaks: SameWordStreak[];
+  headings: HeadingWithOptionalCount[];
+  totalWordCount: number;
 }

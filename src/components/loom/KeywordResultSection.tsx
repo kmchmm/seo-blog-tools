@@ -13,6 +13,41 @@ const KeywordResultSection = ({ result }: Props) => {
   const { density, headingAnalysis, keywordCounts, otherKeywords, sectionAnalysis } =
     result || {};
   const { altCount, focusCount } = keywordCounts || {};
+  const { headings, percent, optimized, total } = headingAnalysis || {};
+  const {
+    optimized: optimizedSections,
+    percent: percentSections,
+    total: totalSections,
+    withoutFocus,
+  } = sectionAnalysis || {};
+
+  const renderHeadingResult = () => {
+    if (!headings.length) {
+      return <p className="text-gray-600 italic">No H2 or H3 headings found</p>;
+    }
+
+    return (
+      Array.isArray(headings) &&
+      headings.map(heading => (
+        <li key={heading.text}>
+          <p>
+            {heading.level} - {heading.text}{' '}
+            <span className={heading.optimized ? 'text-green-600' : 'text-red-600'}>
+              {heading.optimized ? '✓' : '✗'}
+            </span>
+          </p>
+        </li>
+      ))
+    );
+  };
+
+  const renderHeadingsAlert = () => {
+    if (!headings.length) return null;
+    if (percent <= 75) {
+      return <Alert type="success" message="Good results" />;
+    }
+    return <Alert message="Must be equal to or lower than 75%!" type="error" />;
+  };
 
   return (
     <div className="space-y-3 mt-4">
@@ -33,54 +68,39 @@ const KeywordResultSection = ({ result }: Props) => {
 
       <Accordion
         header="H2 & H3 Optimization"
-        badge={headingAnalysis.percent}
-        badgeColor={getHeaderBadgeColor(headingAnalysis.percent)}>
+        badge={percent}
+        badgeColor={getHeaderBadgeColor(percent)}>
         <div className="flex flex-col gap-y-2">
           <ul className="list-disc ml-4">
-            {headingAnalysis.percent <= 75 ? (
-              <Alert type="success" message="Good results" />
-            ) : (
-              <Alert message="Must be equal to or lower than 75%!" type="error" />
-            )}
-
-            {headingAnalysis.headings.map(heading => (
-              <li key={heading.text}>
-                <p>
-                  {heading.level} - {heading.text}{' '}
-                  <span className={heading.optimized ? 'text-green-600' : 'text-red-600'}>
-                    {heading.optimized ? '✓' : '✗'}
-                  </span>
-                </p>
-              </li>
-            ))}
+            {renderHeadingsAlert()}
+            {renderHeadingResult()}
+            <p className="text-gray-600 italic">
+              {optimized} optimized of {total} headings
+            </p>
           </ul>
-
-          <p className="text-gray-600 italic">
-            {headingAnalysis.optimized} optimized of {headingAnalysis.total} headings
-          </p>
         </div>
       </Accordion>
 
       <Accordion
         header="Per Section Optimization"
-        badge={sectionAnalysis.percent}
-        badgeColor={sectionAnalysis.percent === 100 ? 'green' : 'red'}>
-        {sectionAnalysis.withoutFocus.length > 0 ? (
+        badge={percentSections}
+        badgeColor={percentSections === 100 ? 'green' : 'red'}>
+        {withoutFocus.length > 0 ? (
           <Alert
             message="Please make sure each section has the focus keyphrase."
             type="error"
           />
         ) : (
-          <Alert message="Good results" type="success" />
+          <Alert message="All sections have the focus keyphrase." type="success" />
         )}
 
-        {sectionAnalysis.withoutFocus.length > 0 && (
+        {withoutFocus.length > 0 && (
           <div className="mt-2">
             <p className="text-gray-700 font-medium mb-1">
               Sections without the focus keyphrase:
             </p>
             <ul className="list-disc ml-5 space-y-1">
-              {sectionAnalysis.withoutFocus.map((heading, i) => (
+              {withoutFocus.map((heading, i) => (
                 <li key={i}>{heading}</li>
               ))}
             </ul>
@@ -88,7 +108,7 @@ const KeywordResultSection = ({ result }: Props) => {
         )}
 
         <p className="text-gray-600 italic mt-2">
-          {sectionAnalysis.optimized} optimized of {sectionAnalysis.total} sections
+          {optimizedSections} optimized of {totalSections} sections
         </p>
       </Accordion>
       <p>
