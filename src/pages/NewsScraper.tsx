@@ -32,16 +32,18 @@ const NewsScraper: React.FC = () => {
 
     const isDev = import.meta.env.MODE === 'development';
     const apiUrl = isDev
-      ? import.meta.env.VITE_LOCAL_NEWS_API || 'http://localhost:3000/news'
+      ? import.meta.env.VITE_LOCAL_NEWS_API || 'http://localhost:8001/news'
       : import.meta.env.VITE_PROD_NEWS_API || 'http://raket.arashlaw.ph:8001/news';
 
     try {
-      const response = await axios.get(`${apiUrl}/${query}`, {
+      const response = await axios.get(apiUrl, {
         headers: {
+          'X-Keywords': query,
           'X-Time': timeFilter,
         },
         signal: controller.signal,
       });
+
 
       const data = response.data;
       if (data.deta && data.deta.length > 0) {
