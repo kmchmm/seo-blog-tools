@@ -7,6 +7,8 @@ import supabase from '../../utils/supabaseInit.js';
 import { UserContext } from '../../context/UserContext.js';
 import { createContentWorker } from '../../utils/contentWorker.js';
 import { analyzeLinks } from '../../utils/analyzeLinksWorker.js';
+import YoastWorker from '../../utils/yoastWorker.ts?worker';
+
 
 import { Accordion } from '../Accordion.js';
 import { Summary } from '../Summary.js';
@@ -182,61 +184,47 @@ export const LoomSidebar: FC<LoomProps> = ({
   ////////////////////////////////////////////////////////
   ////////////////YOAST  TOOL/////////////////////////////
   ////////////////////////////////////////////////////////
-  const yoastSEOAnalyze = () => {
-    const url = new URL('../../utils/yoastWorker.ts', import.meta.url);
-    const newWorker = new AnalysisWorkerWrapper(
-      new Worker(url, {
-        type: 'module',
-      })
-    );
+const yoastSEOAnalyze = async () => {
+  const workerInstance = new YoastWorker();
+  const newWorker = new AnalysisWorkerWrapper(workerInstance);
 
-    newWorker
-      .initialize({
-        logLevel: 'TRACE',
-      })
-      .then(() => {
-        const paper = new Paper(text, {
-          keyword,
-          title: metaTitle,
-          description: metaDescription,
-        });
+  try {
+    await newWorker.initialize({ logLevel: 'TRACE' });
 
-        return newWorker.analyze(paper);
-      })
-      .then((results: any) => {
-        const readabilityResult = results.result.readability.results;
-        const goodReadability: AssessmentResult[] = [];
-        const badReadability: AssessmentResult[] = [];
-        const goodSEO: AssessmentResult[] = [];
-        const badSEO: AssessmentResult[] = [];
+    const paper = new Paper(text, {
+      keyword,
+      title: metaTitle,
+      description: metaDescription,
+    });
 
-        readabilityResult.forEach((result: AssessmentResult) => {
-          if (result.score > 6) {
-            goodReadability.push(result);
-          } else if (result.score > 0) {
-            badReadability.push(result);
-          }
-        });
+    const results = await newWorker.analyze(paper);
 
-        const seoResult = results.result.seo[''].results;
-        seoResult.forEach((result: AssessmentResult) => {
-          if (result.score > 6) {
-            goodSEO.push(result);
-          } else if (result.score > 0) {
-            badSEO.push(result);
-          }
-        });
+    // Process readability
+    const readabilityResult = results.result.readability.results;
+    const goodReadability: AssessmentResult[] = [];
+    const badReadability: AssessmentResult[] = [];
+    readabilityResult.forEach((result: AssessmentResult) => {
+      if (result.score > 6) goodReadability.push(result);
+      else if (result.score > 0) badReadability.push(result);
+    });
 
-        setReadabilityProblems(badReadability);
-        setReadabilityAchievements(goodReadability);
-        setSEOProblems(badSEO);
-        setSEOAchievements(goodSEO);
-      })
-      .catch((error: Error) => {
-        console.error('An error occured while analyzing the text:');
-        console.error(error);
-      });
-  };
+    // Process SEO
+    const seoResult = results.result.seo[''].results; // verify if '' is correct key
+    const goodSEO: AssessmentResult[] = [];
+    const badSEO: AssessmentResult[] = [];
+    seoResult.forEach((result: AssessmentResult) => {
+      if (result.score > 6) goodSEO.push(result);
+      else if (result.score > 0) badSEO.push(result);
+    });
+
+    setReadabilityProblems(badReadability);
+    setReadabilityAchievements(goodReadability);
+    setSEOProblems(badSEO);
+    setSEOAchievements(goodSEO);
+  } catch (error) {
+    console.error('An error occurred while analyzing the text:', error);
+  }
+};
 
   ////////////////////////////////////////////////////////
   //////////////////SB37 TOOL/////////////////////////////

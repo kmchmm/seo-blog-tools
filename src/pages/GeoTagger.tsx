@@ -173,7 +173,6 @@ const GeoTagger: FC = () => {
       const response = await axios.post(`${API_URL_WRITE}`, formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
-
         },
         responseType: 'blob',
       });
@@ -212,7 +211,6 @@ const GeoTagger: FC = () => {
       const response = await axios.post(`${API_URL_WRITE}`, formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
-
         },
         responseType: 'blob',
       });

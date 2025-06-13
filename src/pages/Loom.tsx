@@ -143,7 +143,7 @@ const Loom: FC = () => {
   // const [linkIssues, setLinkIssues] = useState<LinkIssue[] | null>(null);
   // const hasLoaded = useRef(false);
 
-  // const [highlightLinks, ] = useState(false);
+  // const [highlightLinks, setHighlightLinks] = useState(false);
 
 
   const escapeRegex = (str: string) =>

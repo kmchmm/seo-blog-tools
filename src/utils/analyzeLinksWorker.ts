@@ -8,7 +8,7 @@ export function analyzeLinks(htmlString: string): {
   invalidLinks: LinkDetail[];
   missingTrailingSlash: LinkDetail[];
   duplicateLinks: LinkDetail[];
-  brokenLinks: LinkDetail[]; // Placeholder
+  brokenLinks: LinkDetail[];
   identicalAnchors: LinkDetail[];
   invalidAnchors: LinkDetail[];
   internalLinks: LinkDetail[];
