@@ -4,7 +4,7 @@ import clsx from 'clsx';
 import { UserContext } from '../context/UserContext';
 
 import { IBtnType } from '../types';
-import { Button } from '../components/Button';
+import { Button } from '../components/common';
 import { Loading } from '../components/Loading';
 
 import RefreshScore from '../assets/icons/refresh-score.svg?react';
@@ -28,7 +28,7 @@ const SERPRank: FC = () => {
   const [records, setRecords] = useState<RecordType[]>([]);
   const [error, setError] = useState('');
   const [pendingRecordId, setPendingRecordId] = useState<string | null>(null);
-  const [refreshingRecordId, setRefreshingRecordId] = useState<string | null>(null);  // Track refreshing state
+  const [refreshingRecordId, setRefreshingRecordId] = useState<string | null>(null); // Track refreshing state
 
   const { userData } = useContext(UserContext);
 
@@ -97,7 +97,7 @@ const SERPRank: FC = () => {
 
   // Handle update request (refresh score)
   const handleUpdateRequest = async (recordId: string) => {
-    if (refreshingRecordId) return;  // If already refreshing, prevent multiple clicks
+    if (refreshingRecordId) return; // If already refreshing, prevent multiple clicks
 
     try {
       setRefreshingRecordId(recordId); // Set the record as refreshing
@@ -115,7 +115,11 @@ const SERPRank: FC = () => {
         const updatedRecords: RecordType[] = response.data;
         const updatedRecord = updatedRecords.find(r => r.id === recordId);
 
-        if (updatedRecord && updatedRecord.moz_rank != null && updatedRecord.ak_rank != null) {
+        if (
+          updatedRecord &&
+          updatedRecord.moz_rank != null &&
+          updatedRecord.ak_rank != null
+        ) {
           setRecords(updatedRecords);
           setRefreshingRecordId(null); // Clear refreshing state when done
           return;
@@ -138,7 +142,8 @@ const SERPRank: FC = () => {
   };
 
   return (
-    <div className={clsx('flex flex-col w-full pt-4 px-3', 'bg-white-100 dark:bg-blue-600')}>
+    <div
+      className={clsx('flex flex-col w-full pt-4 px-3', 'bg-white-100 dark:bg-blue-600')}>
       <h1 className="text-black-100 dark:text-white-100 text-5xl">AK SERP Checker</h1>
       <h6 className="italic">Our SERPChecker TOOL. (RANKING TOOL)</h6>
 
@@ -162,8 +167,7 @@ const SERPRank: FC = () => {
             onClick={handleSearch}
             disabled={loading || isSearchPending()}
             btnType={IBtnType.SEARCH}
-            className="!bg-black-200 !text-white hover:!bg-black dark:!bg-transparent dark:hover:!bg-yellow-100 dark:hover:!text-black-100"
-          >
+            className="!bg-black-200 !text-white hover:!bg-black dark:!bg-transparent dark:hover:!bg-yellow-100 dark:hover:!text-black-100">
             {loading ? 'Checking...' : isSearchPending() ? 'Pending...' : 'Check'}
           </Button>
         </div>
@@ -181,7 +185,11 @@ const SERPRank: FC = () => {
         </p>
       ) : (
         <div className="paa-table-container m-0 p-0 w-full">
-          <table className={clsx('w-full my-[20px] mx-auto border-collapse', 'table-fixed shadow-[0_4px_6px_rgba(0, 0, 0, 0.1)]')}>
+          <table
+            className={clsx(
+              'w-full my-[20px] mx-auto border-collapse',
+              'table-fixed shadow-[0_4px_6px_rgba(0, 0, 0, 0.1)]'
+            )}>
             <thead>
               <tr>
                 <th className="w-1/4 border border-amber-200">Keyword</th>
@@ -224,15 +232,20 @@ const SERPRank: FC = () => {
                     <div className="relative group inline-block">
                       <Button
                         onClick={() => handleUpdateRequest(record.id)}
-                        disabled={refreshingRecordId === record.id || loading || pendingRecordId === record.id}
+                        disabled={
+                          refreshingRecordId === record.id ||
+                          loading ||
+                          pendingRecordId === record.id
+                        }
                         className={clsx(
-                          "p-2 !bg-transparent border !border-transparent",
-                          "hover:!border-black-200 dark:hover:!border-yellow-100",
-                          "rounded cursor-pointer hover:!bg-transparent hover:!shadow-none"
-                        )}
-                      >
+                          'p-2 !bg-transparent border !border-transparent',
+                          'hover:!border-black-200 dark:hover:!border-yellow-100',
+                          'rounded cursor-pointer hover:!bg-transparent hover:!shadow-none'
+                        )}>
                         {refreshingRecordId === record.id ? (
-                          <span className="text-xs text-gray-600 dark:text-gray-300">Refreshing...</span>
+                          <span className="text-xs text-gray-600 dark:text-gray-300">
+                            Refreshing...
+                          </span>
                         ) : (
                           <RefreshScore className="w-6 h-6 text-black-200 dark:text-white" />
                         )}

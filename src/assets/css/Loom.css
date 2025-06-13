@@ -1,0 +1,121 @@
+.prose h1 {
+  font-size: 2.25rem; 
+  font-weight: 900;
+}
+
+.prose h2 {
+  font-size: 1.875rem; 
+  font-weight: 700;
+  text-align: left                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    ;
+}
+
+.prose h3 {
+  font-size: 1.5rem;   
+  font-weight: 700;
+}
+
+.prose h4 {
+  font-size: 1.25rem; 
+  font-weight: 700;
+}
+
+.prose h5 {
+  font-size: 1.125rem; 
+  font-weight: 600;
+}
+
+.prose h6 {
+  font-size: 1rem;     
+  font-weight: 600;
+}
+
+.prose p {
+  font-size: 1rem;     
+  line-height: 1.6;
+}
+
+.prose ul, .prose ol {
+  padding-left: 1.5rem;
+}
+
+.prose ul{
+  list-style-type: disc;
+}
+
+.prose ol{
+  list-style-type: decimal;
+}
+
+.prose strong {
+  font-weight: bold;
+}
+
+.prose em {
+  font-style: italic;
+}
+
+.prose a {
+  color: #1d4ed8; 
+  text-decoration: underline;
+}
+
+.prose blockquote {
+  font-style: italic;
+  border-left: 4px solid #ccc;
+  padding-left: 1rem;
+  color: #555;
+  margin: 1rem 0;
+}
+
+.highlight-red {
+  background-color: rgba(255, 0, 0, 0.2);
+  color: red;
+  font-weight: bold;
+}
+
+.mce-content-body mark {
+  background-color: yellow;
+  color: black;
+}
+
+mark.violation {
+  background-color: yellow;
+}
+
+mark.dictionary {
+  background-color: lightgreen;
+}
+
+.bg-red-200 {
+  background-color: #fecaca; /* Tailwind red-200 */
+}
+
+.error-highlight {
+  background-color: rgba(255, 0, 0, 0.3);
+  color: #a70000;
+}
+
+.warning-highlight {
+  background-color: rgba(255, 255, 0, 0.3);
+  color: #9a8f00;
+}
+
+.underline {
+  text-decoration: underline;
+}
+
+.decoration-wavy {
+  text-decoration-style: wavy;
+}
+
+.decoration-error {
+  text-decoration-color: #ef476f; /* pink/red */
+}
+
+.decoration-internal {
+  text-decoration-color: #06d6a0; /* green */
+}
+
+.decoration-external {
+  text-decoration-color: #073b4c; /* dark blue */
+}

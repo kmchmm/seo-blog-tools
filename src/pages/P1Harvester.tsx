@@ -3,14 +3,14 @@ import axios from 'axios';
 import clsx from 'clsx';
 
 import pb from '../utils/pocketbaseInit.js';
-import { Button } from '../components/Button';
+import { Button } from '../components/common';
 import { Loading } from '../components/Loading';
 import { UserContext } from '../context/UserContext';
 import { ToastContext } from '../context/ToastContext';
 import Download from '../assets/icons/download.svg?react';
 
 const AK_SERPER_COLLECTION = 'ak_serper';
-const AK_OCTOBITS_COLLECTION = 'ak_octobits';
+// const AK_OCTOBITS_COLLECTION = 'ak_octobits';
 
 interface resultData {
   title: string;

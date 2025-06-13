@@ -1,7 +1,7 @@
 import { ChangeEvent, FC, useCallback, useEffect, useRef, useState } from 'react';
 import clsx from 'clsx';
 
-import { Button } from '../components/Button';
+import { Button } from '../components/common';
 
 enum ILexiTweakMode {
   SENTENCE = 'sentence',

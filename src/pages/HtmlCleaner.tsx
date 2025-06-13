@@ -2,13 +2,13 @@ import { FC, useEffect, useRef, useState } from 'react';
 import clsx from 'clsx';
 import Sweep from '../assets/icons/sweep.svg?react';
 import { Editor } from '@tinymce/tinymce-react';
-import { Editor as TinyMCEEditor, EditorEvent } from 'tinymce';
-import CodeMirror, { ViewUpdate } from '@uiw/react-codemirror';
+import { Editor as TinyMCEEditor } from 'tinymce';
+import CodeMirror from '@uiw/react-codemirror';
 import { html } from '@codemirror/lang-html';
 import { encode } from 'html-entities';
 import { html_beautify, HTMLBeautifyOptions } from 'js-beautify';
 
-import { Button } from '../components/Button';
+import { Button } from '../components/common';
 
 interface handleDescendantProps {
   element: Element;
@@ -296,24 +296,27 @@ const prettifyXML = (xml: String) => {
   xml = xml.replace(/(\r\n|\n|\r)/gm, '\u0020').replace(/>\s+</g, '><');
   xml = xml.replace(/(>)(<)(\/*)/g, '$1\r\n$2$3');
 
-  return xml
-    .split('\r\n')
-    .map((node, index) => {
-      //XML elements now split into lines
-      let indent = 0;
-      if (node.match(/.+<\/\w[^>]*>$/)) {
-        indent = 0;
-      } else if (node.match(/^<\/\w/) && pad > 0) {
-        pad -= 1;
-      } else if (node.match(/^<[\w^>]*[^\/]>.*$/)) {
-        indent = 1;
-      } else {
-        indent = 0;
-      }
-      pad += indent;
-      return padding.repeat(pad - indent) + node;
-    })
-    .join('\r\n');
+  return (
+    xml
+      .split('\r\n')
+      // .map((node, index) => {
+      .map(node => {
+        //XML elements now split into lines
+        let indent = 0;
+        if (node.match(/.+<\/\w[^>]*>$/)) {
+          indent = 0;
+        } else if (node.match(/^<\/\w/) && pad > 0) {
+          pad -= 1;
+        } else if (node.match(/^<[\w^>]*[^\/]>.*$/)) {
+          indent = 1;
+        } else {
+          indent = 0;
+        }
+        pad += indent;
+        return padding.repeat(pad - indent) + node;
+      })
+      .join('\r\n')
+  );
 };
 
 const HtmlCleaner: FC = () => {
@@ -402,11 +405,13 @@ const HtmlCleaner: FC = () => {
     }
   };
 
-  const onCodeMirrorChange = (value: string, viewUpdate: ViewUpdate) => {
+  // const onCodeMirrorChange = (value: string, viewUpdate: ViewUpdate) => {
+  const onCodeMirrorChange = (value: string) => {
     setHtmlString(value);
   };
 
-  const onTinyMCEChange = (e: EditorEvent<Event>) => {
+  // const onTinyMCEChange = (e: EditorEvent<Event>) => {
+  const onTinyMCEChange = () => {
     if (editorRef.current) {
       setHtmlString(editorRef.current.getContent());
     }

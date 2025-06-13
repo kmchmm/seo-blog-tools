@@ -1,134 +1,99 @@
-// src/App.tsx
-import { FC, use } from 'react';
+import { FC, JSX, use } from 'react';
 import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
+
 import { UserContext } from './context/UserContext';
 import Layout from './pages/Layout';
-import Home from './pages/Home';
-import NewsScraper from './pages/NewsScraper';
-import PAAScraper from './pages/PAAScraper';
-import GMAPScraper from './pages/GMAPScraper';
-import JediInsights from './pages/JediInsights';
-import SERPRank from './pages/SERPRank';
-import Hunter from './pages/Hunter';
-import P1Harvester from './pages/P1Harvester';
-import GeoTagger from './pages/GeoTagger';
-import CrossSitePosting from './pages/CrossSitePosting';
-import Kompass from './pages/Kompass';
-import Loom from './pages/Loom';
-import Chronos from './pages/Chronos';
-import Monitoring from './pages/Monitoring';
-import Chat from './pages/Chat';
-import TitleTweak from './pages/TitleTweak';
-import HtmlCleaner from './pages/HtmlCleaner';
-import DupeKiller from './pages/DupeKiller';
-
-import Login from './pages/Login';
-import Logout from './pages/Logout';
 
 import { TOOLS, TOOL_ROUTES } from './types';
-import Unauthorized from './pages/Unauthorized';
+import {
+  ChatPage,
+  ChronosPage,
+  CrossSitePostingPage,
+  DupeKillerPage,
+  GeoTaggerPage,
+  GMAPScraperPage,
+  HomePage,
+  HtmlCleanerPage,
+  HunterPage,
+  JediInsightsPage,
+  KompassPage,
+  LoginPage,
+  LogoutPage,
+  LoomPage,
+  MonitoringPage,
+  NewsScraperPage,
+  P1HarvesterPage,
+  PAAScraperPage,
+  SERPRankPage,
+  TitleTweakPage,
+  UnauthorizedPage,
+} from './pages';
+
+interface ToolRoute {
+  path: string;
+  toolKey: keyof typeof TOOLS;
+  element: JSX.Element;
+}
 
 const App: FC = () => {
   const { toolsAccess } = use(UserContext);
 
+  const toolRoutes: ToolRoute[] = [
+    { path: TOOL_ROUTES.NEWS, toolKey: 'NEWS', element: <NewsScraperPage /> },
+    { path: TOOL_ROUTES.PAA, toolKey: 'PAA', element: <PAAScraperPage /> },
+    { path: TOOL_ROUTES.GMAP, toolKey: 'GMAP', element: <GMAPScraperPage /> },
+    {
+      path: `${TOOL_ROUTES.GMAP}/:recordId`,
+      toolKey: 'GMAP',
+      element: <GMAPScraperPage />,
+    },
+    {
+      path: TOOL_ROUTES.JEDI_INSIGHTS,
+      toolKey: 'JEDI_INSIGHTS',
+      element: <JediInsightsPage />,
+    },
+    { path: TOOL_ROUTES.SERP_RANK, toolKey: 'SERP_RANK', element: <SERPRankPage /> },
+    { path: TOOL_ROUTES.HUNTER, toolKey: 'HUNTER', element: <HunterPage /> },
+    { path: TOOL_ROUTES.HARVESTER, toolKey: 'HARVESTER', element: <P1HarvesterPage /> },
+    {
+      path: TOOL_ROUTES.CROSS_SITE_POSTING,
+      toolKey: 'CROSS_SITE_POSTING',
+      element: <CrossSitePostingPage />,
+    },
+    { path: TOOL_ROUTES.KOMPASS, toolKey: 'KOMPASS', element: <KompassPage /> },
+    { path: TOOL_ROUTES.LOOM, toolKey: 'LOOM', element: <LoomPage /> },
+    { path: TOOL_ROUTES.CHRONOS, toolKey: 'CHRONOS', element: <ChronosPage /> },
+    { path: TOOL_ROUTES.MONITORING, toolKey: 'MONITORING', element: <MonitoringPage /> },
+    { path: TOOL_ROUTES.CHAT, toolKey: 'CHAT', element: <ChatPage /> },
+  ];
+
+  const isAuthorized = (tool: keyof typeof TOOLS) => toolsAccess.includes(TOOLS[tool]);
+
   return (
-    <Router>
+    <Router basename="/frontend-v2">
       <Routes>
         <Route element={<Layout />}>
-          <Route path="/" element={<Home />} />
-          <Route
-            path={TOOL_ROUTES.NEWS}
-            element={
-              toolsAccess.includes(TOOLS.NEWS) ? <NewsScraper /> : <Unauthorized />
-            }
-          />
-          <Route
-            path={TOOL_ROUTES.PAA}
-            element={toolsAccess.includes(TOOLS.PAA) ? <PAAScraper /> : <Unauthorized />}
-          />
-          <Route
-            path={TOOL_ROUTES.GMAP}
-            element={
-              toolsAccess.includes(TOOLS.GMAP) ? <GMAPScraper /> : <Unauthorized />
-            }
-          />
-          <Route
-            path={`${TOOL_ROUTES.GMAP}/:recordId`}
-            element={
-              toolsAccess.includes(TOOLS.GMAP) ? <GMAPScraper /> : <Unauthorized />
-            }
-          />
+          <Route path="/" element={<HomePage />} />
 
-          <Route
-            path={TOOL_ROUTES.JEDI_INSIGHTS}
-            element={
-              toolsAccess.includes(TOOLS.JEDI_INSIGHTS) ? (
-                <JediInsights />
-              ) : (
-                <Unauthorized />
-              )
-            }
-          />
-          <Route
-            path={TOOL_ROUTES.SERP_RANK}
-            element={
-              toolsAccess.includes(TOOLS.SERP_RANK) ? <SERPRank /> : <Unauthorized />
-            }
-          />
-          <Route
-            path={TOOL_ROUTES.HUNTER}
-            element={toolsAccess.includes(TOOLS.HUNTER) ? <Hunter /> : <Unauthorized />}
-          />
-          <Route
-            path={TOOL_ROUTES.HARVESTER}
-            element={
-              toolsAccess.includes(TOOLS.HARVESTER) ? <P1Harvester /> : <Unauthorized />
-            }
-          />
-          <Route path={TOOL_ROUTES.GEO_TAGGER} element={<GeoTagger />} />
+          {/*  Private tool routes */}
+          {toolRoutes.map(({ path, toolKey, element }) => (
+            <Route
+              key={path}
+              path={path}
+              element={isAuthorized(toolKey) ? element : <UnauthorizedPage />}
+            />
+          ))}
 
-          <Route
-            path={TOOL_ROUTES.CROSS_SITE_POSTING}
-            element={
-              toolsAccess.includes(TOOLS.CROSS_SITE_POSTING) ? (
-                <CrossSitePosting />
-              ) : (
-                <Unauthorized />
-              )
-            }
-          />
-          <Route
-            path={TOOL_ROUTES.KOMPASS}
-            element={toolsAccess.includes(TOOLS.KOMPASS) ? <Kompass /> : <Unauthorized />}
-          />
-          <Route
-            path={TOOL_ROUTES.LOOM}
-            element={toolsAccess.includes(TOOLS.LOOM) ? <Loom /> : <Unauthorized />}
-          />
-
-          <Route
-            path={TOOL_ROUTES.CHRONOS}
-            element={toolsAccess.includes(TOOLS.CHRONOS) ? <Chronos /> : <Unauthorized />}
-          />
-          <Route
-            path={TOOL_ROUTES.MONITORING}
-            element={
-              toolsAccess.includes(TOOLS.MONITORING) ? <Monitoring /> : <Unauthorized />
-            }
-          />
-
-          <Route
-            path={TOOL_ROUTES.CHAT}
-            element={toolsAccess.includes(TOOLS.CHAT) ? <Chat /> : <Unauthorized />}
-          />
-
-          <Route path={TOOL_ROUTES.TITLE_TWEAK} element={<TitleTweak />} />
-          <Route path={TOOL_ROUTES.HTML_CLEANER} element={<HtmlCleaner />} />
-          <Route path={TOOL_ROUTES.DUPE_KILLER} element={<DupeKiller />} />
-
-          <Route path="/logout" element={<Logout />} />
+          {/*  Public tool routes */}
+          <Route path={TOOL_ROUTES.GEO_TAGGER} element={<GeoTaggerPage />} />
+          <Route path={TOOL_ROUTES.TITLE_TWEAK} element={<TitleTweakPage />} />
+          <Route path={TOOL_ROUTES.HTML_CLEANER} element={<HtmlCleanerPage />} />
+          <Route path={TOOL_ROUTES.DUPE_KILLER} element={<DupeKillerPage />} />
+          <Route path="/logout" element={<LogoutPage />} />
         </Route>
-        <Route path="/login" element={<Login />} />
+
+        {/* Auth */}
+        <Route path="/login" element={<LoginPage />} />
       </Routes>
     </Router>
   );

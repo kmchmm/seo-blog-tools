@@ -1,5 +1,5 @@
 import clsx from 'clsx';
-import { IBtnType } from '../types';
+import { IBtnType } from '../../types';
 
 interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   disabled?: boolean;
@@ -37,7 +37,7 @@ const generateStyle =
   'text-white-100 border font-bold dark:text-white-100 !bg-blue-100 border-blue-100';
 const generateHoverStyle = 'cursor-pointer hover:!bg-blue-300 hover:border-blue-300';
 
-export const Button = (btnProps: ButtonProps) => {
+const Button = (btnProps: ButtonProps) => {
   const {
     disabled,
     children,
@@ -52,7 +52,7 @@ export const Button = (btnProps: ButtonProps) => {
       : 'py-[6px] px-[12px]';
 
   const btnStyle = clsx(
-    'font-medium text-base font-normal leading-[1.5]',
+    'font-medium text-base font-normal leading-[1.5] disabled:pointer-events-none',
     'rounded-md border bg-transparent',
     padding,
     'transition-colors duration-150 ease-in-out',
@@ -88,3 +88,5 @@ export const Button = (btnProps: ButtonProps) => {
     </button>
   );
 };
+
+export default Button;
