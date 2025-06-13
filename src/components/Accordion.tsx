@@ -38,7 +38,7 @@ export const Accordion = (accProps: AccordionProps) => {
             expanded && 'rotate-180'
           )}
         />
-        <div className="flex-1 text-left break-words flex justify-between items-center">
+        <div className="flex-1 text-left break-words flex justify-between items-center ">
           <span>{header}</span>
           {typeof badge === 'number' && (
             <span
