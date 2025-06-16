@@ -1,30 +1,6 @@
 import { useState } from 'react';
-import {
-  analyzeDocument,
-  analyzeHeadings,
-  analyzeSections,
-} from '../utils/keywordWorker';
-
-export type KeywordAnalysisResult = {
-  density: number;
-  totalKeywordCount: number;
-  keywordCounts: {
-    focusCount: number;
-    altCount: number;
-    total: number;
-  };
-  headingAnalysis: ReturnType<typeof analyzeHeadings>;
-  sectionAnalysis: ReturnType<typeof analyzeSections>;
-  otherKeywords: Array<{
-    category: string;
-    keywords: Array<{
-      keyword: string;
-      count: number;
-    }>;
-  }>;
-  focusKeyphrase: string;
-  altKeyphrase: string;
-};
+import { analyzeDocument } from '../utils/keywordWorker';
+import { KeywordAnalysisResult } from '../types/loom';
 
 export interface CustomHTMLElement extends HTMLElement {
   currentContent: string;
@@ -33,6 +9,11 @@ export interface CustomHTMLElement extends HTMLElement {
 const useKeywordAnalysis = () => {
   const [results, setResults] = useState<KeywordAnalysisResult | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [showHighlight, setShowHighlight] = useState(false);
+
+  const handleHighlightToggle = (value: boolean) => {
+    setShowHighlight(value);
+  };
 
   const handleSetKeywordAnalysisError = (message: string) => {
     setError(message);
@@ -65,15 +46,26 @@ const useKeywordAnalysis = () => {
         editMode,
       });
 
-      setResults(result);
-      setError(null);
+      if (result) {
+        setResults(result);
+        setError(null);
+        setShowHighlight(true);
+      }
     } catch (e) {
       console.error('Keyword analysis failed:', e);
       setError('Something went wrong during analysis. Please try again.');
+      setShowHighlight(false);
     }
   };
 
-  return { results, runAnalysis, error, handleSetKeywordAnalysisError };
+  return {
+    results,
+    runAnalysis,
+    error,
+    handleSetKeywordAnalysisError,
+    showHighlight,
+    handleHighlightToggle,
+  };
 };
 
 export default useKeywordAnalysis;

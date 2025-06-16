@@ -4,9 +4,9 @@ import {
   perfectLengthStyle,
   warningLengthStyle,
 } from '../../pages/Loom';
-import { CONSTRAINT, HeadingEntry } from '../../types/loom';
+import { CONSTRAINT, HeadingEntry, HeadingWithOptionalCount } from '../../types/loom';
 import { textToHtml } from '../../utils/formatter';
-import { normalizeKeyword } from '../../utils/keywordWorker';
+import { normalizeKeyword, normalizeTextToWords } from '../../utils/keywordWorker';
 
 // Normalize URLs for matching
 export const normalizeUrl = (url: string): string => {
@@ -50,50 +50,98 @@ export const checkPixelLength = (text: string, constraint: CONSTRAINT) => {
   return { style, width: { width: `${indicatorWidth}%` } };
 };
 
+// --- Word Count + Density ---
+export function getWordCount(text: string): number {
+  return normalizeTextToWords(text).length;
+}
+
+export function getKeywordDensity(text: string, totalKeywordCount: number): number {
+  const totalWords = getWordCount(text);
+  return totalWords === 0 ? 0 : (totalKeywordCount / totalWords) * 100;
+}
+
+export const getSentences = (text: string) => {
+  const sentences = text.match(/[^.!?]+[.!?]?/g) || [];
+  return sentences;
+};
+
+export function createHeadingEntry(
+  level: string,
+  buffer: string[],
+  contentBuffer: string[],
+  withWordCount: boolean
+): HeadingWithOptionalCount {
+  const text = buffer.join(' ');
+  const wordCount = withWordCount ? getWordCount(contentBuffer.join(' ')) : undefined;
+
+  const entry: HeadingWithOptionalCount = {
+    level: level as HeadingEntry['level'],
+    text,
+  };
+
+  if (wordCount !== undefined) {
+    entry.wordCount = wordCount;
+  }
+
+  return entry;
+}
+
+export function isTargetHeading(tag: string, includeAllHeadings: boolean): boolean {
+  return includeAllHeadings ? /^H[1-6]$/.test(tag) : tag === 'H2' || tag === 'H3';
+}
+
 export function getHeadings({
   editMode,
   container,
+  includeAllHeadings = false,
+  withWordCount = false,
 }: {
   container: CustomHTMLElement;
   editMode: boolean;
-}): HeadingEntry[] {
+  includeAllHeadings?: boolean;
+  withWordCount?: boolean;
+}): HeadingWithOptionalCount[] {
   const html = editMode ? container.currentContent : container.innerHTML;
-
   const doc = textToHtml(html);
   const children = Array.from(doc.body.children);
 
-  const combinedHeadings: HeadingEntry[] = [];
+  const combinedHeadings: HeadingWithOptionalCount[] = [];
   let buffer: string[] = [];
-  let currentLevel: 'H2' | 'H3' | null = null;
+  let contentBuffer: string[] = [];
+  let currentLevel: string | null = null;
 
   for (const el of children) {
-    const tag = el.tagName?.toUpperCase();
+    if (!el.tagName) continue;
+    const tag = el.tagName.toUpperCase();
 
-    if (tag === 'H2' || tag === 'H3') {
+    if (isTargetHeading(tag, includeAllHeadings)) {
       const text = el.textContent?.trim();
-      if (text) {
-        if (!currentLevel) {
-          currentLevel = tag as 'H2' | 'H3';
-        }
+      if (!text) continue;
+
+      if (currentLevel === tag && contentBuffer.length === 0) {
         buffer.push(text);
+      } else {
+        if (buffer.length > 0 && currentLevel) {
+          combinedHeadings.push(
+            createHeadingEntry(currentLevel, buffer, contentBuffer, withWordCount)
+          );
+        }
+        buffer = [text];
+        contentBuffer = [];
+        currentLevel = tag;
       }
     } else {
-      if (buffer.length > 0 && currentLevel) {
-        combinedHeadings.push({
-          level: currentLevel,
-          text: buffer.join(' '),
-        });
-        buffer = [];
-        currentLevel = null;
+      const contentText = el.textContent?.trim();
+      if (contentText) {
+        contentBuffer.push(contentText);
       }
     }
   }
 
   if (buffer.length > 0 && currentLevel) {
-    combinedHeadings.push({
-      level: currentLevel,
-      text: buffer.join(' '),
-    });
+    combinedHeadings.push(
+      createHeadingEntry(currentLevel, buffer, contentBuffer, withWordCount)
+    );
   }
 
   return combinedHeadings;
@@ -105,11 +153,15 @@ export const getHeaderBadgeColor = (percent: number) => {
   return 'red';
 };
 
-export function highlightKeywordsInDiv(
-  container: HTMLElement,
-  focusKeyword: string,
-  alternateKeyword?: string
-) {
+export function highlightKeywordsInDiv({
+  container,
+  focusKeyword,
+  alternateKeyword,
+}: {
+  container: CustomHTMLElement;
+  focusKeyword: string;
+  alternateKeyword?: string;
+}) {
   if (!container || !focusKeyword.trim()) return;
 
   const getWordVariants = (word: string): string[] => {
@@ -131,9 +183,8 @@ export function highlightKeywordsInDiv(
     return [...variants];
   };
 
-  const getAllKeywordVariants = (phrase: string): string[][] => {
-    return phrase.trim().toLowerCase().split(/\s+/).map(getWordVariants);
-  };
+  const getAllKeywordVariants = (phrase: string): string[][] =>
+    phrase.trim().toLowerCase().split(/\s+/).map(getWordVariants);
 
   const escapeRegex = (str: string) => str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
@@ -155,7 +206,6 @@ export function highlightKeywordsInDiv(
 
     sentences.forEach(sentence => {
       const normalizedWords = sentence.toLowerCase().split(/\s+/).map(normalizeKeyword);
-
       const wordSet = new Set(normalizedWords);
 
       const isMatch = (variants: string[][]) =>
@@ -168,7 +218,10 @@ export function highlightKeywordsInDiv(
 
         variants.forEach(wordForms => {
           const regex = buildHighlightRegex(wordForms);
-          updated = updated.replace(regex, `<mark style="background:${color}">$1</mark>`);
+          updated = updated.replace(
+            regex,
+            `<mark class="highlight-keyword" style="background:${color}">$1</mark>`
+          );
         });
 
         return updated;
@@ -194,8 +247,8 @@ export function highlightKeywordsInDiv(
 export function removeKeywordHighlights(container: HTMLElement) {
   if (!container) return;
 
-  // Replace all <mark> elements with just their inner text
-  const marks = container.querySelectorAll('mark');
+  // Remove only marks added by our function
+  const marks = container.querySelectorAll('mark.highlight-keyword');
 
   marks.forEach(mark => {
     const parent = mark.parentNode;
@@ -204,4 +257,21 @@ export function removeKeywordHighlights(container: HTMLElement) {
     const text = document.createTextNode(mark.textContent || '');
     parent.replaceChild(text, mark);
   });
+}
+
+export function highlightTextNode(node: Text, regex: RegExp, color: string) {
+  const parent = node.parentElement;
+  if (!parent) return;
+
+  const tempDiv = document.createElement('div');
+  tempDiv.innerHTML = node.textContent!.replace(
+    regex,
+    `<mark style="background:${color}">$1</mark>`
+  );
+
+  // Replace the text node with its marked-up equivalent
+  while (tempDiv.firstChild) {
+    parent.insertBefore(tempDiv.firstChild, node);
+  }
+  parent.removeChild(node);
 }

@@ -8,7 +8,11 @@ import { Editor as TinyMCEEditor } from 'tinymce';
 
 import { LoomSidebar } from '../components/loom/LoomSidebar';
 import { addHeadingIds } from '../utils/sb37HTMLHelper';
-import { useFocusKeywordFormValidate, useKeywordAnalysis } from '../hooks';
+import {
+  useContentIssuesAnalysis,
+  useFocusKeywordFormValidate,
+  useKeywordAnalysis,
+} from '../hooks';
 import {
   checkPixelLength,
   highlightKeywordsInDiv,
@@ -23,6 +27,11 @@ import {
 } from '../components/loom/contants';
 import { CustomHTMLElement } from '../hooks/useKeywordAnalysis';
 import { Input } from '../components/common';
+
+import {
+  highlightContentIssuesDiv,
+  removeContentIssueHighlights,
+} from '../utils/contentWorker';
 
 export const errorLengthStyle = 'bg-red-200';
 export const warningLengthStyle = 'bg-yellow-200';
@@ -94,19 +103,7 @@ function highlightLinkIssuesInHtml(html: string, issues: LinkIssue[]): string {
   return doc.body.innerHTML;
 }
 
-const TINYMCE_API_KEY = 'p964xz9rbfvw8dgzbv2k8vpw3n70suinf499l1nmbl1ajhks';
-
-// const addHeadingAnchors = (html: string): string => {
-//   const parser = new DOMParser();
-//   const doc = parser.parseFromString(html, 'text/html');
-//   let idCounter = 0;
-
-//   doc.querySelectorAll('h1, h2, h3, h4, h5, h6').forEach(el => {
-//     if (!el.id) el.id = `heading-${idCounter++}`;
-//   });
-
-//   return doc.body.innerHTML;
-// };
+const TINYMCE_API_KEY = 'nadd9qtgsipyog9sw5zwf88wjx3jqzbpsdfn55jugpzy4tnn';
 
 const minHeightStyle = 'min-h-[450px]';
 
@@ -135,18 +132,28 @@ const Loom: FC = () => {
 
   const [, setFormatErrors] = useState<ErrorList | null>(null);
   // const [setFormatErrors] = useState<ErrorList | null>(null);
-
-  const [highlightedContentSections, setHighlightedContentSections] = useState<
-    { level: string; text: string; wordCount: number }[]
-  >([]);
-
   // const [linkIssues, setLinkIssues] = useState<LinkIssue[] | null>(null);
 
   const divRef = useRef<CustomHTMLElement | React.Ref<Editor> | null>(null);
+  const handleEditorChange = (content: string) => {
+    setHtmlString(content);
+  };
+  const {
+    results,
+    runAnalysis,
+    error,
+    handleSetKeywordAnalysisError,
+    handleHighlightToggle,
+    showHighlight: showKeywordHighlight,
+  } = useKeywordAnalysis();
 
-  const { results, runAnalysis, error, handleSetKeywordAnalysisError } =
-    useKeywordAnalysis();
-
+  const {
+    errorMessage: contentIssuesErrorMessage,
+    result: contentIssuesResult,
+    runAnalysis: runContentIssues,
+    showHighlight: showContentIssuesHighlight,
+    handleHighlightToggle: handleContentIssuesHighlightToggle,
+  } = useContentIssuesAnalysis();
   const {
     error: errorValidate,
     helperText,
@@ -154,7 +161,8 @@ const Loom: FC = () => {
     resetError,
   } = useFocusKeywordFormValidate();
 
-  const handleAnalyze = () => {
+  const handleKeywordAnalyze = () => {
+    setEditMode(false);
     if (!htmlString) {
       handleSetKeywordAnalysisError('No HTML string found.');
     }
@@ -166,27 +174,49 @@ const Loom: FC = () => {
         focusKeyphrase: focusKeyword,
         otherKeywords: otherKeywords,
       });
+
       resetError();
     }
+  };
 
+  const onCheckContentIssuesClick = () => {
     setEditMode(false);
+    runContentIssues({ container: divRef.current as CustomHTMLElement, editMode });
+    if (showContentIssuesHighlight) {
+      handleContentIssuesHighlightToggle(true);
+    }
   };
 
   const onKeywordShowHighlightClick = () => {
-    const container = (divRef.current as HTMLElement) ?? null;
-    if (!container || !focusKeyword) return;
-
-    // // Optional: remove existing highlights first
-    // container.innerHTML = container.innerHTML.replace(/<mark[^>]*>(.*?)<\/mark>/gi, '$1');
-
-    highlightKeywordsInDiv(container, focusKeyword, alternateEsq);
+    if (!divRef.current || !focusKeyword) return;
+    handleHighlightToggle(true);
+    highlightKeywordsInDiv({
+      container: divRef.current as CustomHTMLElement,
+      focusKeyword,
+      alternateKeyword: alternateEsq,
+    });
   };
 
   const onKeywordRemoveHighlightClick = () => {
-    const container = divRef.current as HTMLElement | null;
-    if (!container) return;
+    if (!divRef.current) return;
+    handleHighlightToggle(false);
+    removeKeywordHighlights(divRef.current as HTMLElement);
+  };
 
-    removeKeywordHighlights(container);
+  const onContentIssuesHighlight = () => {
+    if (!divRef.current) return;
+    handleContentIssuesHighlightToggle(true);
+    highlightContentIssuesDiv({
+      container: divRef.current as CustomHTMLElement,
+      over300Sections: contentIssuesResult?.over300Sections || [],
+      sameWordStreaks: contentIssuesResult?.sameWordStreaks || [],
+      editMode,
+    });
+  };
+
+  const removeContentHighlights = () => {
+    handleContentIssuesHighlightToggle(false);
+    removeContentIssueHighlights(divRef.current as HTMLElement);
   };
 
   const escapeRegex = (str: string) => str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -216,52 +246,6 @@ const Loom: FC = () => {
 
     return doc.body.innerHTML;
   };
-
-  // const applyFormatHighlights = (html: string, phrases: string[], className: string) => {
-  //   const parser = new DOMParser();
-  //   const doc = parser.parseFromString(html, 'text/html');
-
-  //   const regex = new RegExp(`\\b(${phrases.map(escapeRegex).join('|')})\\b`, 'gi');
-
-  //   const walk = (node: Node) => {
-  //     if (node.nodeType === Node.TEXT_NODE && regex.test(node.nodeValue || '')) {
-  //       const tempDiv = document.createElement('div');
-  //       tempDiv.innerHTML = (node.nodeValue || '').replace(regex, match => `<mark class="${className}">${match}</mark>`);
-  //       const fragment = document.createDocumentFragment();
-  //       [...tempDiv.childNodes].forEach(n => fragment.appendChild(n));
-  //       node.parentNode?.replaceChild(fragment, node);
-  //     } else if (node.nodeType === Node.ELEMENT_NODE) {
-  //       node.childNodes.forEach(child => walk(child));
-  //     }
-  //   };
-
-  //   walk(doc.body);
-
-  //   return doc.body.innerHTML;
-  // };
-
-  //   const applyContentHighlights = (html: string, phrases: string[], className: string) => {
-  //   const parser = new DOMParser();
-  //   const doc = parser.parseFromString(html, 'text/html');
-
-  //   const regex = new RegExp(`\\b(${phrases.map(escapeRegex).join('|')})\\b`, 'gi');
-
-  //   const walk = (node: Node) => {
-  //     if (node.nodeType === Node.TEXT_NODE && regex.test(node.nodeValue || '')) {
-  //       const tempDiv = document.createElement('div');
-  //       tempDiv.innerHTML = (node.nodeValue || '').replace(regex, match => `<mark class="${className}">${match}</mark>`);
-  //       const fragment = document.createDocumentFragment();
-  //       [...tempDiv.childNodes].forEach(n => fragment.appendChild(n));
-  //       node.parentNode?.replaceChild(fragment, node);
-  //     } else if (node.nodeType === Node.ELEMENT_NODE) {
-  //       node.childNodes.forEach(child => walk(child));
-  //     }
-  //   };
-
-  //   walk(doc.body);
-
-  //   return doc.body.innerHTML;
-  // };
 
   function highlightTextNode(
     node: Text,
@@ -462,183 +446,21 @@ const Loom: FC = () => {
     setHighlightedHtml(newHtml);
   };
 
-  // const highlightFormattingPhrases = (phrases: string[]) => {
-  //   console.log('[highlightFormattingPhrases] received phrases:', phrases);
-  //   const cleanHtml = htmlString.replace(/<mark[^>]*>(.*?)<\/mark>/gi, '$1');
-
-  //   if (!phrases.length) return setHighlightedHtml(null);
-
-  //   const sorted = [...phrases]
-  //     .map(p => p.trim())
-  //     .filter(Boolean)
-  //     .sort((a, b) => b.length - a.length); // Longer phrases first
-
-  //   const newHtml = applyFormatHighlights(cleanHtml, sorted, 'bg-red-300 text-red-700 rounded-sm px-1');
-
-  //   setHighlightedHtml(newHtml);
-  // };
-
   const removeHighlights = () => setHighlightedHtml(null);
   const removeFormatHighlights = () => setHighlightedHtml(null);
 
   useEffect(() => {
     if (!editMode) {
-      // highlightPhrases([focusKeyword, alternateEsq].filter(Boolean));
-      highlightKeywordsInDiv(divRef.current as HTMLElement, focusKeyword, alternateEsq);
-    } else {
-      removeHighlights();
+      if (showKeywordHighlight) {
+        onKeywordShowHighlightClick();
+      }
+      if (showContentIssuesHighlight) {
+        onContentIssuesHighlight();
+      }
     }
-  }, [editMode, results]);
 
-  const highlightContent = (repeatedWords: string[]) => {
-    const cleanHtml = htmlString.replace(/<mark[^>]*>(.*?)<\/mark>/gi, '$1');
-
-    const parser = new DOMParser();
-    const doc = parser.parseFromString(cleanHtml, 'text/html');
-
-    const sections: { level: string; text: string; wordCount: number }[] = [];
-
-    // Highlight sections over 300 words
-    const highlightSections = () => {
-      const children = Array.from(doc.body.children);
-      let buffer: Element[] = [];
-      let sectionStartIndex = -1;
-
-      for (let i = 0; i < children.length; i++) {
-        const el = children[i];
-        const tag = el.tagName.toUpperCase();
-
-        if (/^H[1-6]$/.test(tag)) {
-          // Process previous section if exists
-          if (buffer.length && sectionStartIndex !== -1) {
-            // Exclude heading from the word count
-            const sectionBodyOnly = buffer.slice(1); // skip heading
-            const sectionText = sectionBodyOnly.map(n => n.textContent || '').join(' ');
-            const wordCount = sectionText.trim().split(/\s+/).length;
-
-            if (wordCount > 300) {
-              const wrapper = document.createElement('mark');
-              wrapper.className = 'bg-[#cccccc] text-red-800 block';
-              wrapper.title = `Section contains ${wordCount} words`;
-
-              buffer.forEach(node => wrapper.appendChild(node.cloneNode(true)));
-
-              children[sectionStartIndex].replaceWith(wrapper);
-              for (let j = sectionStartIndex + 1; j < i; j++) {
-                children[j].remove();
-              }
-            }
-
-            // Record section info
-            const headingText = buffer[0]?.textContent?.trim() || '';
-            const headingTag = buffer[0]?.tagName?.toUpperCase() || 'H1';
-            sections.push({ level: headingTag, text: headingText, wordCount });
-          }
-
-          buffer = [el];
-          sectionStartIndex = i;
-        } else if (sectionStartIndex !== -1) {
-          buffer.push(el);
-        }
-      }
-
-      // Handle final section
-      if (buffer.length && sectionStartIndex !== -1) {
-        const sectionBodyOnly = buffer.slice(1);
-        const sectionText = sectionBodyOnly.map(n => n.textContent || '').join(' ');
-        const wordCount = sectionText.trim().split(/\s+/).length;
-
-        if (wordCount > 300) {
-          const wrapper = document.createElement('mark');
-          wrapper.className = 'bg-[#cccccc] text-red-800 block';
-          wrapper.title = `Section contains ${wordCount} words`;
-
-          buffer.forEach(node => wrapper.appendChild(node.cloneNode(true)));
-
-          children[sectionStartIndex].replaceWith(wrapper);
-          for (let j = sectionStartIndex + 1; j < children.length; j++) {
-            children[j].remove();
-          }
-        }
-
-        const headingText = buffer[0]?.textContent?.trim() || '';
-        const headingTag = buffer[0]?.tagName?.toUpperCase() || 'H1';
-        sections.push({ level: headingTag, text: headingText, wordCount });
-      }
-    };
-
-    // Highlight repeated sentence starts
-    const highlightRepeatedSentences = () => {
-      const repeatedWordsLower = repeatedWords.map(w => w.toLowerCase());
-
-      const walk = (node: Node) => {
-        if (node.nodeType === Node.TEXT_NODE && node.parentNode?.nodeName !== 'SCRIPT') {
-          const text = node.nodeValue || '';
-          const sentences = text.match(/[^.!?]+(?:[.!?]+|$)/g);
-          console.log('Sentences:', sentences);
-          if (!sentences || sentences.length < 3) return;
-
-          let i = 0;
-          const fragments: Node[] = [];
-
-          while (i < sentences.length) {
-            const currentSentence = sentences[i].trim();
-            const match = currentSentence.match(/^(\w+)/);
-            const startWord = match?.[1]?.toLowerCase();
-
-            if (!startWord) {
-              fragments.push(document.createTextNode(currentSentence + ' '));
-              i++;
-              continue;
-            }
-
-            let count = 1;
-            for (let j = i + 1; j < sentences.length; j++) {
-              const nextMatch = sentences[j].trim().match(/^(\w+)/);
-              if (!nextMatch || nextMatch[1].toLowerCase() !== startWord) break;
-              count++;
-            }
-
-            const isRepeated = count >= 3;
-            console.log('Checking startWord:', startWord, 'against:', repeatedWordsLower);
-
-            for (let k = 0; k < count; k++) {
-              const s = sentences[i + k].trim();
-              const span = document.createElement(isRepeated ? 'mark' : 'span');
-              if (isRepeated) {
-                span.className = 'bg-blue-100 text-white';
-                span.title = `Repeated starting word: ${startWord}`;
-              }
-              span.textContent = s + ' ';
-              fragments.push(span);
-            }
-
-            i += count;
-          }
-
-          const parent = node.parentNode!;
-          fragments.forEach(f => parent.insertBefore(f, node));
-          parent.removeChild(node);
-        } else if (node.nodeType === Node.ELEMENT_NODE) {
-          Array.from(node.childNodes).forEach(walk);
-        }
-      };
-
-      walk(doc.body);
-    };
-
-    highlightSections();
-    highlightRepeatedSentences();
-
-    const newHtml = doc.body.innerHTML;
-    setHighlightedHtml(newHtml);
-    setHighlightedContentSections(sections); // <- Save section info to your state
-  };
-
-  const removeContentHighlights = () => {
-    const cleanHtml = htmlString.replace(/<mark[^>]*>(.*?)<\/mark>/gi, '$1');
-    setHighlightedHtml(cleanHtml);
-  };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showContentIssuesHighlight, showKeywordHighlight, editMode]);
 
   return (
     <div
@@ -770,8 +592,8 @@ const Loom: FC = () => {
               <Editor
                 apiKey={TINYMCE_API_KEY}
                 onInit={(_, editor) => (editorRef.current = editor)}
-                onEditorChange={setHtmlString}
-                initialValue={htmlString}
+                onEditorChange={handleEditorChange}
+                value={htmlString}
                 init={{
                   height: EDITOR_MIN_HEIGHT,
                   width: '100%',
@@ -828,9 +650,11 @@ const Loom: FC = () => {
           <div className="sticky top-4 self-start max-h-screen overflow-y-auto">
             <LoomSidebar
               editMode={editMode}
-              error={error}
+              error={error || helperText}
               keywordAnalysisResult={results}
-              handleAnalyze={handleAnalyze}
+              handleAnalyze={handleKeywordAnalyze}
+              contentIssuesResult={contentIssuesResult}
+              contentIssuesErrorMessage={contentIssuesErrorMessage}
               text={htmlString}
               keyword={focusKeyword}
               metaTitle={title}
@@ -855,11 +679,11 @@ const Loom: FC = () => {
                 setHighlightedHtml(newHtml);
               }}
               onRemoveFormatHighlight={removeFormatHighlights}
-              onHighlightContent={repeatedWords => {
-                highlightContent(repeatedWords);
-              }}
+              // onHighlightContent={repeatedWords => {
+              //   highlightContent(repeatedWords);
+              // }}
+              onHighlightContent={onContentIssuesHighlight}
               onRemoveContentHighlight={removeContentHighlights}
-              highlightedContentSections={highlightedContentSections}
               onLinkIssues={issues => {
                 const highlighted = highlightLinkIssuesInHtml(htmlString, issues);
                 setHighlightedHtml(highlighted);
@@ -867,6 +691,8 @@ const Loom: FC = () => {
               }}
               onKeywordShowHighlightClick={onKeywordShowHighlightClick}
               onKeywordRemoveHighlightClick={onKeywordRemoveHighlightClick}
+              onCheckContentIssuesClick={onCheckContentIssuesClick}
+              disableContentIssuesButton={!htmlString}
             />
           </div>
         </section>

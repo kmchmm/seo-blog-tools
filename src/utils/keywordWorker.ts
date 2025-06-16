@@ -1,4 +1,4 @@
-import { getHeadings } from '../components/loom/helpers';
+import { getHeadings, getKeywordDensity, getSentences } from '../components/loom/helpers';
 import { CustomHTMLElement, KeywordAnalysisResult } from '../hooks/useKeywordAnalysis';
 import { AnalyzeDocumentInput, Section } from '../types/loom';
 import { getCleanText, textToHtml } from './formatter';
@@ -18,28 +18,13 @@ export function normalizeKeyword(word: string): string {
     .replace(/[^a-z0-9]/g, '');
 }
 
-function normalizeTextToWords(text: string): string[] {
+export function normalizeTextToWords(text: string): string[] {
   return text
     .toLowerCase()
     .replace(/[^a-z0-9\s]/gi, '')
     .split(/\s+/)
     .map(normalizeKeyword)
     .filter(Boolean);
-}
-
-const getSentences = (text: string) => {
-  const sentences = text.match(/[^.!?]+[.!?]?/g) || [];
-  return sentences;
-};
-
-// --- Word Count + Density ---
-export function getWordCount(text: string): number {
-  return normalizeTextToWords(text).length;
-}
-
-export function getKeywordDensity(text: string, totalKeywordCount: number): number {
-  const totalWords = getWordCount(text);
-  return totalWords === 0 ? 0 : (totalKeywordCount / totalWords) * 100;
 }
 
 // --- Keyword Matching Core ---
@@ -79,7 +64,6 @@ export function countKeywordMatchesFromHtml({
   altKeyphrase?: string;
 }) {
   const cleanText = getCleanText({ container, editMode });
-
   const focus = countForKeyphrase(cleanText, focusKeyphrase);
   const alt = altKeyphrase ? countForKeyphrase(cleanText, altKeyphrase) : 0;
 
