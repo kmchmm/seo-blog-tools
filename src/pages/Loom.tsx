@@ -28,7 +28,10 @@ import {
 import { CustomHTMLElement } from '../hooks/useKeywordAnalysis';
 import { Input } from '../components/common';
 
-import { highlightContentIssuesDiv, removeHighlight } from '../utils/contentWorker';
+import {
+  highlightContentIssuesDiv,
+  removeContentIssueHighlights,
+} from '../utils/contentWorker';
 
 export const errorLengthStyle = 'bg-red-200';
 export const warningLengthStyle = 'bg-yellow-200';
@@ -100,7 +103,7 @@ function highlightLinkIssuesInHtml(html: string, issues: LinkIssue[]): string {
   return doc.body.innerHTML;
 }
 
-const TINYMCE_API_KEY = 'p964xz9rbfvw8dgzbv2k8vpw3n70suinf499l1nmbl1ajhks';
+const TINYMCE_API_KEY = 'nadd9qtgsipyog9sw5zwf88wjx3jqzbpsdfn55jugpzy4tnn';
 
 const minHeightStyle = 'min-h-[450px]';
 
@@ -129,25 +132,28 @@ const Loom: FC = () => {
 
   const [, setFormatErrors] = useState<ErrorList | null>(null);
   // const [setFormatErrors] = useState<ErrorList | null>(null);
-
-  const [highlightedContentSections, setHighlightedContentSections] = useState<
-    { level: string; text: string; wordCount: number }[]
-  >([]);
-
   // const [linkIssues, setLinkIssues] = useState<LinkIssue[] | null>(null);
 
   const divRef = useRef<CustomHTMLElement | React.Ref<Editor> | null>(null);
-  const container = divRef.current as CustomHTMLElement;
-
-  const { results, runAnalysis, error, handleSetKeywordAnalysisError } =
-    useKeywordAnalysis();
+  const handleEditorChange = (content: string) => {
+    setHtmlString(content);
+  };
+  const {
+    results,
+    runAnalysis,
+    error,
+    handleSetKeywordAnalysisError,
+    handleHighlightToggle,
+    showHighlight: showKeywordHighlight,
+  } = useKeywordAnalysis();
 
   const {
     errorMessage: contentIssuesErrorMessage,
     result: contentIssuesResult,
     runAnalysis: runContentIssues,
+    showHighlight: showContentIssuesHighlight,
+    handleHighlightToggle: handleContentIssuesHighlightToggle,
   } = useContentIssuesAnalysis();
-
   const {
     error: errorValidate,
     helperText,
@@ -156,38 +162,61 @@ const Loom: FC = () => {
   } = useFocusKeywordFormValidate();
 
   const handleKeywordAnalyze = () => {
+    setEditMode(false);
     if (!htmlString) {
       handleSetKeywordAnalysisError('No HTML string found.');
     }
     if (validate(focusKeyword)) {
       runAnalysis({
         altKeyphrase: alternateEsq,
-        container,
+        container: divRef.current as CustomHTMLElement,
         editMode,
         focusKeyphrase: focusKeyword,
         otherKeywords: otherKeywords,
       });
+
       resetError();
     }
-
-    setEditMode(false);
   };
 
   const onCheckContentIssuesClick = () => {
-    runContentIssues({ container, editMode });
     setEditMode(false);
+    runContentIssues({ container: divRef.current as CustomHTMLElement, editMode });
+    if (showContentIssuesHighlight) {
+      handleContentIssuesHighlightToggle(true);
+    }
   };
 
   const onKeywordShowHighlightClick = () => {
-    if (!container || !focusKeyword) return;
-    highlightKeywordsInDiv(container, focusKeyword, alternateEsq);
+    if (!divRef.current || !focusKeyword) return;
+    handleHighlightToggle(true);
+    highlightKeywordsInDiv({
+      container: divRef.current as CustomHTMLElement,
+      focusKeyword,
+      alternateKeyword: alternateEsq,
+    });
   };
 
   const onKeywordRemoveHighlightClick = () => {
-    const container = divRef.current as HTMLElement | null;
-    if (!container) return;
+    if (!divRef.current) return;
+    handleHighlightToggle(false);
+    removeKeywordHighlights(divRef.current as HTMLElement);
+  };
 
-    removeKeywordHighlights(container);
+  const onContentIssuesHighlight = () => {
+    if (!divRef.current) return;
+    handleContentIssuesHighlightToggle(true);
+    highlightContentIssuesDiv({
+      container: divRef.current as CustomHTMLElement,
+      over300Sections: contentIssuesResult?.over300Sections || [],
+      sameWordStreaks: contentIssuesResult?.sameWordStreaks || [],
+      editMode,
+    });
+  };
+
+  const removeContentHighlights = () => {
+    handleContentIssuesHighlightToggle(false);
+    removeContentIssueHighlights(divRef.current as HTMLElement);
   };
 
   const escapeRegex = (str: string) => str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -422,169 +451,16 @@ const Loom: FC = () => {
 
   useEffect(() => {
     if (!editMode) {
-      highlightKeywordsInDiv(divRef.current as HTMLElement, focusKeyword, alternateEsq);
-    } else {
-      removeHighlights();
+      if (showKeywordHighlight) {
+        onKeywordShowHighlightClick();
+      }
+      if (showContentIssuesHighlight) {
+        onContentIssuesHighlight();
+      }
     }
+
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [editMode, results]);
-
-  const highlightContent = (repeatedWords: string[]) => {
-    const cleanHtml = htmlString.replace(/<mark[^>]*>(.*?)<\/mark>/gi, '$1');
-
-    const parser = new DOMParser();
-    const doc = parser.parseFromString(cleanHtml, 'text/html');
-
-    const sections: { level: string; text: string; wordCount: number }[] = [];
-
-    // Highlight sections over 300 words
-    const highlightSections = () => {
-      const children = Array.from(doc.body.children);
-      let buffer: Element[] = [];
-      let sectionStartIndex = -1;
-
-      for (let i = 0; i < children.length; i++) {
-        const el = children[i];
-        const tag = el.tagName.toUpperCase();
-
-        if (/^H[1-6]$/.test(tag)) {
-          // Process previous section if exists
-          if (buffer.length && sectionStartIndex !== -1) {
-            // Exclude heading from the word count
-            const sectionBodyOnly = buffer.slice(1); // skip heading
-            const sectionText = sectionBodyOnly.map(n => n.textContent || '').join(' ');
-            const wordCount = sectionText.trim().split(/\s+/).length;
-
-            if (wordCount > 300) {
-              const wrapper = document.createElement('mark');
-              wrapper.className = 'bg-[#cccccc] text-red-800 block';
-              wrapper.title = `Section contains ${wordCount} words`;
-
-              buffer.forEach(node => wrapper.appendChild(node.cloneNode(true)));
-
-              children[sectionStartIndex].replaceWith(wrapper);
-              for (let j = sectionStartIndex + 1; j < i; j++) {
-                children[j].remove();
-              }
-            }
-
-            // Record section info
-            const headingText = buffer[0]?.textContent?.trim() || '';
-            const headingTag = buffer[0]?.tagName?.toUpperCase() || 'H1';
-            sections.push({ level: headingTag, text: headingText, wordCount });
-          }
-
-          buffer = [el];
-          sectionStartIndex = i;
-        } else if (sectionStartIndex !== -1) {
-          buffer.push(el);
-        }
-      }
-
-      // Handle final section
-      if (buffer.length && sectionStartIndex !== -1) {
-        const sectionBodyOnly = buffer.slice(1);
-        const sectionText = sectionBodyOnly.map(n => n.textContent || '').join(' ');
-        const wordCount = sectionText.trim().split(/\s+/).length;
-
-        if (wordCount > 300) {
-          const wrapper = document.createElement('mark');
-          wrapper.className = 'bg-[#cccccc] text-red-800 block';
-          wrapper.title = `Section contains ${wordCount} words`;
-
-          buffer.forEach(node => wrapper.appendChild(node.cloneNode(true)));
-
-          children[sectionStartIndex].replaceWith(wrapper);
-          for (let j = sectionStartIndex + 1; j < children.length; j++) {
-            children[j].remove();
-          }
-        }
-
-        const headingText = buffer[0]?.textContent?.trim() || '';
-        const headingTag = buffer[0]?.tagName?.toUpperCase() || 'H1';
-        sections.push({ level: headingTag, text: headingText, wordCount });
-      }
-    };
-
-    // Highlight repeated sentence starts
-    const highlightRepeatedSentences = () => {
-      const repeatedWordsLower = repeatedWords.map(w => w.toLowerCase());
-
-      const walk = (node: Node) => {
-        if (node.nodeType === Node.TEXT_NODE && node.parentNode?.nodeName !== 'SCRIPT') {
-          const text = node.nodeValue || '';
-          const sentences = text.match(/[^.!?]+(?:[.!?]+|$)/g);
-          console.log('Sentences:', sentences);
-          if (!sentences || sentences.length < 3) return;
-
-          let i = 0;
-          const fragments: Node[] = [];
-
-          while (i < sentences.length) {
-            const currentSentence = sentences[i].trim();
-            const match = currentSentence.match(/^(\w+)/);
-            const startWord = match?.[1]?.toLowerCase();
-
-            if (!startWord) {
-              fragments.push(document.createTextNode(currentSentence + ' '));
-              i++;
-              continue;
-            }
-
-            let count = 1;
-            for (let j = i + 1; j < sentences.length; j++) {
-              const nextMatch = sentences[j].trim().match(/^(\w+)/);
-              if (!nextMatch || nextMatch[1].toLowerCase() !== startWord) break;
-              count++;
-            }
-
-            const isRepeated = count >= 3;
-            console.log('Checking startWord:', startWord, 'against:', repeatedWordsLower);
-
-            for (let k = 0; k < count; k++) {
-              const s = sentences[i + k].trim();
-              const span = document.createElement(isRepeated ? 'mark' : 'span');
-              if (isRepeated) {
-                span.className = 'bg-blue-100 text-white';
-                span.title = `Repeated starting word: ${startWord}`;
-              }
-              span.textContent = s + ' ';
-              fragments.push(span);
-            }
-
-            i += count;
-          }
-
-          const parent = node.parentNode!;
-          fragments.forEach(f => parent.insertBefore(f, node));
-          parent.removeChild(node);
-        } else if (node.nodeType === Node.ELEMENT_NODE) {
-          Array.from(node.childNodes).forEach(walk);
-        }
-      };
-
-      walk(doc.body);
-    };
-
-    highlightSections();
-    highlightRepeatedSentences();
-
-    const newHtml = doc.body.innerHTML;
-    setHighlightedHtml(newHtml);
-    setHighlightedContentSections(sections); // <- Save section info to your state
-  };
-
-  const onContentIssuesHighlight = () => {
-    highlightContentIssuesDiv(
-      container,
-      contentIssuesResult?.over300Sections || [],
-      contentIssuesResult?.sameWordStreaks || []
-    );
-  };
-
-  const removeContentHighlights = () => {
-    removeHighlight(container);
-  };
+  }, [showContentIssuesHighlight, showKeywordHighlight, editMode]);
 
   return (
     <div
@@ -716,8 +592,8 @@ const Loom: FC = () => {
               <Editor
                 apiKey={TINYMCE_API_KEY}
                 onInit={(_, editor) => (editorRef.current = editor)}
-                onEditorChange={setHtmlString}
-                initialValue={htmlString}
+                onEditorChange={handleEditorChange}
+                value={htmlString}
                 init={{
                   height: EDITOR_MIN_HEIGHT,
                   width: '100%',
@@ -774,7 +650,7 @@ const Loom: FC = () => {
           <div className="sticky top-4 self-start max-h-screen overflow-y-auto">
             <LoomSidebar
               editMode={editMode}
-              error={error}
+              error={error || helperText}
               keywordAnalysisResult={results}
               handleAnalyze={handleKeywordAnalyze}
               contentIssuesResult={contentIssuesResult}
@@ -808,7 +684,6 @@ const Loom: FC = () => {
               // }}
               onHighlightContent={onContentIssuesHighlight}
               onRemoveContentHighlight={removeContentHighlights}
-              highlightedContentSections={highlightedContentSections}
               onLinkIssues={issues => {
                 const highlighted = highlightLinkIssuesInHtml(htmlString, issues);
                 setHighlightedHtml(highlighted);
@@ -817,6 +692,7 @@ const Loom: FC = () => {
               onKeywordShowHighlightClick={onKeywordShowHighlightClick}
               onKeywordRemoveHighlightClick={onKeywordRemoveHighlightClick}
               onCheckContentIssuesClick={onCheckContentIssuesClick}
+              disableContentIssuesButton={!htmlString}
             />
           </div>
         </section>

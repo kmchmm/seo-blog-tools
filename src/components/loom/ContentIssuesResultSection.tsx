@@ -19,6 +19,13 @@ const ContentIssuesResultSection = ({ result, errorMessage }: Props) => {
     setShowHeadings(prev => !prev);
   };
 
+  const onHeaderItemClick = (headingId: string) => {
+    const el = document.getElementById(headingId);
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  };
+
   const renderAlert = () => {
     if (
       (over300Sections && over300Sections?.length > 0) ||
@@ -55,11 +62,18 @@ const ContentIssuesResultSection = ({ result, errorMessage }: Props) => {
             <p>Word Count</p>
           </div>
           <ul className="list-disc ml-4 space-y-1">
-            {headings?.map(heading => {
+            {headings?.map((heading, i) => {
+              const headingId = `heading-${i}`;
+
               return (
-                <li key={heading.text} className="">
-                  <div className="flex w-full  justify-between items-start">
-                    <p className="w-3/4">{heading.text}</p>
+                <li key={heading.text} className="text-sm">
+                  <div className="flex w-full justify-between items-start">
+                    <button
+                      type="button"
+                      className="w-3/4 text-left text-blue-600 hover:underline cursor-pointer"
+                      onClick={() => onHeaderItemClick(headingId)}>
+                      {heading.text}
+                    </button>
                     <p className="w-1/4 text-right">{heading.wordCount}</p>
                   </div>
                 </li>
@@ -70,10 +84,10 @@ const ContentIssuesResultSection = ({ result, errorMessage }: Props) => {
       ) : null}
       {over300Sections && (
         <Accordion
-          header="Sections With Over 300 Words"
+          header={<div className="text-sm">Sections With Over 300 Words</div>}
           badge={over300Sections?.length}
           badgeColor={over300Sections?.length > 0 ? 'red' : 'green'}>
-          {over300Sections.length > 0 && (
+          {over300Sections.length > 0 ? (
             <div className="mt-2">
               <ul className="mx-2 space-y-3 text-sm">
                 {over300Sections.map(section => (
@@ -89,15 +103,25 @@ const ContentIssuesResultSection = ({ result, errorMessage }: Props) => {
                 ))}
               </ul>
             </div>
+          ) : (
+            <div>
+              <p className="italic text-gray-600 text-xs">
+                No sections with over 300 words. Rawr
+              </p>
+            </div>
           )}
         </Accordion>
       )}
       {sameWordStreaks && (
         <Accordion
-          header="Same Word At The Start Of Three Consecutive Sentences"
+          header={
+            <div className="text-sm">
+              Same Starting Word In {'>'}=3 Consecutive Sentences
+            </div>
+          }
           badge={sameWordStreaks.length}
           badgeColor={sameWordStreaks.length > 0 ? 'red' : 'green'}>
-          {sameWordStreaks.length > 0 && (
+          {sameWordStreaks.length > 0 ? (
             <div className="mt-2">
               <ul className="mx-2 space-y-3 text-sm">
                 {sameWordStreaks.map((section, idx) => (
@@ -119,6 +143,12 @@ const ContentIssuesResultSection = ({ result, errorMessage }: Props) => {
                   </li>
                 ))}
               </ul>
+            </div>
+          ) : (
+            <div>
+              <p className="italic text-gray-600 text-xs">
+                No same word at the start of three consecutive sentences. Rawr
+              </p>
             </div>
           )}
         </Accordion>

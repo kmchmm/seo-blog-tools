@@ -153,11 +153,15 @@ export const getHeaderBadgeColor = (percent: number) => {
   return 'red';
 };
 
-export function highlightKeywordsInDiv(
-  container: HTMLElement,
-  focusKeyword: string,
-  alternateKeyword?: string
-) {
+export function highlightKeywordsInDiv({
+  container,
+  focusKeyword,
+  alternateKeyword,
+}: {
+  container: CustomHTMLElement;
+  focusKeyword: string;
+  alternateKeyword?: string;
+}) {
   if (!container || !focusKeyword.trim()) return;
 
   const getWordVariants = (word: string): string[] => {
@@ -179,9 +183,8 @@ export function highlightKeywordsInDiv(
     return [...variants];
   };
 
-  const getAllKeywordVariants = (phrase: string): string[][] => {
-    return phrase.trim().toLowerCase().split(/\s+/).map(getWordVariants);
-  };
+  const getAllKeywordVariants = (phrase: string): string[][] =>
+    phrase.trim().toLowerCase().split(/\s+/).map(getWordVariants);
 
   const escapeRegex = (str: string) => str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
@@ -203,7 +206,6 @@ export function highlightKeywordsInDiv(
 
     sentences.forEach(sentence => {
       const normalizedWords = sentence.toLowerCase().split(/\s+/).map(normalizeKeyword);
-
       const wordSet = new Set(normalizedWords);
 
       const isMatch = (variants: string[][]) =>
@@ -216,7 +218,10 @@ export function highlightKeywordsInDiv(
 
         variants.forEach(wordForms => {
           const regex = buildHighlightRegex(wordForms);
-          updated = updated.replace(regex, `<mark style="background:${color}">$1</mark>`);
+          updated = updated.replace(
+            regex,
+            `<mark class="highlight-keyword" style="background:${color}">$1</mark>`
+          );
         });
 
         return updated;
@@ -242,8 +247,8 @@ export function highlightKeywordsInDiv(
 export function removeKeywordHighlights(container: HTMLElement) {
   if (!container) return;
 
-  // Replace all <mark> elements with just their inner text
-  const marks = container.querySelectorAll('mark');
+  // Remove only marks added by our function
+  const marks = container.querySelectorAll('mark.highlight-keyword');
 
   marks.forEach(mark => {
     const parent = mark.parentNode;
@@ -252,4 +257,21 @@ export function removeKeywordHighlights(container: HTMLElement) {
     const text = document.createTextNode(mark.textContent || '');
     parent.replaceChild(text, mark);
   });
+}
+
+export function highlightTextNode(node: Text, regex: RegExp, color: string) {
+  const parent = node.parentElement;
+  if (!parent) return;
+
+  const tempDiv = document.createElement('div');
+  tempDiv.innerHTML = node.textContent!.replace(
+    regex,
+    `<mark style="background:${color}">$1</mark>`
+  );
+
+  // Replace the text node with its marked-up equivalent
+  while (tempDiv.firstChild) {
+    parent.insertBefore(tempDiv.firstChild, node);
+  }
+  parent.removeChild(node);
 }

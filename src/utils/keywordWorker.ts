@@ -64,7 +64,6 @@ export function countKeywordMatchesFromHtml({
   altKeyphrase?: string;
 }) {
   const cleanText = getCleanText({ container, editMode });
-
   const focus = countForKeyphrase(cleanText, focusKeyphrase);
   const alt = altKeyphrase ? countForKeyphrase(cleanText, altKeyphrase) : 0;
 

@@ -207,56 +207,83 @@ function findNearestHeading(
   return nearest;
 }
 
-export function highlightContentIssuesDiv(
-  container: CustomHTMLElement,
-  over300Sections: { text: string; level: string; wordCount: number }[],
-  sameWordStreaks: { heading: string; sentences: string[] }[]
-) {
+export function highlightContentIssuesDiv({
+  container,
+  over300Sections,
+  sameWordStreaks,
+  editMode,
+}: {
+  container: CustomHTMLElement;
+  over300Sections: { text: string; level: string; wordCount: number }[];
+  sameWordStreaks: { heading: string; sentences: string[] }[];
+  editMode?: boolean;
+}) {
   if (!container) return;
+
+  let elements: Element[];
+  if (editMode) {
+    const htmlString = container.currentContent;
+    const doc = textToHtml(htmlString);
+    elements = Array.from(doc.body.children);
+  } else {
+    elements = Array.from(container.children);
+  }
 
   const highlightSection = (el: Element) => {
     const text = el.textContent?.trim();
     if (!text) return;
 
-    // Check if this heading matches an over-300 section
     const match = over300Sections.find(section => section.text === text);
-
     if (match) {
-      // Highlight heading element
-      (el as HTMLElement).style.backgroundColor = '#cccccc';
-
-      // Highlight all siblings until next heading
+      const sectionEls: Element[] = [el];
       let sibling = el.nextElementSibling;
+
       while (sibling && !/^H[1-6]$/.test(sibling.tagName)) {
-        (sibling as HTMLElement).style.backgroundColor = '#cccccc';
+        sectionEls.push(sibling);
         sibling = sibling.nextElementSibling;
       }
+
+      sectionEls.forEach(sectionEl => {
+        (sectionEl as HTMLElement).style.backgroundColor = '#cccccc';
+        sectionEl.classList.add('highlight-over300');
+        (sectionEl as HTMLElement).title = `Section has ${match.wordCount} words.`;
+      });
     }
   };
 
   const highlightSameWordSentences = (el: Element) => {
-    const text = el.textContent || '';
-    let modified = text;
+    // Walk text nodes only
+    const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT, null);
+    const textNodes: Text[] = [];
+    let node = walker.nextNode();
+    while (node) {
+      textNodes.push(node as Text);
+      node = walker.nextNode();
+    }
 
-    for (const streak of sameWordStreaks) {
-      for (const sentence of streak.sentences) {
-        const escaped = sentence.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-        const regex = new RegExp(escaped, 'g');
-        modified = modified.replace(
-          regex,
-          match => `<mark class="bg-[#cccccc">${match}</mark>`
-        );
+    textNodes.forEach(textNode => {
+      let content = textNode.nodeValue || '';
+
+      sameWordStreaks.forEach(streak => {
+        streak.sentences.forEach(sentence => {
+          const escaped = sentence.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+          const regex = new RegExp(escaped, 'g');
+
+          content = content.replace(
+            regex,
+            match => `<mark class="highlight-sameword bg-[#f9cb9c]">${match}</mark>`
+          );
+        });
+      });
+
+      if (content !== textNode.nodeValue) {
+        // Replace with safe HTML
+        const span = document.createElement('span');
+        span.innerHTML = content;
+        textNode.parentNode?.replaceChild(span, textNode);
       }
-    }
-
-    if (modified !== text) {
-      el.innerHTML = modified;
-    }
+    });
   };
-
-  const elements = Array.from(
-    container.querySelectorAll('h1, h2, h3, h4, h5, h6, p, li')
-  );
 
   elements.forEach(el => {
     if (/^H[1-6]$/.test(el.tagName)) {
@@ -267,21 +294,20 @@ export function highlightContentIssuesDiv(
   });
 }
 
-export function removeHighlight(container: HTMLElement) {
+export function removeContentIssueHighlights(container: HTMLElement) {
   if (!container) return;
-
-  // Remove background styles
-  const highlightedEls = container.querySelectorAll('[style*="background-color"]');
-  highlightedEls.forEach(el => {
+  // Remove styles and class from over300 highlights
+  const over300Els = container.querySelectorAll('.highlight-over300');
+  over300Els.forEach(el => {
     (el as HTMLElement).style.backgroundColor = '';
+    el.classList.remove('highlight-over300');
   });
 
-  // Remove <mark> tags but preserve their text
-  const markEls = container.querySelectorAll('mark');
+  // Remove <mark> tags with highlight-sameword class
+  const markEls = container.querySelectorAll('mark.highlight-sameword');
   markEls.forEach(mark => {
     const parent = mark.parentNode;
     if (parent) {
-      // Replace <mark> with its text content
       parent.replaceChild(document.createTextNode(mark.textContent || ''), mark);
     }
   });

@@ -1,4 +1,5 @@
 import { CustomHTMLElement } from '../hooks/useKeywordAnalysis';
+import { analyzeHeadings, analyzeSections } from '../utils/keywordWorker';
 
 export interface FormatError {
   paragraphIndex: number;
@@ -104,4 +105,30 @@ export interface ContentIssueReport {
   sameWordStreaks: SameWordStreak[];
   headings: HeadingWithOptionalCount[];
   totalWordCount: number;
+}
+
+export type KeywordAnalysisResult = {
+  density: number;
+  totalKeywordCount: number;
+  keywordCounts: {
+    focusCount: number;
+    altCount: number;
+    total: number;
+  };
+  headingAnalysis: ReturnType<typeof analyzeHeadings>;
+  sectionAnalysis: ReturnType<typeof analyzeSections>;
+  otherKeywords: Array<{
+    category: string;
+    keywords: Array<{
+      keyword: string;
+      count: number;
+    }>;
+  }>;
+  focusKeyphrase: string;
+  altKeyphrase: string;
+};
+
+export interface InitialResults {
+  contentIssuesResult?: ContentIssueReport;
+  keywordAnalyzerResult?: KeywordAnalysisResult;
 }

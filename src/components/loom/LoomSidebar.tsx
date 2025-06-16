@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { FC, useState, useEffect, useContext, useRef } from 'react';
+import { FC, useState, useEffect, useContext } from 'react';
 import clsx from 'clsx';
 import { AnalysisWorkerWrapper, Paper } from 'yoastseo';
 import { Modal } from '../Modal.js';
@@ -21,16 +21,14 @@ import {
   CustomSearchResult,
   ErrorList,
   FormatError,
+  KeywordAnalysisResult,
   LinkDetail,
   LinkErrors,
   LinkIssue,
 } from '../../types/loom.js';
 import { VIOLATION_PHRASES } from './contants.js';
 import { formatList } from './helpers.js';
-import {
-  CustomHTMLElement,
-  KeywordAnalysisResult,
-} from '../../hooks/useKeywordAnalysis.js';
+
 import KeywordResultSection from './KeywordResultSection.js';
 import { Button, Alert } from '../common';
 import ContentIssuesResultSection from './ContentIssuesResultSection.js';
@@ -45,10 +43,8 @@ interface LoomProps {
   onFixAll: (newHtml: string) => void;
   onFormatHighlight: (errors: ErrorList) => void;
   onRemoveFormatHighlight: () => void;
-  // onHighlightContent?: (headings: string[], repeatedWords: string[]) => void;
   onHighlightContent: () => void;
   onRemoveContentHighlight: () => void;
-  highlightedContentSections?: { level: string; text: string; wordCount: number }[];
   onLinkIssues?: (issues: LinkIssue[]) => void;
   handleAnalyze: () => void;
   keywordAnalysisResult: KeywordAnalysisResult | null;
@@ -59,6 +55,7 @@ interface LoomProps {
   editMode: boolean;
   contentIssuesResult: ContentIssueReport | null;
   contentIssuesErrorMessage: string;
+  disableContentIssuesButton?: boolean;
 }
 
 const tabHeaderStyle = clsx(
@@ -99,7 +96,6 @@ export const LoomSidebar: FC<LoomProps> = ({
   onFixAll,
   onHighlightContent,
   onRemoveContentHighlight,
-  highlightedContentSections,
   onLinkIssues,
   handleAnalyze,
   keywordAnalysisResult,
@@ -110,6 +106,7 @@ export const LoomSidebar: FC<LoomProps> = ({
   editMode,
   contentIssuesErrorMessage,
   contentIssuesResult,
+  disableContentIssuesButton = false,
 }) => {
   const { userData } = useContext(UserContext);
   const [showSummary, setShowSummary] = useState<boolean>(false);
@@ -766,7 +763,7 @@ export const LoomSidebar: FC<LoomProps> = ({
     if (keywordAnalysisResult?.focusKeyphrase === keyword) {
       return <Alert message="Done analyzing" type="success" />;
     }
-    return <Alert message="Click 'Analyze Keywords again" type="info" />;
+    if (!error) return <Alert message="Click 'Analyze Keywords again" type="info" />;
   };
 
   return (
@@ -1462,21 +1459,20 @@ export const LoomSidebar: FC<LoomProps> = ({
 
             <TabPanel id="Content">
               <Button
-                disabled={!text}
+                disabled={!text || disableContentIssuesButton}
                 onClick={checkContentIssues}
                 className="w-full !bg-[#2563ea] hover:!bg-blue-1000 text-white border-0 hover:shadow-none rounded-none dark:hover:shadow-none dark:!text-white">
                 Check For Content Issues
               </Button>
               <div className="flex mt-5 gap-2 mb-1">
                 <Button
-                  disabled={!text || !contentIssuesResult}
-                  // TODO:
-                  onClick={() => onHighlightContent()}
+                  disabled={!text || !contentIssuesResult || editMode}
+                  onClick={onHighlightContent}
                   className="w-1/2 text-sm !bg-white text-black !border-black-200 border rounded-none hover:shadow-none hover:!bg-black-200 hover:text-white dark:hover:shadow-none dark:!text-black-200 dark:hover:!text-white">
                   Show Highlights
                 </Button>
                 <Button
-                  disabled={!text || !contentIssuesResult}
+                  disabled={!text || !contentIssuesResult || editMode}
                   onClick={onRemoveContentHighlight}
                   className="w-1/2 text-sm !bg-[#EF4444] border-[#EF4444]  text-white border hover:!bg-red-700 hover:!border-red-700 rounded-none hover:shadow-none dark:hover:shadow-none dark:!text-white">
                   Remove Highlights
@@ -1501,7 +1497,6 @@ export const LoomSidebar: FC<LoomProps> = ({
                 <Button className="w-1/2 text-sm !bg-white text-black !border-black-200 border rounded-none hover:shadow-none hover:!bg-black-200 hover:text-white dark:hover:shadow-none dark:!text-black-200 dark:hover:!text-white">
                   Show Highlights
                 </Button>
-
                 <Button className="w-1/2 text-sm !bg-[#EF4444] border-[#EF4444]  text-white border hover:!bg-red-700 hover:!border-red-700 rounded-none hover:shadow-none dark:hover:shadow-none dark:!text-white">
                   Remove Highlights
                 </Button>

@@ -1,4 +1,4 @@
-import { KeywordAnalysisResult } from '../../hooks/useKeywordAnalysis';
+import { KeywordAnalysisResult } from '../../types/loom';
 import { Accordion } from '../Accordion';
 import { Alert } from '../common';
 import { getHeaderBadgeColor } from './helpers';
@@ -67,7 +67,7 @@ const KeywordResultSection = ({ result }: Props) => {
       )}
 
       <Accordion
-        header="H2 & H3 Optimization"
+        header={<p className="text-sm">H2 & H3 Optimization</p>}
         badge={percent}
         badgeColor={getHeaderBadgeColor(percent)}>
         <div className="flex flex-col gap-y-2">
@@ -82,7 +82,7 @@ const KeywordResultSection = ({ result }: Props) => {
       </Accordion>
 
       <Accordion
-        header="Per Section Optimization"
+        header={<p className="text-sm">Per Section Optimization</p>}
         badge={percentSections}
         badgeColor={percentSections === 100 ? 'green' : 'red'}>
         {withoutFocus.length > 0 ? (
@@ -117,7 +117,9 @@ const KeywordResultSection = ({ result }: Props) => {
 
       {otherKeywords.map(otherKeyword => {
         return (
-          <Accordion header={otherKeyword.category} key={otherKeyword.category}>
+          <Accordion
+            header={<p className="text-sm">{otherKeyword.category}</p>}
+            key={otherKeyword.category}>
             <ul className="list-disc ml-4 flex flex-col">
               <div className="flex justify-between items-center font-semibold text-sm py-2">
                 <p>Keyword</p>
