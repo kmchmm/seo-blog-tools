@@ -5,7 +5,7 @@ import { GoChevronDown } from 'react-icons/go';
 interface AccordionProps extends HTMLAttributes<HTMLElement> {
   children?: ReactNode;
   header: ReactNode;
-  badge?: number | null;
+  badge?: number | null | string;
   badgeColor?: 'green' | 'red' | 'gray';
 }
 
@@ -38,9 +38,9 @@ export const Accordion = (accProps: AccordionProps) => {
             expanded && 'rotate-180'
           )}
         />
-        <div className="flex-1 text-left break-words flex justify-between items-center">
-          <span className="w-full">{header}</span>
-          {typeof badge === 'number' && (
+        <div className="flex-1 text-left break-words flex justify-between items-center ">
+          <span>{header}</span>
+          {badge && (
             <span
               className={clsx(
                 'text-xs font-semibold ml-3 px-2 py-0.5 rounded-full',
@@ -48,7 +48,7 @@ export const Accordion = (accProps: AccordionProps) => {
                 badgeColor === 'green' && 'bg-green-100 text-white',
                 badgeColor === 'gray' && 'bg-gray-100 text-gray-700'
               )}>
-              {badge}%
+              {badge}
             </span>
           )}
         </div>

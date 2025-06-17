@@ -16,16 +16,14 @@ export interface ErrorList {
 }
 
 export interface LinkDetail {
-  url: string;
-  anchor?: string;
-  location?: string;
+  url: string | null;
+  anchor?: string | null;
+  location?: string | null;
 }
 
-export interface LinkIssue {
-  type: string;
-  url: string;
-  anchor?: string;
-  location?: string;
+export interface LinkIssue extends LinkDetail {
+  type?: string;
+  errorType?: number | 'CORS ERROR';
 }
 
 export interface AssessmentResult {
@@ -43,14 +41,15 @@ export interface AssessmentResult {
 }
 
 export type LinkErrors = {
-  invalidLinks: LinkDetail[];
-  missingTrailingSlash: LinkDetail[];
-  duplicateLinks: LinkDetail[];
-  brokenLinks: LinkDetail[]; // Placeholder
-  identicalAnchors: LinkDetail[];
-  invalidAnchors: LinkDetail[];
-  internalLinks: LinkDetail[];
-  externalLinks: LinkDetail[];
+  invalidLinks: LinkIssue[];
+  missingTrailingSlash: LinkIssue[];
+  duplicateLinks: LinkIssue[];
+  brokenLinks: LinkIssue[];
+  identicalAnchors: LinkIssue[];
+  invalidAnchors: LinkIssue[];
+  internalLinks: LinkIssue[]; // must be objects, not LinkIssues
+  externalLinks: LinkIssue[];
+  [key: string]: string[] | LinkIssue[] | undefined;
 };
 
 export type CustomSearchResult = {

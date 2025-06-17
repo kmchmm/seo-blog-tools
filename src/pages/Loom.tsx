@@ -12,11 +12,11 @@ import {
   useContentIssuesAnalysis,
   useFocusKeywordFormValidate,
   useKeywordAnalysis,
+  useLinkIssuesAnalysis,
 } from '../hooks';
 import {
   checkPixelLength,
   highlightKeywordsInDiv,
-  normalizeUrl,
   removeKeywordHighlights,
 } from '../components/loom/helpers';
 import {
@@ -32,6 +32,11 @@ import {
   highlightContentIssuesDiv,
   removeContentIssueHighlights,
 } from '../utils/contentWorker';
+import {
+  highlightLinkIssuesInHtml,
+  LinkAnalysisResult,
+  removeLinkIssueHighlights,
+} from '../utils/analyzeLinksWorker';
 
 export const errorLengthStyle = 'bg-red-200';
 export const warningLengthStyle = 'bg-yellow-200';
@@ -52,55 +57,6 @@ interface ErrorList {
   spaceBeforePunctuationErrors: FormatError[];
   missingPunctuationErrors: FormatError[];
   titleCaseErrors: FormatError[];
-}
-
-interface LinkIssue {
-  type: string;
-  url: string;
-  anchor?: string;
-  location?: string;
-}
-
-function highlightLinkIssuesInHtml(html: string, issues: LinkIssue[]): string {
-  const parser = new DOMParser();
-  const doc = parser.parseFromString(html, 'text/html');
-
-  // Map URLs to issue types (normalized)
-  const urlToTypes = new Map<string, Set<string>>();
-  for (const issue of issues) {
-    const normUrl = normalizeUrl(issue.url);
-    if (!urlToTypes.has(normUrl)) urlToTypes.set(normUrl, new Set());
-    urlToTypes.get(normUrl)!.add(issue.type);
-  }
-
-  doc.querySelectorAll('a').forEach((link, index) => {
-    const hrefRaw = link.getAttribute('href');
-    if (!hrefRaw) return;
-
-    const href = normalizeUrl(hrefRaw);
-    const types = urlToTypes.get(href);
-    if (!types) return;
-
-    // Add unique ID for anchor/scrolling
-    link.setAttribute('id', `link-issue-${index}`);
-
-    // Error highlighting (any non internal/external types)
-    if ([...types].some(t => !['internalLinks', 'externalLinks'].includes(t))) {
-      link.classList.add('underline', 'decoration-wavy', 'decoration-error');
-    }
-
-    // Internal link style (green)
-    if (types.has('internalLinks')) {
-      link.classList.add('decoration-internal');
-    }
-
-    // External link style (underline + dark blue)
-    if (types.has('externalLinks')) {
-      link.classList.add('underline', 'decoration-external');
-    }
-  });
-
-  return doc.body.innerHTML;
 }
 
 const TINYMCE_API_KEY = 'nadd9qtgsipyog9sw5zwf88wjx3jqzbpsdfn55jugpzy4tnn';
@@ -138,6 +94,15 @@ const Loom: FC = () => {
   const handleEditorChange = (content: string) => {
     setHtmlString(content);
   };
+
+  const {
+    runLinkAnalysis: runLinkIssuesAnalysis,
+    result: linkIssuesResult,
+    showHighlights: showLinkIssuesHighlight,
+    handleShowHighlightsToggle: handleShowLinkIssuesHighlightToggle,
+    loading: loadingAnalyzeLink,
+  } = useLinkIssuesAnalysis({});
+
   const {
     results,
     runAnalysis,
@@ -160,6 +125,11 @@ const Loom: FC = () => {
     validate,
     resetError,
   } = useFocusKeywordFormValidate();
+
+  const handleAnalyzeLinkIssues = () => {
+    setEditMode(false);
+    runLinkIssuesAnalysis(htmlString);
+  };
 
   const handleKeywordAnalyze = () => {
     setEditMode(false);
@@ -185,6 +155,19 @@ const Loom: FC = () => {
     if (showContentIssuesHighlight) {
       handleContentIssuesHighlightToggle(true);
     }
+  };
+
+  const onLinkIssuesShowHighlightsClick = () => {
+    if (!divRef.current) return;
+    handleShowLinkIssuesHighlightToggle(true);
+    highlightLinkIssuesInHtml(
+      divRef.current as CustomHTMLElement,
+      linkIssuesResult as LinkAnalysisResult
+    );
+  };
+
+  const onLinkIssuesRemoveHighlightClick = () => {
+    removeLinkIssueHighlights(divRef.current as CustomHTMLElement);
   };
 
   const onKeywordShowHighlightClick = () => {
@@ -457,10 +440,18 @@ const Loom: FC = () => {
       if (showContentIssuesHighlight) {
         onContentIssuesHighlight();
       }
+      if (showLinkIssuesHighlight) {
+        onLinkIssuesShowHighlightsClick();
+      }
     }
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [showContentIssuesHighlight, showKeywordHighlight, editMode]);
+  }, [
+    showContentIssuesHighlight,
+    showKeywordHighlight,
+    editMode,
+    showLinkIssuesHighlight,
+  ]);
 
   return (
     <div
@@ -679,20 +670,17 @@ const Loom: FC = () => {
                 setHighlightedHtml(newHtml);
               }}
               onRemoveFormatHighlight={removeFormatHighlights}
-              // onHighlightContent={repeatedWords => {
-              //   highlightContent(repeatedWords);
-              // }}
               onHighlightContent={onContentIssuesHighlight}
               onRemoveContentHighlight={removeContentHighlights}
-              onLinkIssues={issues => {
-                const highlighted = highlightLinkIssuesInHtml(htmlString, issues);
-                setHighlightedHtml(highlighted);
-                setEditMode(false);
-              }}
               onKeywordShowHighlightClick={onKeywordShowHighlightClick}
               onKeywordRemoveHighlightClick={onKeywordRemoveHighlightClick}
               onCheckContentIssuesClick={onCheckContentIssuesClick}
               disableContentIssuesButton={!htmlString}
+              onLinkIssues={handleAnalyzeLinkIssues}
+              onLinkIssuesShowHighlightsClick={onLinkIssuesShowHighlightsClick}
+              onLinkIssuesRemoveHighlightClick={onLinkIssuesRemoveHighlightClick}
+              linkIssuesResult={linkIssuesResult}
+              loadingAnalyzeLink={loadingAnalyzeLink}
             />
           </div>
         </section>
