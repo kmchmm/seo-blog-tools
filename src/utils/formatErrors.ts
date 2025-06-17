@@ -70,10 +70,10 @@ function checkMultipleSpaces(text: string, i: number, paragraphs: Paragraph[]): 
   return errors;
 }
 
-
 function checkEmDashSpacing(text: string, i: number, paragraphs: Paragraph[]) {
   const errors: FormattingError[] = [];
-  const regex = /[^ ]—|—[^ ]/g;
+  // Match em dash NOT surrounded by a single space on both sides
+  const regex = /(?<! )—(?! )|(?<! )—|—(?! )/g;
   let match;
   while ((match = regex.exec(text)) !== null) {
     errors.push({
