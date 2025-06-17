@@ -1,8 +1,6 @@
 import { CustomHTMLElement } from '../hooks/useKeywordAnalysis';
 import { LinkIssue } from '../types/loom';
 
-import { FetchError, fetchWithStatus } from './helpers';
-
 export interface LinkEntry {
   anchor: string;
   url: string;
@@ -172,53 +170,6 @@ export async function analyzeLinks(html: string): Promise<LinkAnalysisResult> {
     });
   }
 
-  const uniqueUrls = Array.from(seenUrls.keys());
-
-  const checkPromises = uniqueUrls.map(async url => {
-    try {
-      const res = await fetchWithStatus(url, { method: 'HEAD', redirect: 'error' });
-      if (res.status >= 300 && res.status < 400) {
-        seenUrls.get(url)?.forEach(info => {
-          issues.push({
-            issueType: 'Broken link',
-            anchor: info.anchor,
-            url,
-            heading: info.heading,
-            globalAlert: false,
-            errorType: res.status,
-          });
-        });
-      } else if (res.status !== 200) {
-        seenUrls.get(url)?.forEach(info => {
-          issues.push({
-            issueType: 'Broken link',
-            anchor: info.anchor,
-            url,
-            heading: info.heading,
-            globalAlert: false,
-            errorType: res.status,
-          });
-        });
-      }
-    } catch (err) {
-      const error = err as FetchError;
-      const errorCode = error.statusCode ?? 404;
-
-      seenUrls.get(url)?.forEach(info => {
-        issues.push({
-          issueType: 'Broken link',
-          anchor: info.anchor,
-          url,
-          heading: info.heading,
-          globalAlert: false,
-          errorType: errorCode,
-        });
-      });
-    }
-  });
-
-  await Promise.all(checkPromises);
-
   return { internalLinks, externalLinks, issues };
 }
 
@@ -244,20 +195,23 @@ export function highlightLinkIssuesInHtml(
   addToMap('internalLinks', analysisResult.internalLinks);
   addToMap('externalLinks', analysisResult.externalLinks);
 
-  container.querySelectorAll('a').forEach((link, index) => {
+  const links = container.querySelectorAll<HTMLAnchorElement>('a[href]');
+
+  links.forEach((link, index) => {
     const hrefRaw = link.getAttribute('href');
     if (!hrefRaw) return;
 
     const href = normalizeUrl(
       hrefRaw.startsWith('http') ? hrefRaw : `https://arashlaw.com${hrefRaw}`
     );
+
     const types = urlToTypes.get(href);
     if (!types) return;
-
-    // Add unique ID
+    console.log(`href`, href);
+    // Add unique ID for reference
     link.setAttribute('id', `link-issue-${index}`);
 
-    // Apply red underline if there are any issues
+    // Add red underline if there's any issue
     if (types.has('issues')) {
       link.style.textDecoration = 'underline';
       link.style.textDecorationColor = 'red';

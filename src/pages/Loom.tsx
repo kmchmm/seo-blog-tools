@@ -101,7 +101,7 @@ const Loom: FC = () => {
     showHighlights: showLinkIssuesHighlight,
     handleShowHighlightsToggle: handleShowLinkIssuesHighlightToggle,
     loading: loadingAnalyzeLink,
-  } = useLinkIssuesAnalysis({});
+  } = useLinkIssuesAnalysis();
 
   const {
     results,
@@ -129,6 +129,9 @@ const Loom: FC = () => {
   const handleAnalyzeLinkIssues = () => {
     setEditMode(false);
     runLinkIssuesAnalysis(htmlString);
+    if (showLinkIssuesHighlight) {
+      handleShowLinkIssuesHighlightToggle(true);
+    }
   };
 
   const handleKeywordAnalyze = () => {
@@ -159,7 +162,6 @@ const Loom: FC = () => {
 
   const onLinkIssuesShowHighlightsClick = () => {
     if (!divRef.current) return;
-    handleShowLinkIssuesHighlightToggle(true);
     highlightLinkIssuesInHtml(
       divRef.current as CustomHTMLElement,
       linkIssuesResult as LinkAnalysisResult
@@ -449,8 +451,8 @@ const Loom: FC = () => {
   }, [
     showContentIssuesHighlight,
     showKeywordHighlight,
-    editMode,
     showLinkIssuesHighlight,
+    editMode,
   ]);
 
   return (
