@@ -68,7 +68,7 @@ const KeywordResultSection = ({ result }: Props) => {
 
       <Accordion
         header={<p className="text-sm">H2 & H3 Optimization</p>}
-        badge={percent}
+        badge={`${percent}%`}
         badgeColor={getHeaderBadgeColor(percent)}>
         <div className="flex flex-col gap-y-2">
           <ul className="list-disc ml-4">
@@ -83,7 +83,7 @@ const KeywordResultSection = ({ result }: Props) => {
 
       <Accordion
         header={<p className="text-sm">Per Section Optimization</p>}
-        badge={percentSections}
+        badge={`${percentSections}%`}
         badgeColor={percentSections === 100 ? 'green' : 'red'}>
         {withoutFocus.length > 0 ? (
           <Alert

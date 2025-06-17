@@ -5,14 +5,21 @@ import { AnalysisWorkerWrapper, Paper } from 'yoastseo';
 import { Modal } from '../Modal.js';
 import supabase from '../../utils/supabaseInit.js';
 import { UserContext } from '../../context/UserContext.js';
-import { analyzeLinks } from '../../utils/analyzeLinksWorker.js';
 
 import { Accordion } from '../Accordion.js';
 import { Summary } from '../Summary.js';
 
 import { Tabs, TabList, Tab, TabPanel } from 'react-aria-components';
 import YoastIcon from '../../assets/icons/yoast.svg?react';
-import { GoAlert, GoChecklist, GoLaw, GoLink, GoSearch, GoEye, GoDotFill } from 'react-icons/go';
+import {
+  GoAlert,
+  GoChecklist,
+  GoLaw,
+  GoLink,
+  GoSearch,
+  GoEye,
+  GoDotFill,
+} from 'react-icons/go';
 import { FiEyeOff } from 'react-icons/fi';
 
 import { FaCheckCircle, FaTimesCircle, FaTrash } from 'react-icons/fa';
@@ -23,9 +30,6 @@ import {
   ErrorList,
   FormatError,
   KeywordAnalysisResult,
-  LinkDetail,
-  LinkErrors,
-  LinkIssue,
 } from '../../types/loom.js';
 import { VIOLATION_PHRASES } from './contants.js';
 import { formatList } from './helpers.js';
@@ -33,6 +37,8 @@ import { formatList } from './helpers.js';
 import KeywordResultSection from './KeywordResultSection.js';
 import { Button, Alert } from '../common';
 import ContentIssuesResultSection from './ContentIssuesResultSection.js';
+import LinkIssuesResultSection from './LinkIssuesResultSection.js';
+import { LinkAnalysisResult } from '../../utils/analyzeLinksWorker.js';
 
 interface LoomProps {
   text: string;
@@ -46,7 +52,7 @@ interface LoomProps {
   onRemoveFormatHighlight: () => void;
   onHighlightContent: () => void;
   onRemoveContentHighlight: () => void;
-  onLinkIssues?: (issues: LinkIssue[]) => void;
+  onLinkIssues: () => void;
   handleAnalyze: () => void;
   keywordAnalysisResult: KeywordAnalysisResult | null;
   error: string | null;
@@ -57,6 +63,10 @@ interface LoomProps {
   contentIssuesResult: ContentIssueReport | null;
   contentIssuesErrorMessage: string;
   disableContentIssuesButton?: boolean;
+  linkIssuesResult: LinkAnalysisResult | null;
+  onLinkIssuesShowHighlightsClick: () => void;
+  loadingAnalyzeLink: boolean;
+  onLinkIssuesRemoveHighlightClick: () => void;
 }
 
 const tabHeaderStyle = clsx(
@@ -108,8 +118,11 @@ export const LoomSidebar: FC<LoomProps> = ({
   contentIssuesErrorMessage,
   contentIssuesResult,
   disableContentIssuesButton = false,
+  linkIssuesResult,
+  onLinkIssuesShowHighlightsClick,
+  onLinkIssuesRemoveHighlightClick,
+  loadingAnalyzeLink,
 }) => {
-
   const { userData } = useContext(UserContext);
   const [hasRunChecks, setHasRunChecks] = useState(false);
   const [showSummary, setShowSummary] = useState<'summary' | 'tools'>('tools');
@@ -145,13 +158,11 @@ export const LoomSidebar: FC<LoomProps> = ({
   const [showResults, setShowResults] = useState(false);
 
   const [hasLinkChecked, setHasLinkChecked] = useState(false);
-  const [linkShowResults, setLinkShowResults] = useState(false);
 
   const [hasKeywordChecked, setHasKeywordChecked] = useState(false);
 
   const [contentHighlightsActive, setContentHighlightsActive] = useState(false);
   const [keywordHighlightsActive, setKeywordHighlightsActive] = useState(false);
-
 
   // const [loading, setLoading] = useState(false);
   const [loading] = useState(false);
@@ -173,8 +184,6 @@ export const LoomSidebar: FC<LoomProps> = ({
     spaceBeforePunctuationErrors: [],
     missingPunctuationErrors: [],
   });
-
-  const [linkErrors, setLinkErrors] = useState<LinkErrors | null>(null);
 
   const hasErrors = Object.values(formatErrors).some(arr => arr.length > 0);
 
@@ -672,73 +681,8 @@ export const LoomSidebar: FC<LoomProps> = ({
   ////////////////////////////////////////////////////////
 
   const handleAnalyzeLink = () => {
-    checkAnalyzeLink();
+    onLinkIssues();
     setHasLinkChecked(true);
-  };
-
-  const checkAnalyzeLink = async () => {
-    if (!text) return;
-
-    const result = await analyzeLinks(text);
-    console.log('analyzeLinks result:', result);
-
-    setLinkErrors(result);
-
-    if (typeof onLinkIssues === 'function') {
-      const issues: LinkIssue[] = [];
-
-      Object.entries(result).forEach(([type, details]) => {
-        console.log(`Type: ${type}, Details:`, details);
-        if (Array.isArray(details)) {
-          details.forEach(entry => {
-            if (typeof entry === 'string') {
-              issues.push({ type, url: entry });
-            } else {
-              issues.push({ type, url: entry.url, anchor: entry.anchor });
-            }
-          });
-        }
-      });
-
-      onLinkIssues(issues);
-    }
-
-    setLinkShowResults(true);
-  };
-
-  const formatErrorLabel = (label: string) =>
-    label.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase());
-
-  const totalLinkAndAnchorIssues = linkErrors
-    ? Object.entries(linkErrors)
-        .filter(([key]) => key !== 'internalLinks' && key !== 'externalLinks')
-        .reduce((sum, [, arr]) => sum + arr.length, 0)
-    : 0;
-
-  const totalLinkErrors = linkErrors
-    ? Object.entries(linkErrors)
-        .filter(([key]) => key !== 'internalLinks' && key !== 'externalLinks')
-        .reduce((sum, [, arr]) => sum + arr.length, 0)
-    : 0;
-
-  const linkErrorMessage =
-    totalLinkErrors === 0
-      ? 'No link issues found! Good job! 🎉'
-      : 'Some link issues found! Please review.⚠️';
-
-  const scrollToLink = (url: string) => {
-    try {
-      const el = document.querySelector(`a[href="${CSS.escape(url)}"]`);
-      if (el) {
-        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        el.classList.add('bg-green-100', '!text-white');
-        setTimeout(() => {
-          el.classList.remove('bg-green-100', '!text-white');
-        }, 2000);
-      }
-    } catch (e) {
-      console.warn(`Failed to scroll to link: ${url}`, e);
-    }
   };
 
   ////////////////////////////////////////////////////////
@@ -770,466 +714,477 @@ export const LoomSidebar: FC<LoomProps> = ({
     if (keywordAnalysisResult?.focusKeyphrase === keyword) {
       return <Alert message="Done analyzing" type="success" />;
     }
-    if (!error) return <Alert message="Click 'Analyze Keywords again" type="info" />;
+    if (!error) return <Alert message="Click 'Analyze Keywords' again" type="info" />;
   };
-/////////////////////////////////////////
-///////////RUN ALL CHECKS////////////////
-/////////////////////////////////////////
-const runAllChecks = () => {
- yoastSEOAnalyze();
- checkForViolations();
- runFormatCheck();
- setShowResults(true);
- checkContentIssues();
- handleAnalyzeLink();
- handleAnalyzeKeyword();
-}
-
+  /////////////////////////////////////////
+  ///////////RUN ALL CHECKS////////////////
+  /////////////////////////////////////////
+  const runAllChecks = () => {
+    yoastSEOAnalyze();
+    checkForViolations();
+    runFormatCheck();
+    setShowResults(true);
+    checkContentIssues();
+    handleAnalyzeLink();
+    handleAnalyzeKeyword();
+  };
 
   return (
     <div className="w-[350px] min-h-[500px]">
-      <Button 
+      <Button
         onClick={() => {
-        runAllChecks(); 
-        setShowSummary('summary'); 
-        setHasRunChecks(true);
+          runAllChecks();
+          setShowSummary('summary');
+          setHasRunChecks(true);
         }}
-      className="w-full mb-4">Run All Checks</Button>
+        className="w-full mb-4">
+        Run All Checks
+      </Button>
       <section
         className={clsx(
           'border border-black/17.5 rounded-md pb-4 px-4 bg-white',
           'flex flex-1 flex-col'
         )}>
-        {/* <Button className="self-center">Export Full Report</Button> */} {/*TO BE ADDED*/}
-        <div
-          className={clsx(
-            'justify-between flex',
-            'mx-[-16px] mb-4'
-          )}>
+        {/* <Button className="self-center">Export Full Report</Button> */}{' '}
+        {/*TO BE ADDED*/}
+        <div className={clsx('justify-between flex', 'mx-[-16px] mb-4')}>
           <a
             onClick={() => setShowSummary('summary')}
             className={`w-full text-center cursor-pointer font-bold p-2 ${
-              showSummary === 'summary' ? '' : 'border border-y-black/17.5 border-r-black/17.5 border-l-0 hover:bg-black-200 hover:text-white bg-[#e4e4eb]'
-            }`}
-          >
+              showSummary === 'summary'
+                ? ''
+                : 'border border-y-black/17.5 border-r-black/17.5 border-l-0 hover:bg-black-200 hover:text-white bg-[#e4e4eb]'
+            }`}>
             Summary
           </a>
 
           <a
             onClick={() => setShowSummary('tools')}
             className={`w-full text-center cursor-pointer font-bold p-2 ${
-              showSummary === 'tools' ? '' : 'border border-y-black/17.5 border-l-black/17.5 border-r-0 hover:bg-black-200 hover:text-white bg-[#e4e4eb]'
-            }`}
-          >
+              showSummary === 'tools'
+                ? ''
+                : 'border border-y-black/17.5 border-l-black/17.5 border-r-0 hover:bg-black-200 hover:text-white bg-[#e4e4eb]'
+            }`}>
             Tools
           </a>
         </div>
         {hasRunChecks && showSummary === 'summary' && (
           <div>
             <Summary
-              totalWordCount={contentIssuesResult?.totalWordCount ?? null}              
+              totalWordCount={contentIssuesResult?.totalWordCount ?? null}
               keywordCounts={keywordAnalysisResult?.keywordCounts.focusCount ?? null}
               keywordDensity={keywordAnalysisResult?.density.toFixed(2) ?? null}
               alternateEsqCount={keywordAnalysisResult?.keywordCounts.altCount ?? 0}
               headingsCount={contentIssuesResult?.headings?.length ?? 0}
-              internalLinksCount={linkErrors?.internalLinks?.length || 0}
-              externalLinksCount={linkErrors?.externalLinks?.length || 0}
+              internalLinksCount={linkIssuesResult?.internalLinks?.length || 0}
+              externalLinksCount={linkIssuesResult?.externalLinks?.length || 0}
             />
             {/* <div className="w-full border border-b-black-200"></div> */}
-           {(contentIssuesResult?.totalWordCount ?? 0) > 0 && (
-            <ul>
-              {/* YOAST */}
-              <li className="border border-black/20 p-2 rounded-md">
-                <div className="flex justify-between">
-                  <span className="font-bold">Yoast SEO</span>
-                  <FiEyeOff className="text-gray-200"/>
-                </div>
-                <ul className="text-sm">
-                  <li>
-                    <h6 className="font-bold text-xs mt-2">YOAST SEO ANALYSIS</h6>
-                    <ul>
-                      <li className="flex justify-between">
-                        <span className='flex justify-between item-center gap-2'>
-                          <GoDotFill className="text-red-500 mt-0.5"/>
-                          <span>Problems</span>
-                        </span>
-                        <span>{seoProblems.length}</span>
-                      </li>
-                      <li className="flex justify-between">
-                        <span className='flex justify-between item-center gap-2'>
-                          <GoDotFill className="text-green-500 mt-0.5"/>
-                          <span>Good Results</span>
-                        </span>
-                        <span>{seoAchievements.length}</span>
-                      </li>
-                    </ul>
-                  </li>
-                  <li className="mt-2">
-                    <h6 className="font-bold text-xs mt-2 ">YOAST READABILITY ANALYSIS</h6>
-                    <ul>
-                      <li className="flex justify-between">
-                        <span className='flex justify-between item-center gap-2'>
-                          <GoDotFill className="text-red-500 mt-0.5"/>
-                          <span>Problems</span>
-                        </span>
-                        <span>{readabilityProblems.length}</span>
-                      </li>
-                      <li className="flex justify-between">
-                        <span className='flex justify-between item-center gap-2'>
-                          <GoDotFill className="text-green-500 mt-0.5"/>
-                          <span>Good Results</span>
-                        </span>
-                        <span>{readabilityAchievements.length}</span>
-                      </li>
-                    </ul>
-                  </li>
-                </ul>
-              </li>
+            {(contentIssuesResult?.totalWordCount ?? 0) > 0 && (
+              <ul>
+                {/* YOAST */}
+                <li className="border border-black/20 p-2 rounded-md">
+                  <div className="flex justify-between">
+                    <span className="font-bold">Yoast SEO</span>
+                    <FiEyeOff className="text-gray-200" />
+                  </div>
+                  <ul className="text-sm">
+                    <li>
+                      <h6 className="font-bold text-xs mt-2">YOAST SEO ANALYSIS</h6>
+                      <ul>
+                        <li className="flex justify-between">
+                          <span className="flex justify-between item-center gap-2">
+                            <GoDotFill className="text-red-500 mt-0.5" />
+                            <span>Problems</span>
+                          </span>
+                          <span>{seoProblems.length}</span>
+                        </li>
+                        <li className="flex justify-between">
+                          <span className="flex justify-between item-center gap-2">
+                            <GoDotFill className="text-green-500 mt-0.5" />
+                            <span>Good Results</span>
+                          </span>
+                          <span>{seoAchievements.length}</span>
+                        </li>
+                      </ul>
+                    </li>
+                    <li className="mt-2">
+                      <h6 className="font-bold text-xs mt-2 ">
+                        YOAST READABILITY ANALYSIS
+                      </h6>
+                      <ul>
+                        <li className="flex justify-between">
+                          <span className="flex justify-between item-center gap-2">
+                            <GoDotFill className="text-red-500 mt-0.5" />
+                            <span>Problems</span>
+                          </span>
+                          <span>{readabilityProblems.length}</span>
+                        </li>
+                        <li className="flex justify-between">
+                          <span className="flex justify-between item-center gap-2">
+                            <GoDotFill className="text-green-500 mt-0.5" />
+                            <span>Good Results</span>
+                          </span>
+                          <span>{readabilityAchievements.length}</span>
+                        </li>
+                      </ul>
+                    </li>
+                  </ul>
+                </li>
 
+                {/* SB37 */}
+                <li className="border border-black/20 p-2 mt-2 rounded-md">
+                  <div className="flex justify-between">
+                    <span className="font-bold">SB37</span>
+                    {highlightActive ? (
+                      <GoEye
+                        title="Remove Highlights"
+                        className="text-gray-500 cursor-pointer"
+                        onClick={() => {
+                          onRemoveHighlight();
+                          setActiveHighlights([]);
+                          setHighlightActive(false);
+                        }}
+                      />
+                    ) : (
+                      <FiEyeOff
+                        title="Show Highlights"
+                        className="text-gray-500 cursor-pointer"
+                        onClick={() => {
+                          const updated = Array.from(
+                            new Set([
+                              ...activeHighlights,
+                              ...violations,
+                              ...dictionaryViolations,
+                            ])
+                          );
+                          setActiveHighlights(updated);
+                          onHighlight(updated);
+                          setHighlightActive(true);
+                        }}
+                      />
+                    )}
+                  </div>
+                  <ul className="text-sm mt-2">
+                    <li className="flex items-start gap-2 mt-2">
+                      <GoDotFill
+                        className={
+                          violations.length === 0 && dictionaryViolations.length === 0
+                            ? 'text-yellow-200 mt-1'
+                            : 'text-yellow-200 mt-1'
+                        }
+                      />
+                      <span>
+                        {violations.length === 0 && dictionaryViolations.length === 0
+                          ? 'No potential SB37 violations found.'
+                          : `Potential SB37 violations found in ${
+                              Object.keys(violationResults).length +
+                              Object.keys(dictionaryViolationResults).length
+                            } section(s).`}
+                      </span>
+                    </li>
+                  </ul>
+                </li>
 
-              {/* SB37 */}
-              <li className="border border-black/20 p-2 mt-2 rounded-md">
-                <div className="flex justify-between">
-                  <span className="font-bold">SB37</span>
-                  {highlightActive ? (
-                    <GoEye
-                      title="Remove Highlights"
-                      className="text-gray-500 cursor-pointer"
-                      onClick={() => {
-                        onRemoveHighlight();
-                        setActiveHighlights([]);
-                        setHighlightActive(false);
-                      }}
-                    />
-                  ) : (
-                    <FiEyeOff
-                      title="Show Highlights"
-                      className="text-gray-500 cursor-pointer"
-                      onClick={() => {
-                        const updated = Array.from(
-                          new Set([...activeHighlights, ...violations, ...dictionaryViolations])
-                        );
-                        setActiveHighlights(updated);
-                        onHighlight(updated);
-                        setHighlightActive(true);
-                      }}
-                    />
-                  )}
-                </div>
-                <ul className="text-sm mt-2">
-                  <li className="flex items-start gap-2 mt-2">
-                    <GoDotFill
-                      className={
-                        violations.length === 0 && dictionaryViolations.length === 0
-                          ? 'text-yellow-200 mt-1'
-                          : 'text-yellow-200 mt-1'
-                      }
-                    />
-                    <span>
-                      {violations.length === 0 && dictionaryViolations.length === 0
-                        ? 'No potential SB37 violations found.'
-                        : `Potential SB37 violations found in ${
-                            Object.keys(violationResults).length + Object.keys(dictionaryViolationResults).length
-                          } section(s).`}
-                    </span>
-                  </li>
-                </ul>
-              </li>
+                {/* FORMATTING */}
+                <li className="border border-black/20 p-2 mt-2 rounded-md">
+                  <div className="flex justify-between">
+                    <span className="font-bold">FORMATTING</span>
+                    {highlightActive ? (
+                      <GoEye
+                        title="Remove Highlights"
+                        className="text-gray-500 cursor-pointer"
+                        onClick={() => {
+                          onRemoveFormatHighlight();
+                          setHighlightActive(false);
+                        }}
+                      />
+                    ) : (
+                      <FiEyeOff
+                        title="Show Highlights"
+                        className="text-gray-500 cursor-pointer"
+                        onClick={() => {
+                          handleHighlightFormatErrors();
+                          setHighlightActive(true);
+                        }}
+                      />
+                    )}
+                  </div>
+                  <ul className="text-sm">
+                    {[
+                      {
+                        label: 'Multiple spaces',
+                        count: formatErrors.multipleSpaceErrors.length,
+                      },
+                      {
+                        label: 'Em dash issues',
+                        count: formatErrors.emDashErrors.length,
+                      },
+                      {
+                        label: 'Lowercase in headings',
+                        count: formatErrors.titleCaseErrors.length,
+                      },
+                      {
+                        label: 'Leading/trailing spaces',
+                        count: formatErrors.leadingTrailingSpaceErrors.length,
+                      },
+                      {
+                        label: 'Space before punctuation',
+                        count: formatErrors.spaceBeforePunctuationErrors.length,
+                      },
+                      {
+                        label: 'Missing punctuation',
+                        count: formatErrors.missingPunctuationErrors.length,
+                      },
+                    ].map(({ label, count }, idx) => (
+                      <li key={idx} className="flex justify-between mt-2">
+                        <div className="flex items-center gap-2">
+                          {contentIssuesResult && (
+                            <GoDotFill
+                              className={count > 0 ? 'text-red-500' : 'text-green-500'}
+                            />
+                          )}
+                          <span>
+                            {count > 0 ? `${label} found` : `No ${label.toLowerCase()}`}
+                          </span>
+                        </div>
+                        <span>{count}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </li>
 
-              {/* FORMATTING */}
-              <li className="border border-black/20 p-2 mt-2 rounded-md">
-                <div className="flex justify-between">
-                  <span className="font-bold">FORMATTING</span>
-                  {highlightActive ? (
-                    <GoEye
-                      title="Remove Highlights"
-                      className="text-gray-500 cursor-pointer"
-                      onClick={() => {
-                        onRemoveFormatHighlight();
-                        setHighlightActive(false);
-                      }}
-                    />
-                  ) : (
-                    <FiEyeOff
-                      title="Show Highlights"
-                      className="text-gray-500 cursor-pointer"
-                      onClick={() => {
-                        handleHighlightFormatErrors();
-                        setHighlightActive(true);
-                      }}
-                    />
-                  )}
-                </div>
-                <ul className="text-sm">
-                  {[
-                    {
-                      label: 'Multiple spaces',
-                      count: formatErrors.multipleSpaceErrors.length
-                    },
-                    {
-                      label: 'Em dash issues',
-                      count: formatErrors.emDashErrors.length
-                    },
-                    {
-                      label: 'Lowercase in headings',
-                      count: formatErrors.titleCaseErrors.length
-                    },
-                    {
-                      label: 'Leading/trailing spaces',
-                      count: formatErrors.leadingTrailingSpaceErrors.length
-                    },
-                    {
-                      label: 'Space before punctuation',
-                      count: formatErrors.spaceBeforePunctuationErrors.length
-                    },
-                    {
-                      label: 'Missing punctuation',
-                      count: formatErrors.missingPunctuationErrors.length
-                    }
-                  ].map(({ label, count }, idx) => (
-                    <li key={idx} className="flex justify-between mt-2">
+                {/* CONTENT */}
+                <li className="border border-black/20 p-2 mt-2 rounded-md">
+                  <div className="flex justify-between">
+                    <span className="font-bold">Content</span>
+
+                    {contentHighlightsActive ? (
+                      <GoEye
+                        onClick={() => {
+                          if (!text || !contentIssuesResult || editMode) return;
+                          onRemoveContentHighlight();
+                          setContentHighlightsActive(false);
+                        }}
+                        title="Remove Highlights"
+                        className={clsx(
+                          'text-gray-500 cursor-pointer transition-colors',
+                          (!text || !contentIssuesResult || editMode) &&
+                            'opacity-50 cursor-not-allowed',
+                          'text-blue-500' // highlight when active
+                        )}
+                      />
+                    ) : (
+                      <FiEyeOff
+                        onClick={() => {
+                          if (!text || !contentIssuesResult || editMode) return;
+                          onHighlightContent();
+                          setContentHighlightsActive(true);
+                        }}
+                        title="Show Highlights"
+                        className={clsx(
+                          'text-gray-500 cursor-pointer transition-colors',
+                          (!text || !contentIssuesResult || editMode) &&
+                            'opacity-50 cursor-not-allowed'
+                        )}
+                      />
+                    )}
+                  </div>
+                  <ul className="text-sm">
+                    <li className="flex justify-between mt-2">
+                      <div className="flex items-center gap-2">
+                        <GoDotFill className="!text-gray-200" />
+                        <span>Total Word Count:</span>
+                      </div>
+                      <span>{contentIssuesResult?.totalWordCount}</span>
+                    </li>
+
+                    <li className="flex justify-between mt-2">
                       <div className="flex items-center gap-2">
                         {contentIssuesResult && (
                           <GoDotFill
                             className={
-                              count > 0 ? 'text-red-500' : 'text-green-500'
+                              (contentIssuesResult?.over300Sections?.length ?? 0) > 0
+                                ? 'text-gray-600'
+                                : 'text-gray-600'
                             }
                           />
                         )}
-                        <span>{count > 0 ? `${label} found` : `No ${label.toLowerCase()}`}</span>
+                        <span>
+                          {(contentIssuesResult?.over300Sections?.length ?? 0) > 0
+                            ? 'Some sections have over 300 words'
+                            : 'All sections are under 300 words'}
+                        </span>
                       </div>
-                      <span>{count}</span>
+                      {(contentIssuesResult?.over300Sections?.length ?? 0) > 0 && (
+                        <span>{contentIssuesResult?.over300Sections.length}</span>
+                      )}
                     </li>
-                  ))}
-                </ul>
-              </li>
 
-              {/* CONTENT */}
-            <li className="border border-black/20 p-2 mt-2 rounded-md">
-              <div className="flex justify-between">
-                <span className="font-bold">Content</span>
-
-              {contentHighlightsActive ? (
-                <GoEye
-                  onClick={() => {
-                    if (!text || !contentIssuesResult || editMode) return;
-                    onRemoveContentHighlight();
-                    setContentHighlightsActive(false);
-                  }}
-                  title="Remove Highlights"
-                  className={clsx(
-                    'text-gray-500 cursor-pointer transition-colors',
-                    (!text || !contentIssuesResult || editMode) && 'opacity-50 cursor-not-allowed',
-                    'text-blue-500' // highlight when active
-                  )}
-                />
-              ) : (
-                <FiEyeOff
-                  onClick={() => {
-                    if (!text || !contentIssuesResult || editMode) return;
-                    onHighlightContent();
-                    setContentHighlightsActive(true);
-                  }}
-                  title="Show Highlights"
-                  className={clsx(
-                    'text-gray-500 cursor-pointer transition-colors',
-                    (!text || !contentIssuesResult || editMode) && 'opacity-50 cursor-not-allowed'
-                  )}
-                />
-              )}
-
-              </div>
-              <ul className="text-sm">
-                <li className="flex justify-between mt-2">
-                  <div className="flex items-center gap-2">
-                    <GoDotFill className="!text-gray-200" />
-                    <span>Total Word Count:</span>
-                  </div>
-                  <span>{contentIssuesResult?.totalWordCount}</span>
+                    <li className="flex justify-between mt-2">
+                      <div className="flex items-center gap-2">
+                        {contentIssuesResult && (
+                          <GoDotFill
+                            className={
+                              (contentIssuesResult?.sameWordStreaks?.length ?? 0) > 0
+                                ? 'text-[#fbc795]'
+                                : 'text-[#fbc795]'
+                            }
+                          />
+                        )}
+                        <span>
+                          {(contentIssuesResult?.sameWordStreaks?.length ?? 0) > 0
+                            ? 'Repeated sentence starts'
+                            : 'No repeated sentence starts'}
+                        </span>
+                      </div>
+                      {(contentIssuesResult?.sameWordStreaks?.length ?? 0) > 0 && (
+                        <span>{contentIssuesResult?.sameWordStreaks.length}</span>
+                      )}
+                    </li>
+                  </ul>
                 </li>
 
-                <li className="flex justify-between mt-2">
-                  <div className="flex items-center gap-2">
-                    {contentIssuesResult && (
-                      <GoDotFill
-                        className={
-                          (contentIssuesResult?.over300Sections?.length ?? 0) > 0
-                            ? 'text-gray-600'
-                            : 'text-gray-600'
-                        }
-                      />
-                    )}
-                    <span>
-                      {(contentIssuesResult?.over300Sections?.length ?? 0) > 0
-                        ? 'Some sections have over 300 words'
-                        : 'All sections are under 300 words'}
-                    </span>
+                {/* LINKS */}
+                <li className="border border-black/20 p-2 mt-2 rounded-md">
+                  <div className="flex justify-between">
+                    <span className="font-bold">Links</span>
+                    <GoEye className="text-gray-500" />
                   </div>
-                  {(contentIssuesResult?.over300Sections?.length ?? 0) > 0 && (
-                    <span>{contentIssuesResult?.over300Sections.length}</span>
+                  {linkIssuesResult && (
+                    <ul className="text-sm">
+                      {(
+                        [
+                          'invalidLinks',
+                          'missingTrailingSlash',
+                          'duplicateLinks',
+                          'brokenLinks',
+                          'identicalAnchors',
+                          'invalidAnchors',
+                        ] as unknown as (keyof typeof linkIssuesResult)[]
+                      ).map(key => {
+                        const count = Array.isArray(linkIssuesResult[key])
+                          ? linkIssuesResult[key].length
+                          : 0;
+                        const hasIssues = count > 0;
+
+                        return (
+                          <li key={key} className="flex justify-between mt-2">
+                            <div className="flex items-center gap-2">
+                              <GoDotFill
+                                className={hasIssues ? 'text-red-500' : 'text-green-500'}
+                              />
+                              <span className="capitalize">
+                                {key.replace(/([A-Z])/g, ' $1')}:
+                              </span>
+                            </div>
+                            <span>{count}</span>
+                          </li>
+                        );
+                      })}
+                    </ul>
                   )}
                 </li>
 
-                <li className="flex justify-between mt-2">
-                  <div className="flex items-center gap-2">
-                    {contentIssuesResult && (
-                      <GoDotFill
-                        className={
-                          (contentIssuesResult?.sameWordStreaks?.length ?? 0) > 0
-                            ? 'text-[#fbc795]'
-                            : 'text-[#fbc795]'
-                        }
+                {/* KEYWORDS */}
+                <li className="border border-black/20 p-2 mt-2 rounded-md">
+                  <div className="flex justify-between">
+                    <span className="font-bold">Keywords</span>
+                    {keywordHighlightsActive ? (
+                      <GoEye
+                        onClick={() => {
+                          if (!text || !keywordAnalysisResult || editMode) return;
+                          onRemoveContentHighlight();
+                          setKeywordHighlightsActive(false);
+                        }}
+                        title="Remove Highlights"
+                        className={clsx(
+                          'text-gray-500 cursor-pointer transition-colors',
+                          (!text || !keywordAnalysisResult || editMode) &&
+                            'opacity-50 cursor-not-allowed',
+                          'text-blue-500'
+                        )}
+                      />
+                    ) : (
+                      <FiEyeOff
+                        onClick={() => {
+                          if (!text || !keywordAnalysisResult || editMode) return;
+                          onHighlightContent();
+                          setKeywordHighlightsActive(true);
+                        }}
+                        title="Show Highlights"
+                        className={clsx(
+                          'text-gray-500 cursor-pointer transition-colors',
+                          (!text || !keywordAnalysisResult || editMode) &&
+                            'opacity-50 cursor-not-allowed'
+                        )}
                       />
                     )}
-                    <span>
-                      {(contentIssuesResult?.sameWordStreaks?.length ?? 0) > 0
-                        ? 'Repeated sentence starts'
-                        : 'No repeated sentence starts'}
-                    </span>
                   </div>
-                  {(contentIssuesResult?.sameWordStreaks?.length ?? 0) > 0 && (
-                    <span>{contentIssuesResult?.sameWordStreaks.length}</span>
-                  )}
+
+                  <ul className="text-sm">
+                    {keywordAnalysisResult && !error && (
+                      <>
+                        {/* Focus Keyword Count */}
+                        <li className="flex justify-between mt-2">
+                          <div className="flex items-center gap-2">
+                            <GoDotFill
+                              className={
+                                keywordAnalysisResult.keywordCounts.focusCount > 0
+                                  ? 'text-green-500'
+                                  : 'text-red-500'
+                              }
+                            />
+                            <span>
+                              {keywordAnalysisResult.keywordCounts.focusCount > 0
+                                ? 'Focus keyword found'
+                                : 'Focus keyword missing'}
+                            </span>
+                          </div>
+                          <span>{keywordAnalysisResult.keywordCounts.focusCount}</span>
+                        </li>
+
+                        {/* Alt Keyword Count */}
+                        <li className="flex justify-between mt-2">
+                          <div className="flex items-center gap-2">
+                            <GoDotFill
+                              className={
+                                keywordAnalysisResult.keywordCounts.altCount > 0
+                                  ? 'text-green-500'
+                                  : 'text-red-500'
+                              }
+                            />
+                            <span>
+                              {keywordAnalysisResult.keywordCounts.altCount > 0
+                                ? 'Alternate keyword found'
+                                : 'Alternate keyword missing'}
+                            </span>
+                          </div>
+                          <span>{keywordAnalysisResult.keywordCounts.altCount}</span>
+                        </li>
+
+                        {/* Total Keyword Density */}
+                        <li className="flex justify-between mt-2">
+                          <div className="flex items-center gap-2">
+                            <GoDotFill
+                              className={
+                                keywordAnalysisResult.density > 2.5
+                                  ? 'text-red-500'
+                                  : 'text-green-500'
+                              }
+                            />
+                            <span>Keyword density</span>
+                          </div>
+                          <span>{keywordAnalysisResult.density.toFixed(2)}%</span>
+                        </li>
+                      </>
+                    )}
+                  </ul>
                 </li>
               </ul>
-            </li>
-
-
-              {/* LINKS */}
-              <li className="border border-black/20 p-2 mt-2 rounded-md">
-                <div className="flex justify-between">
-                  <span className="font-bold">Links</span>
-                  <GoEye className="text-gray-500" />
-                </div>
-                {linkErrors && (
-                  <ul className="text-sm">
-                    {(
-                      [
-                        'invalidLinks',
-                        'missingTrailingSlash',
-                        'duplicateLinks',
-                        'brokenLinks',
-                        'identicalAnchors',
-                        'invalidAnchors',
-                      ] as (keyof typeof linkErrors)[]
-                    ).map((key) => {
-                      const count = Array.isArray(linkErrors[key]) ? linkErrors[key].length : 0;
-                      const hasIssues = count > 0;
-
-                      return (
-                        <li key={key} className="flex justify-between mt-2">
-                          <div className="flex items-center gap-2">
-                            <GoDotFill className={hasIssues ? 'text-red-500' : 'text-green-500'} />
-                            <span className="capitalize">{key.replace(/([A-Z])/g, ' $1')}:</span>
-                          </div>
-                          <span>{count}</span>
-                        </li>
-                      );
-                    })}
-                  </ul>
-                )}
-
-              </li>
-
-              {/* KEYWORDS */}
-              <li className="border border-black/20 p-2 mt-2 rounded-md">
-                <div className="flex justify-between">
-                  <span className="font-bold">Keywords</span>
-                  {keywordHighlightsActive ? (
-                    <GoEye
-                      onClick={() => {
-                        if (!text || !keywordAnalysisResult || editMode) return;
-                        onRemoveContentHighlight();
-                        setKeywordHighlightsActive(false);
-                      }}
-                      title="Remove Highlights"
-                      className={clsx(
-                        'text-gray-500 cursor-pointer transition-colors',
-                        (!text || !keywordAnalysisResult || editMode) && 'opacity-50 cursor-not-allowed',
-                        'text-blue-500'
-                      )}
-                    />
-                  ) : (
-                    <FiEyeOff
-                      onClick={() => {
-                        if (!text || !keywordAnalysisResult || editMode) return;
-                        onHighlightContent();
-                        setKeywordHighlightsActive(true);
-                      }}
-                      title="Show Highlights"
-                      className={clsx(
-                        'text-gray-500 cursor-pointer transition-colors',
-                        (!text || !keywordAnalysisResult || editMode) && 'opacity-50 cursor-not-allowed'
-                      )}
-                    />
-                  )}
-                </div>
-
-                <ul className="text-sm">
-                  {keywordAnalysisResult && !error && (
-                    <>
-                      {/* Focus Keyword Count */}
-                      <li className="flex justify-between mt-2">
-                        <div className="flex items-center gap-2">
-                          <GoDotFill
-                            className={
-                              keywordAnalysisResult.keywordCounts.focusCount > 0
-                                ? 'text-green-500'
-                                : 'text-red-500'
-                            }
-                          />
-                          <span>
-                            {keywordAnalysisResult.keywordCounts.focusCount > 0
-                              ? 'Focus keyword found'
-                              : 'Focus keyword missing'}
-                          </span>
-                        </div>
-                        <span>{keywordAnalysisResult.keywordCounts.focusCount}</span>
-                      </li>
-
-                      {/* Alt Keyword Count */}
-                      <li className="flex justify-between mt-2">
-                        <div className="flex items-center gap-2">
-                          <GoDotFill
-                            className={
-                              keywordAnalysisResult.keywordCounts.altCount > 0
-                                ? 'text-green-500'
-                                : 'text-red-500'
-                            }
-                          />
-                          <span>
-                            {keywordAnalysisResult.keywordCounts.altCount > 0
-                              ? 'Alternate keyword found'
-                              : 'Alternate keyword missing'}
-                          </span>
-                        </div>
-                        <span>{keywordAnalysisResult.keywordCounts.altCount}</span>
-                      </li>
-
-                      {/* Total Keyword Density */}
-                      <li className="flex justify-between mt-2">
-                        <div className="flex items-center gap-2">
-                          <GoDotFill
-                            className={
-                              keywordAnalysisResult.density > 2.5
-                                ? 'text-red-500'
-                                : 'text-green-500'
-                            }
-                          />
-                          <span>Keyword density</span>
-                        </div>
-                        <span>{keywordAnalysisResult.density.toFixed(2)}%</span>
-                      </li>
-                    </>
-                  )}
-                </ul>
-              </li>
-
-            </ul>
             )}
           </div>
         )}
-
         {showSummary === 'tools' && (
           <Tabs className={clsx('min-h-[410px]')}>
             <TabList
@@ -1331,19 +1286,24 @@ const runAllChecks = () => {
                 <div className="flex mt-5 gap-2 mb-1">
                   <Button
                     className="w-full text-sm !bg-white text-black !border-black-200 border rounded-none hover:shadow-none hover:!bg-black-200 hover:text-white dark:hover:shadow-none dark:!text-black-200 dark:hover:!text-white"
-                    disabled={violations.length === 0 && dictionaryViolations.length === 0}
+                    disabled={
+                      violations.length === 0 && dictionaryViolations.length === 0
+                    }
                     onClick={() => {
                       const updated = Array.from(
-                        new Set([...activeHighlights, ...violations, ...dictionaryViolations])
+                        new Set([
+                          ...activeHighlights,
+                          ...violations,
+                          ...dictionaryViolations,
+                        ])
                       );
                       setActiveHighlights(updated);
                       onHighlight(updated);
                       setHighlightActive(true);
-                    }}
-                  >
+                    }}>
                     Show All Highlights
                   </Button>
-                  
+
                   <Button
                     className="w-full text-sm !bg-[#EF4444] border-[#EF4444]  text-white border hover:!bg-red-700 hover:!border-red-700 rounded-none hover:shadow-none dark:hover:shadow-none dark:!text-white"
                     disabled={!highlightActive}
@@ -1493,14 +1453,13 @@ const runAllChecks = () => {
                   </div>
                 )}
 
-                  <Button
-                    className="w-full !bg-white border !border-black-200 hover:!bg-black-200 hover:text-white rounded-none  text-black hover:shadow-none dark:hover:shadow-none dark:!text-black-200 dark:hover:!text-white"
-                    onClick={handleCustomSearch}>
-                    Search Now
-                  </Button>
+                <Button
+                  className="w-full !bg-white border !border-black-200 hover:!bg-black-200 hover:text-white rounded-none  text-black hover:shadow-none dark:hover:shadow-none dark:!text-black-200 dark:hover:!text-white"
+                  onClick={handleCustomSearch}>
+                  Search Now
+                </Button>
 
                 <div className="flex gap-2 mt-3">
-
                   <Button
                     onClick={handleAddOpenModal}
                     className="w-full border !border-black-200 text-white hover:!bg-black-200 hover:text-white rounded-none !bg-[#6B7280] hover:shadow-none dark:hover:shadow-none dark:!text-black-200 dark:hover:!text-white">
@@ -1567,82 +1526,81 @@ const runAllChecks = () => {
                       </div>
                     </Modal>
                   )}
-                <Button
-                  onClick={handleViewOpenModal}
-                  className="w-full !bg-[#6B7280] hover:!bg-black-200 text-white border-0 rounded-none  hover:shadow-none dark:!text-white dark:hover:shadow-none  dark:hover:!text-white">
-                  View Dictionary
-                </Button>
-                {isViewModalOpen && (
-                  <Modal
-                    isOpen={isViewModalOpen}
-                    onClose={() => setIsViewModalOpen(false)}
-                    width="1200px"
-                    height="auto"
-                    backgroundColor="#0a1a31"
-                    showCloseButton={false}>
-                    <div className="w-full h-full">
-                      <h2 className="!text-left text-white text-2xl font-extrabold">
-                        Added Potential Violations
-                      </h2>
-                      <div>
-                        <table
-                          className={clsx(
-                            'w-full my-[20px] mx-auto border-collapse',
-                            'table-fixed shadow-[0_4px_6px_rgba(0, 0, 0, 0.1)]'
-                          )}>
-                          <thead>
-                            <tr>
-                              <th>Keyword</th>
-                              <th>Added By</th>
-                              <th className="w-[80px]"></th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {dictionary.length === 0 ? (
+                  <Button
+                    onClick={handleViewOpenModal}
+                    className="w-full !bg-[#6B7280] hover:!bg-black-200 text-white border-0 rounded-none  hover:shadow-none dark:!text-white dark:hover:shadow-none  dark:hover:!text-white">
+                    View Dictionary
+                  </Button>
+                  {isViewModalOpen && (
+                    <Modal
+                      isOpen={isViewModalOpen}
+                      onClose={() => setIsViewModalOpen(false)}
+                      width="1200px"
+                      height="auto"
+                      backgroundColor="#0a1a31"
+                      showCloseButton={false}>
+                      <div className="w-full h-full">
+                        <h2 className="!text-left text-white text-2xl font-extrabold">
+                          Added Potential Violations
+                        </h2>
+                        <div>
+                          <table
+                            className={clsx(
+                              'w-full my-[20px] mx-auto border-collapse',
+                              'table-fixed shadow-[0_4px_6px_rgba(0, 0, 0, 0.1)]'
+                            )}>
+                            <thead>
                               <tr>
-                                <td colSpan={3} className="text-center">
-                                  No entries found.
-                                </td>
+                                <th>Keyword</th>
+                                <th>Added By</th>
+                                <th className="w-[80px]"></th>
                               </tr>
-                            ) : (
-                              dictionary.map((entry, index) => (
-                                <tr key={index}>
-                                  <td className=" px-4 py-2 !text-white">
-                                    {entry.keyword}
-                                  </td>
-                                  <td className=" px-4 py-2 !text-white">
-                                    {entry.created_by}
-                                  </td>
-                                  <td className=" px-4 py-2 !text-white">
-                                    <FaTrash
-                                      className="text-white hover:text-red-500 cursor-pointer"
-                                      onClick={() => {
-                                        if (
-                                          confirm(`Delete phrase "${entry.keyword}"?`)
-                                        ) {
-                                          handleDeletePhrase(entry.id);
-                                        }
-                                      }}
-                                    />
+                            </thead>
+                            <tbody>
+                              {dictionary.length === 0 ? (
+                                <tr>
+                                  <td colSpan={3} className="text-center">
+                                    No entries found.
                                   </td>
                                 </tr>
-                              ))
-                            )}
-                          </tbody>
-                        </table>
+                              ) : (
+                                dictionary.map((entry, index) => (
+                                  <tr key={index}>
+                                    <td className=" px-4 py-2 !text-white">
+                                      {entry.keyword}
+                                    </td>
+                                    <td className=" px-4 py-2 !text-white">
+                                      {entry.created_by}
+                                    </td>
+                                    <td className=" px-4 py-2 !text-white">
+                                      <FaTrash
+                                        className="text-white hover:text-red-500 cursor-pointer"
+                                        onClick={() => {
+                                          if (
+                                            confirm(`Delete phrase "${entry.keyword}"?`)
+                                          ) {
+                                            handleDeletePhrase(entry.id);
+                                          }
+                                        }}
+                                      />
+                                    </td>
+                                  </tr>
+                                ))
+                              )}
+                            </tbody>
+                          </table>
+                        </div>
+                        <div className="flex justify-end">
+                          <button
+                            onClick={handleViewCloseModal}
+                            className="border border-white cursor-pointer py-2 px-7 hover:bg-red-100 hover:border-red-100 text-white">
+                            Cancel
+                          </button>
+                        </div>
                       </div>
-                      <div className="flex justify-end">
-                        <button
-                          onClick={handleViewCloseModal}
-                          className="border border-white cursor-pointer py-2 px-7 hover:bg-red-100 hover:border-red-100 text-white">
-                          Cancel
-                        </button>
-                      </div>
-                    </div>
-                  </Modal>
-                )}
+                    </Modal>
+                  )}
                 </div>
-
               </div>
             </TabPanel>
 
@@ -1677,7 +1635,9 @@ const runAllChecks = () => {
                   <div
                     className={`mb-4 p-4 rounded ${hasErrors ? 'bg-[#faeaea] text-red-600' : 'bg-[#e6f6e9] !text-green-100'}`}>
                     {!hasErrors ? (
-                      <h6 className="!text-center">No formatting errors found! Good job! 🎉</h6>
+                      <h6 className="!text-center">
+                        No formatting errors found! Good job! 🎉
+                      </h6>
                     ) : (
                       <div className="w-full flex justify-center flex-col">
                         {formatErrors.missingPunctuationErrors.length > 0 &&
@@ -1921,280 +1881,30 @@ const runAllChecks = () => {
 
             <TabPanel id="Link">
               <Button
+                disabled={!text}
                 onClick={handleAnalyzeLink}
-                className="w-full !bg-[#2563ea] hover:!bg-blue-1000 text-white border-0 hover:shadow-none rounded-none dark:hover:shadow-none dark:!text-white">
-                Analyze Links
+                className="w-full !bg-[#2563ea] flex items-center justify-center hover:!bg-blue-1000 text-white border-0 hover:shadow-none rounded-none dark:hover:shadow-none dark:!text-white">
+                {loadingAnalyzeLink ? 'Analyzing links...' : ' Analyze Links'}
               </Button>
               <div className="flex mt-5 gap-2 mb-1">
-                <Button className="w-1/2 text-sm !bg-white text-black !border-black-200 border rounded-none hover:shadow-none hover:!bg-black-200 hover:text-white dark:hover:shadow-none dark:!text-black-200 dark:hover:!text-white">
+                <Button
+                  disabled={!linkIssuesResult}
+                  className="w-1/2 text-sm !bg-white text-black !border-black-200 border rounded-none hover:shadow-none hover:!bg-black-200 hover:text-white dark:hover:shadow-none dark:!text-black-200 dark:hover:!text-white"
+                  onClick={onLinkIssuesShowHighlightsClick}>
                   Show Highlights
                 </Button>
-                <Button className="w-1/2 text-sm !bg-[#EF4444] border-[#EF4444]  text-white border hover:!bg-red-700 hover:!border-red-700 rounded-none hover:shadow-none dark:hover:shadow-none dark:!text-white">
+                <Button
+                  disabled={!linkIssuesResult}
+                  className="w-1/2 text-sm !bg-[#EF4444] border-[#EF4444]  text-white border hover:!bg-red-700 hover:!border-red-700 rounded-none hover:shadow-none dark:hover:shadow-none dark:!text-white"
+                  onClick={onLinkIssuesRemoveHighlightClick}>
                   Remove Highlights
                 </Button>
               </div>
 
               {hasLinkChecked && (
                 <>
-                  <div
-                    className={`my-4 text-sm font-medium py-4 text-center ${totalLinkErrors === 0 ? '!bg-[#e6f6e9] !text-green-100' : 'bg-[#faeaea] text-red-600'}`}>
-                    {linkErrorMessage}
-                  </div>
-
-                  {linkErrors && (
-                    <div>
-                      <Accordion
-                        className="mt-2"
-                        header={
-                          <div className="flex items-center justify-between w-full text-sm">
-                            <span>Link & Anchor Text Issues</span>
-                            {linkShowResults && (
-                              <div
-                                className={`w-[40px] text-right rounded-2xl px-2 ${
-                                  totalLinkAndAnchorIssues > 0
-                                    ? 'bg-[#f5ecee] text-red-100'
-                                    : 'bg-[#e5f5ea] !text-green-100'
-                                }`}>
-                                {totalLinkAndAnchorIssues}
-                              </div>
-                            )}
-                          </div>
-                        }>
-                        {(() => {
-                          const requiredLinks = [
-                            {
-                              url: 'https://arashlaw.com/practice-areas/car-accident-lawyers/',
-                              label: 'Car Accident PA',
-                            },
-                          ];
-
-                          const allLinkURLs = linkErrors
-                            ? [
-                                ...(linkErrors.internalLinks || []),
-                                ...(linkErrors.externalLinks || []),
-                              ].map(link => (typeof link === 'string' ? link : link.url))
-                            : [];
-
-                          const missingCriticalLinks = requiredLinks.filter(
-                            req => !allLinkURLs.includes(req.url)
-                          );
-
-                          return (
-                            <>
-                              {missingCriticalLinks.length > 0 && (
-                                <div className="mb-4 text-red-600 bg-red-50 border border-red-200 rounded p-3 text-sm">
-                                  <strong className="block mb-1">⚠️ ALERT:</strong>
-                                  <ul className="list-disc list-inside space-y-1">
-                                    {missingCriticalLinks.map((item, i) => (
-                                      <li key={`missing-${i}`}>
-                                        No link to <strong>{item.label}</strong>. Please
-                                        add:{' '}
-                                        <a
-                                          href={item.url}
-                                          className="!text-blue-800 underline hover:!text-blue-300"
-                                          target="_blank"
-                                          rel="noopener noreferrer">
-                                          {item.url}
-                                        </a>
-                                      </li>
-                                    ))}
-                                  </ul>
-                                </div>
-                              )}
-                            </>
-                          );
-                        })()}
-
-                        <ul className="text-left list-none list-inside space-y-3 text-sm">
-                          {linkErrors &&
-                            Object.entries(linkErrors).map(([key, value]) => {
-                              const isErrorType = [
-                                'invalidLinks',
-                                'missingTrailingSlash',
-                                'duplicateLinks',
-                                'brokenLinks',
-                                'identicalAnchors',
-                                'invalidAnchors',
-                              ].includes(key);
-
-                              if (!isErrorType || !Array.isArray(value)) return null;
-
-                              // Group errors by location
-                              const groupedByLocation = (value as LinkDetail[]).reduce(
-                                (acc, link) => {
-                                  const loc = link.location || 'Unknown Section';
-                                  if (!acc[loc]) acc[loc] = [];
-                                  acc[loc].push(link);
-                                  return acc;
-                                },
-                                {} as Record<string, LinkDetail[]>
-                              );
-
-                              return (
-                                <li key={key}>
-                                  <strong>
-                                    {formatErrorLabel(key)} ({value.length}):
-                                  </strong>
-                                  {value.length === 0 ? (
-                                    <div className="text-gray-500 italic">
-                                      No issues found for this type.
-                                    </div>
-                                  ) : (
-                                    <ul className="mt-1 space-y-3 pl-5">
-                                      {Object.entries(groupedByLocation).map(
-                                        ([location, links]) => (
-                                          <li key={location}>
-                                            <ul className="list-disc list-inside space-y-1">
-                                              {links.map((link, i) => (
-                                                <li
-                                                  key={`${key}-${location}-${i}`}
-                                                  className="text-blue-400 no-underline hover:text-blue-950 break-words whitespace-pre-wrap text-left w-full cursor-pointer flex flex-col">
-                                                  <span
-                                                    onClick={() => scrollToLink(link.url)}
-                                                    className="before:content-['•'] before:mr-2 before:text-black hover:before:text-white font-bold !text-black-100 mr-1 !no-underline cursor-pointer hover:bg-green-100 hover:!text-white p-2 list-disc">
-                                                    {link.anchor || '(no anchor)'}
-                                                  </span>
-                                                  <span>— {link.url}</span>
-                                                </li>
-                                              ))}
-                                            </ul>
-                                          </li>
-                                        )
-                                      )}
-                                    </ul>
-                                  )}
-                                </li>
-                              );
-                            })}
-                        </ul>
-                      </Accordion>
-
-                      <Accordion
-                        className="mt-2"
-                        header={
-                          <div className="flex items-center justify-between w-full text-sm">
-                            <span>Internal Links</span>
-                            {linkShowResults && (
-                              <div
-                                className={`w-[40px] text-right rounded-2xl px-2 ${
-                                  (linkErrors?.internalLinks?.length || 0) > 0
-                                    ? 'bg-[#e5f5ea]'
-                                    : 'bg-[#e5f5ea]'
-                                }`}>
-                                {linkErrors?.internalLinks?.length || 0}
-                              </div>
-                            )}
-                          </div>
-                        }>
-                        <ul className="!text-left list-none list-inside space-y-2 text-sm">
-                          {Array.isArray(linkErrors?.internalLinks) &&
-                            linkErrors.internalLinks
-                              .filter(l => typeof l !== 'string')
-                              .reduce(
-                                (grouped: Record<string, LinkDetail[]>, link: any) => {
-                                  const location = link.location || '';
-                                  if (!grouped[location]) grouped[location] = [];
-                                  grouped[location].push(link);
-                                  return grouped;
-                                },
-                                {} as Record<string, LinkDetail[]>
-                              ) &&
-                            Object.entries(
-                              linkErrors.internalLinks
-                                .filter(l => typeof l !== 'string')
-                                .reduce(
-                                  (grouped: Record<string, LinkDetail[]>, link: any) => {
-                                    const location = link.location || 'Unknown Section';
-                                    if (!grouped[location]) grouped[location] = [];
-                                    grouped[location].push(link);
-                                    return grouped;
-                                  },
-                                  {} as Record<string, LinkDetail[]>
-                                )
-                            ).map(([location, links]) => (
-                              <li key={location}>
-                                <ul className="!list-disc list-inside space-y-1">
-                                  {links.map((link, i) => (
-                                    <li
-                                      key={`${location}-${i}`}
-                                      className="text-blue-400 no-underline hover:text-blue-950 break-words whitespace-pre-wrap text-left w-full cursor-pointer flex flex-col">
-                                      <span
-                                        onClick={() => scrollToLink(link.url)}
-                                        className="before:content-['•'] before:mr-2 before:text-black hover:before:text-white font-bold !text-black-100 mr-1 !no-underline cursor-pointer hover:bg-green-100 hover:!text-white p-2">
-                                        {link.anchor || '(no anchor)'}
-                                      </span>
-                                      <span>— {link.url}</span>
-                                    </li>
-                                  ))}
-                                </ul>
-                              </li>
-                            ))}
-                        </ul>
-                      </Accordion>
-
-                      <Accordion
-                        className="mt-2"
-                        header={
-                          <div className="flex items-center justify-between w-full text-sm">
-                            <span>External Links</span>
-                            {linkShowResults && (
-                              <div
-                                className={`w-[40px] text-right rounded-2xl px-2 ${
-                                  (linkErrors?.externalLinks?.length || 0) > 0
-                                    ? 'bg-[#e5f5ea]'
-                                    : 'bg-[#e5f5ea]'
-                                }`}>
-                                {linkErrors?.externalLinks?.length || 0}
-                              </div>
-                            )}
-                          </div>
-                        }>
-                        <ul className="!text-left list-none list-inside space-y-2 text-sm">
-                          {Array.isArray(linkErrors?.externalLinks) &&
-                            linkErrors.externalLinks
-                              .filter(l => typeof l !== 'string')
-                              .reduce(
-                                (grouped: Record<string, LinkDetail[]>, link: any) => {
-                                  const location = link.location || 'Unknown Section';
-                                  if (!grouped[location]) grouped[location] = [];
-                                  grouped[location].push(link);
-                                  return grouped;
-                                },
-                                {} as Record<string, LinkDetail[]>
-                              ) &&
-                            Object.entries(
-                              linkErrors.externalLinks
-                                .filter(l => typeof l !== 'string')
-                                .reduce(
-                                  (grouped: Record<string, LinkDetail[]>, link: any) => {
-                                    const location = link.location || 'Unknown Section';
-                                    if (!grouped[location]) grouped[location] = [];
-                                    grouped[location].push(link);
-                                    return grouped;
-                                  },
-                                  {} as Record<string, LinkDetail[]>
-                                )
-                            ).map(([location, links]) => (
-                              <li key={location}>
-                                <ul className="!list-disc list-inside space-y-1">
-                                  {links.map((link, i) => (
-                                    <li
-                                      key={`${location}-external-${i}`}
-                                      className="text-blue-400 no-underline hover:text-blue-950 break-words whitespace-pre-wrap text-left w-full cursor-pointer flex flex-col">
-                                      <span
-                                        onClick={() => scrollToLink(link.url)}
-                                        className="before:content-['•'] before:mr-2 before:text-black hover:before:text-white font-bold !text-black-100 mr-1 !no-underline cursor-pointer hover:bg-green-100 hover:!text-white p-2">
-                                        {link.anchor || '(no anchor)'}
-                                      </span>
-                                      <span>— {link.url}</span>
-                                    </li>
-                                  ))}
-                                </ul>
-                              </li>
-                            ))}
-                        </ul>
-                      </Accordion>
-                    </div>
+                  {linkIssuesResult && (
+                    <LinkIssuesResultSection result={linkIssuesResult} />
                   )}
                 </>
               )}
@@ -2224,7 +1934,7 @@ const runAllChecks = () => {
 
               {hasKeywordChecked && (
                 <div>
-                  {error && <Alert message={error || linkErrorMessage} type="error" />}
+                  {error && <Alert message={error} type="error" />}
                   {renderKeywordAlert()}
                   {keywordAnalysisResult && !error && (
                     <div className="">
