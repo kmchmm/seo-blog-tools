@@ -70,6 +70,8 @@ const modeActive = clsx(
   'dark:shadow-[inset_0_0px_5px_theme(color-shadow-200),inset_0_1px_8px_0_theme(color-shadow-200)]'
 );
 
+
+
 const Loom: FC = () => {
   const [htmlString, setHtmlString] = useState<string>('');
   const [title, setTitle] = useState('');
@@ -217,7 +219,7 @@ const Loom: FC = () => {
         const tempDiv = document.createElement('div');
         tempDiv.innerHTML = (node.nodeValue || '').replace(
           regex,
-          match => `<mark class="${className}">${match}</mark>`
+          match => `<mark class="highlight-keyword ${className}">${match}</mark>`
         );
         const fragment = document.createDocumentFragment();
         [...tempDiv.childNodes].forEach(n => fragment.appendChild(n));
@@ -228,7 +230,6 @@ const Loom: FC = () => {
     };
 
     walk(doc.body);
-
     return doc.body.innerHTML;
   };
 
@@ -253,7 +254,7 @@ const Loom: FC = () => {
       }
 
       const mark = doc.createElement('mark');
-      mark.className = 'bg-red-300 text-red-700 rounded-sm px-1';
+      mark.className = 'highlight-format bg-red-300 text-red-700 rounded-sm px-1';
       mark.title = errorType;
       mark.textContent = match[0];
       frag.appendChild(mark);
@@ -271,6 +272,7 @@ const Loom: FC = () => {
     parent.replaceChild(frag, node);
   }
 
+
   function highlightLastWordInTextNode(node: Text, errorType: string, doc: Document) {
     const parent = node.parentNode;
     if (!parent) return;
@@ -286,20 +288,17 @@ const Loom: FC = () => {
 
     const frag = doc.createDocumentFragment();
 
-    // Text before last word
     const before = text.slice(0, lastWordIndex);
     if (before.length > 0) {
       frag.appendChild(doc.createTextNode(before));
     }
 
-    // Marked last word
     const mark = doc.createElement('mark');
-    mark.className = 'bg-red-300 text-red-700 rounded-sm px-1';
+    mark.className = 'highlight-format bg-red-300 text-red-700 rounded-sm px-1';
     mark.title = errorType;
     mark.textContent = lastWord;
     frag.appendChild(mark);
 
-    // Text after last word
     const after = text.slice(lastWordIndex + lastWord.length);
     if (after.length > 0) {
       frag.appendChild(doc.createTextNode(after));
@@ -308,11 +307,12 @@ const Loom: FC = () => {
     parent.replaceChild(frag, node);
   }
 
+
   function highlightAllErrorsInHTML(html: string, formatErrors: ErrorList): string {
     if (!formatErrors || typeof formatErrors !== 'object') return html;
 
     const parser = new DOMParser();
-    const doc = parser.parseFromString(html, 'text/html');
+    const doc = parser.parseFromString(html, 'text/html'); 
 
     const regexMap: Record<string, RegExp> = {
       multipleSpaceErrors: /\s{2,}/g,
@@ -405,9 +405,10 @@ const Loom: FC = () => {
 
       if (leadingTrailingErrors.length > 0) {
         // Wrap entire paragraph text inside one <mark>
-        const mark = doc.createElement('mark');
-        mark.className = 'bg-red-300 text-red-700 rounded-sm px-1';
-        mark.title = 'Leading or trailing space error';
+      const mark = doc.createElement('mark');
+      mark.className = 'highlight-format bg-red-300 text-red-700 rounded-sm px-1';
+      mark.title = 'Leading or trailing space error';
+
 
         while (el.firstChild) {
           mark.appendChild(el.firstChild);
@@ -425,14 +426,16 @@ const Loom: FC = () => {
   // }, [htmlString]);
 
   const highlightPhrases = (phrases: string[]) => {
-    const cleanHtml = htmlString.replace(/<mark[^>]*>(.*?)<\/mark>/gi, '$1');
+    const baseHtml = highlightedHtml || htmlString;
     if (!phrases.length) return setHighlightedHtml(null);
-    const newHtml = applyHighlights(cleanHtml, phrases, 'bg-[#FEF08A]');
+    const newHtml = applyHighlights(baseHtml, phrases, 'bg-yellow-300'); // or your desired class
     setHighlightedHtml(newHtml);
   };
 
-  const removeHighlights = () => setHighlightedHtml(null);
-  const removeFormatHighlights = () => setHighlightedHtml(null);
+
+  const removeHighlights = () => removeMarksByClass('highlight-keyword');
+  const removeFormatHighlights = () => removeMarksByClass('highlight-format');
+
 
   useEffect(() => {
     if (!editMode) {
@@ -455,10 +458,20 @@ const Loom: FC = () => {
     editMode,
   ]);
 
+  function removeMarksByClass(className: string) {
+    const container = divRef.current as HTMLElement;
+    if (!container) return;
+
+    container.querySelectorAll(`mark.${className}`).forEach(mark => {
+      const textNode = document.createTextNode(mark.textContent || '');
+      mark.replaceWith(textNode);
+    });
+  }
+  
   return (
     <div
       className={clsx(
-        'flex flex-col items-center w-full pt-4 px-3',
+        'flex flex-col items-center w-[90%] pt-4 px-3 m-auto pb-10',
         'bg-white-100 dark:bg-blue-600'
       )}>
       <h1 className="text-black-100 dark:text-white-100 text-5xl">AK Loom</h1>
@@ -554,7 +567,7 @@ const Loom: FC = () => {
               </div>
             </div>
 
-            <div className="flex-row flex justify-end mb-2 gap-x-2">
+            <div className="flex-row flex justify-end mb-2 gap-x-2 sticky top-0 bg-white z-1 p-2">
               <span
                 className={clsx(
                   'font-medium text-base py-[6px] px-[12px] cursor-pointer',
@@ -668,7 +681,8 @@ const Loom: FC = () => {
                 }
 
                 setFormatErrors(errors as ErrorList);
-                const newHtml = highlightAllErrorsInHTML(htmlString, errors as ErrorList);
+                const baseHtml = highlightedHtml || htmlString;
+                const newHtml = highlightAllErrorsInHTML(baseHtml, errors as ErrorList);
                 setHighlightedHtml(newHtml);
               }}
               onRemoveFormatHighlight={removeFormatHighlights}

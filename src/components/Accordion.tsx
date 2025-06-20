@@ -39,7 +39,7 @@ export const Accordion = (accProps: AccordionProps) => {
           )}
         />
         <div className="flex-1 text-left break-words flex justify-between items-center ">
-          <span>{header}</span>
+          <span className="w-full">{header}</span>
           {badge && (
             <span
               className={clsx(

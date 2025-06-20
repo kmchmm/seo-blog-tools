@@ -1,5 +1,6 @@
 import { getHeadings, getKeywordDensity, getSentences } from '../components/loom/helpers';
-import { CustomHTMLElement, KeywordAnalysisResult } from '../hooks/useKeywordAnalysis';
+import { CustomHTMLElement } from '../hooks/useKeywordAnalysis';
+import { KeywordAnalysisResult } from '../types/loom';
 import { AnalyzeDocumentInput, Section } from '../types/loom';
 import { getCleanText, textToHtml } from './formatter';
 

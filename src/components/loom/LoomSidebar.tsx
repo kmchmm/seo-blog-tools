@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { FC, useState, useEffect, useContext } from 'react';
+import { FC, useState, useEffect, useContext, useCallback } from 'react';
 import clsx from 'clsx';
 import { AnalysisWorkerWrapper, Paper } from 'yoastseo';
 import { Modal } from '../Modal.js';
@@ -10,6 +10,7 @@ import { Accordion } from '../Accordion.js';
 import { Summary } from '../Summary.js';
 
 import { Tabs, TabList, Tab, TabPanel } from 'react-aria-components';
+import YoastWorker from '../../utils/yoastWorker.ts?worker&inline';
 import YoastIcon from '../../assets/icons/yoast.svg?react';
 import {
   GoAlert,
@@ -39,6 +40,12 @@ import { Button, Alert } from '../common';
 import ContentIssuesResultSection from './ContentIssuesResultSection.js';
 import LinkIssuesResultSection from './LinkIssuesResultSection.js';
 import { LinkAnalysisResult } from '../../utils/analyzeLinksWorker.js';
+import { groupIssuesByType } from '../../utils/analyzeLinksWorker'; 
+
+
+// import { Paper, AnalysisWorkerWrapper } from 'yoastseo';
+// import type { AssessmentResult } from 'yoastseo';
+// import EnglishResearcher from 'yoastseo/build/languageProcessing/languages/en/Researcher';
 
 interface LoomProps {
   text: string;
@@ -157,10 +164,14 @@ export const LoomSidebar: FC<LoomProps> = ({
   >({});
   const [showResults, setShowResults] = useState(false);
 
+  const [didFixAll, setDidFixAll] = useState(false);
+  const [formatHighlightActive, setFormatHighlightActive] = useState(false);
+
   const [hasLinkChecked, setHasLinkChecked] = useState(false);
 
   const [hasKeywordChecked, setHasKeywordChecked] = useState(false);
 
+  const [linkHighlightsActive, setLinkHighlightsActive] = useState(false);
   const [contentHighlightsActive, setContentHighlightsActive] = useState(false);
   const [keywordHighlightsActive, setKeywordHighlightsActive] = useState(false);
 
@@ -191,12 +202,7 @@ export const LoomSidebar: FC<LoomProps> = ({
   ////////////////YOAST  TOOL/////////////////////////////
   ////////////////////////////////////////////////////////
   const yoastSEOAnalyze = () => {
-    const url = new URL('../../utils/yoastWorker.ts', import.meta.url);
-    const newWorker = new AnalysisWorkerWrapper(
-      new Worker(url, {
-        type: 'module',
-      })
-    );
+  const newWorker = new AnalysisWorkerWrapper(new YoastWorker());
 
     newWorker
       .initialize({
@@ -275,6 +281,35 @@ export const LoomSidebar: FC<LoomProps> = ({
 
     return allMatches;
   };
+
+  useEffect(() => {
+    const handleAnchorClick = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+
+      if (target.tagName === 'A' && target.getAttribute('href')?.startsWith('#')) {
+        e.preventDefault();
+
+        const id = target.getAttribute('href')!.substring(1);
+        const el = document.getElementById(id);
+
+        if (el) {
+          el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+          // Add highlight class
+          el.classList.add('bg-black-200', 'text-white', 'transition-colors');
+
+          // Remove it after 5 seconds
+          setTimeout(() => {
+            el.classList.remove('bg-black-200', 'text-white');
+          }, 5000);
+        }
+      }
+    };
+
+    document.addEventListener('click', handleAnchorClick);
+    return () => document.removeEventListener('click', handleAnchorClick);
+  }, []);
+
 
   const checkForDictionaryViolations = () => {
     const allMatches: string[] = [];
@@ -487,7 +522,7 @@ export const LoomSidebar: FC<LoomProps> = ({
   ////////////////////////////////////////////////////////
   //////////////FORMAT QA TOOL////////////////////////////
   ////////////////////////////////////////////////////////
-  const runFormatCheck = () => {
+  const runFormatCheck = useCallback(() => {
     const worker = new Worker(new URL('../../utils/formatErrors.ts', import.meta.url), {
       type: 'module',
     });
@@ -499,7 +534,7 @@ export const LoomSidebar: FC<LoomProps> = ({
     const paragraphs = Array.from(
       doc.body.querySelectorAll('p, h1, h2, h3, h4, h5, h6')
     ).map(el => {
-      const htmlEl = el as HTMLElement; // Cast to access innerText
+      const htmlEl = el as HTMLElement;
       return {
         text: htmlEl.innerText || '',
         heading: htmlEl.tagName.toUpperCase().startsWith('H')
@@ -514,7 +549,7 @@ export const LoomSidebar: FC<LoomProps> = ({
     };
 
     worker.postMessage(paragraphs);
-  };
+  }, [text]); 
 
   type ErrorKey = keyof ErrorList;
 
@@ -665,8 +700,17 @@ export const LoomSidebar: FC<LoomProps> = ({
       el.textContent = fixedText;
     });
 
+    // Update the state and trigger follow-up
     onFixAll(doc.body.innerHTML);
+    setDidFixAll(true);
   };
+
+  useEffect(() => {
+    if (didFixAll) {
+      runFormatCheck();
+      setDidFixAll(false);
+    }
+  }, [didFixAll, text, runFormatCheck]);
 
   ////////////////////////////////////////////////////////
   //////////////CONTENT QA TOOL///////////////////////////
@@ -890,13 +934,13 @@ export const LoomSidebar: FC<LoomProps> = ({
                 <li className="border border-black/20 p-2 mt-2 rounded-md">
                   <div className="flex justify-between">
                     <span className="font-bold">FORMATTING</span>
-                    {highlightActive ? (
+                    {formatHighlightActive ? (
                       <GoEye
                         title="Remove Highlights"
                         className="text-gray-500 cursor-pointer"
                         onClick={() => {
                           onRemoveFormatHighlight();
-                          setHighlightActive(false);
+                          setFormatHighlightActive(false);
                         }}
                       />
                     ) : (
@@ -905,7 +949,7 @@ export const LoomSidebar: FC<LoomProps> = ({
                         className="text-gray-500 cursor-pointer"
                         onClick={() => {
                           handleHighlightFormatErrors();
-                          setHighlightActive(true);
+                          setFormatHighlightActive(true);
                         }}
                       />
                     )}
@@ -1049,39 +1093,55 @@ export const LoomSidebar: FC<LoomProps> = ({
                 <li className="border border-black/20 p-2 mt-2 rounded-md">
                   <div className="flex justify-between">
                     <span className="font-bold">Links</span>
-                    <GoEye className="text-gray-500" />
-                  </div>
+                    {linkHighlightsActive ? (
+                      <FiEyeOff 
+                        onClick={() => {
+                          if (!text || !linkIssuesResult || editMode) return;
+                          onLinkIssuesShowHighlightsClick();
+                          setLinkHighlightsActive(false);
+                        }}
+                        title="Show Highlights"
+                        className={clsx(
+                          'text-gray-500 cursor-pointer transition-colors',
+                          (!text || !linkIssuesResult || editMode) &&
+                            'opacity-50 cursor-not-allowed',
+                          'text-blue-500' // highlight when active
+                        )}
+                      />
+                    ) : (
+                      <GoEye
+                        onClick={() => {
+                          if (!text || !linkIssuesResult || editMode) return;
+                          onLinkIssuesRemoveHighlightClick();
+                          setLinkHighlightsActive(true);
+                        }}
+                        title="Remove Highlights"
+                        className={clsx(
+                          'text-gray-500 cursor-pointer transition-colors',
+                          (!text || !linkIssuesResult || editMode) &&
+                            'opacity-50 cursor-not-allowed'
+                        )}
+                      />
+                    )}                  
+                    </div>
                   {linkIssuesResult && (
-                    <ul className="text-sm">
-                      {(
-                        [
-                          'invalidLinks',
-                          'missingTrailingSlash',
-                          'duplicateLinks',
-                          'brokenLinks',
-                          'identicalAnchors',
-                          'invalidAnchors',
-                        ] as unknown as (keyof typeof linkIssuesResult)[]
-                      ).map(key => {
-                        const count = Array.isArray(linkIssuesResult[key])
-                          ? linkIssuesResult[key].length
-                          : 0;
-                        const hasIssues = count > 0;
+                    <ul className="text-sm mt-2">
+                      {Object.entries(groupIssuesByType(linkIssuesResult.issues || [])).map(
+                        ([key, issues]) => {
+                          const count = issues.length;
+                          const hasIssues = count > 0;
 
-                        return (
-                          <li key={key} className="flex justify-between mt-2">
-                            <div className="flex items-center gap-2">
-                              <GoDotFill
-                                className={hasIssues ? 'text-red-500' : 'text-green-500'}
-                              />
-                              <span className="capitalize">
-                                {key.replace(/([A-Z])/g, ' $1')}:
-                              </span>
-                            </div>
-                            <span>{count}</span>
-                          </li>
-                        );
-                      })}
+                          return (
+                            <li key={key} className="flex justify-between mt-2">
+                              <div className="flex items-center gap-2">
+                                <GoDotFill className={hasIssues ? 'text-red-500' : 'text-green-500'} />
+                                <span className="capitalize">{key}:</span>
+                              </div>
+                              <span>{count}</span>
+                            </li>
+                          );
+                        }
+                      )}
                     </ul>
                   )}
                 </li>
@@ -1091,13 +1151,13 @@ export const LoomSidebar: FC<LoomProps> = ({
                   <div className="flex justify-between">
                     <span className="font-bold">Keywords</span>
                     {keywordHighlightsActive ? (
-                      <GoEye
+                      <FiEyeOff
                         onClick={() => {
                           if (!text || !keywordAnalysisResult || editMode) return;
-                          onRemoveContentHighlight();
+                          onShowHighlightClick();
                           setKeywordHighlightsActive(false);
                         }}
-                        title="Remove Highlights"
+                        title="Show Highlights"
                         className={clsx(
                           'text-gray-500 cursor-pointer transition-colors',
                           (!text || !keywordAnalysisResult || editMode) &&
@@ -1106,13 +1166,13 @@ export const LoomSidebar: FC<LoomProps> = ({
                         )}
                       />
                     ) : (
-                      <FiEyeOff
+                      <GoEye
                         onClick={() => {
                           if (!text || !keywordAnalysisResult || editMode) return;
-                          onHighlightContent();
+                          onKeywordRemoveHighlightClick();
                           setKeywordHighlightsActive(true);
                         }}
-                        title="Show Highlights"
+                        title="Remove Highlights"
                         className={clsx(
                           'text-gray-500 cursor-pointer transition-colors',
                           (!text || !keywordAnalysisResult || editMode) &&
@@ -1122,64 +1182,129 @@ export const LoomSidebar: FC<LoomProps> = ({
                     )}
                   </div>
 
-                  <ul className="text-sm">
-                    {keywordAnalysisResult && !error && (
-                      <>
-                        {/* Focus Keyword Count */}
-                        <li className="flex justify-between mt-2">
-                          <div className="flex items-center gap-2">
-                            <GoDotFill
+                <ul className="text-sm">
+                  {keywordAnalysisResult && !error && (
+                    <>
+                      {/* Focus Keyword Count */}
+                    <li className="flex justify-between mt-2">
+                      <div className="flex items-center gap-2">
+                        <GoDotFill
+                          className={
+                            keywordAnalysisResult.keywordCounts.focusCount > 0
+                              ? 'text-[#0ff3f5]'
+                              : 'text-red-500'
+                          }
+                        />
+                        <span>
+                          {keywordAnalysisResult.keywordCounts.focusCount > 0
+                            ? 'Focus keyword found'
+                            : 'Focus keyword missing'}
+                        </span>
+                      </div>
+                      <span>{keywordAnalysisResult.keywordCounts.focusCount}</span>
+                    </li>
+
+                      {/* Alt Keyword Count */}
+                    <li className="flex justify-between mt-2">
+                      <div className="flex items-center gap-2">
+                        <GoDotFill
+                          className={
+                            keywordAnalysisResult.keywordCounts.altCount > 0
+                              ? 'text-[#00ff00]'
+                              : 'text-red-500'
+                          }
+                        />
+                        <span>
+                          {keywordAnalysisResult.keywordCounts.altCount > 0
+                            ? 'Alt ESQ keyword found'
+                            : 'Alt ESQ keyword missing'}
+                        </span>
+                      </div>
+                      <span>{keywordAnalysisResult.keywordCounts.altCount}</span>
+                    </li>
+
+                      {/* Total Keyword Density */}
+                      <li className="flex justify-between mt-2">
+                        <div className="flex items-center gap-2">
+                          <GoDotFill
+                            className={
+                              keywordAnalysisResult.density > 2.5 ? 'text-red-500' : 'text-green-500'
+                            }
+                          />
+                          <span>Keyword density</span>
+                        </div>
+                        <span>{keywordAnalysisResult.density.toFixed(2)}%</span>
+                      </li>
+
+                      {/* H2/H3 Optimization */}
+                      <li className="mt-4 flex">
+                        <p className=" flex justify-between w-full">
+                          <span className="flex items-center gap-2">
+                              <GoDotFill
                               className={
-                                keywordAnalysisResult.keywordCounts.focusCount > 0
+                                keywordAnalysisResult.headingAnalysis.percent <= 75
                                   ? 'text-green-500'
                                   : 'text-red-500'
                               }
                             />
-                            <span>
-                              {keywordAnalysisResult.keywordCounts.focusCount > 0
-                                ? 'Focus keyword found'
-                                : 'Focus keyword missing'}
-                            </span>
-                          </div>
-                          <span>{keywordAnalysisResult.keywordCounts.focusCount}</span>
-                        </li>
+                            <span className="">H2 & H3 Optimization: </span>
+                          </span>
+                          <span>
+                            {keywordAnalysisResult.headingAnalysis.percent}%
+                          </span>
+                        </p>
+                      </li>
 
-                        {/* Alt Keyword Count */}
-                        <li className="flex justify-between mt-2">
-                          <div className="flex items-center gap-2">
-                            <GoDotFill
+                      {/* Section Optimization */}
+                      <li className="mt-4 flex">
+                        <p className=" flex justify-between w-full">
+                            <span className="flex items-center gap-2">
+                              <GoDotFill
                               className={
-                                keywordAnalysisResult.keywordCounts.altCount > 0
+                                keywordAnalysisResult.sectionAnalysis.percent === 100
                                   ? 'text-green-500'
                                   : 'text-red-500'
                               }
                             />
-                            <span>
-                              {keywordAnalysisResult.keywordCounts.altCount > 0
-                                ? 'Alternate keyword found'
-                                : 'Alternate keyword missing'}
+                            <span>Per Section Optimization: </span>
                             </span>
-                          </div>
-                          <span>{keywordAnalysisResult.keywordCounts.altCount}</span>
-                        </li>
+                          <span
+                          >
+                            {keywordAnalysisResult.sectionAnalysis.percent}%
+                          </span>
+                        </p>
+                      </li>
 
-                        {/* Total Keyword Density */}
-                        <li className="flex justify-between mt-2">
-                          <div className="flex items-center gap-2">
-                            <GoDotFill
-                              className={
-                                keywordAnalysisResult.density > 2.5
-                                  ? 'text-red-500'
-                                  : 'text-green-500'
-                              }
-                            />
-                            <span>Keyword density</span>
-                          </div>
-                          <span>{keywordAnalysisResult.density.toFixed(2)}%</span>
+                      {/* Secondary Keywords */}
+                      {keywordAnalysisResult.otherKeywords.some(c => c.category === 'Secondary Keywords') && (
+                        <li className="mt-4">
+                          <p className="font-semibold mb-1">Other Keywords</p>
+                          {keywordAnalysisResult.otherKeywords
+                            .filter(category => category.category === 'Secondary Keywords')
+                            .map(category => (
+                              <div key={category.category} className="mb-2">
+                                <p className="underline">{category.category}</p>
+                                <ul className="ml-4">
+                                  {category.keywords.map(kw => (
+                                    <li
+                                      key={kw.keyword}
+                                      className="flex justify-between text-sm">
+                                      <span>{kw.keyword}</span>
+                                      <span className={kw.count > 0 ? 'text-green-600' : 'text-red-600'}>
+                                        {kw.count}
+                                      </span>
+                                    </li>
+                                  ))}
+                                </ul>
+                              </div>
+                            ))}
                         </li>
-                      </>
-                    )}
-                  </ul>
+                      )}
+
+                    </>
+                  )}
+                </ul>
+
                 </li>
               </ul>
             )}
@@ -1473,7 +1598,7 @@ export const LoomSidebar: FC<LoomProps> = ({
                       width="700px"
                       height="auto"
                       backgroundColor="#0a1a31"
-                      showCloseButton={false}>
+                      showCloseButton={false} >
                       <div className="w-full h-full">
                         <div>
                           {addStatus === 'success' && (
@@ -1625,7 +1750,7 @@ export const LoomSidebar: FC<LoomProps> = ({
                   className="w-1/2 text-sm !bg-[#EF4444] border-[#EF4444] text-white border hover:!bg-red-700 hover:!border-red-700 rounded-none hover:shadow-none dark:hover:shadow-none dark:!text-white"
                   onClick={() => {
                     onRemoveFormatHighlight();
-                    setHighlightActive(false);
+                    setFormatHighlightActive(false);
                   }}>
                   Remove Highlights
                 </Button>
