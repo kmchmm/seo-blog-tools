@@ -28,6 +28,7 @@ import {
   TitleTweakPage,
   UnauthorizedPage,
 } from './pages';
+import AiAssistantPage from './pages/AiAssistantPage';
 
 interface ToolRoute {
   path: string;
@@ -65,6 +66,7 @@ const App: FC = () => {
     { path: TOOL_ROUTES.CHRONOS, toolKey: 'CHRONOS', element: <ChronosPage /> },
     { path: TOOL_ROUTES.MONITORING, toolKey: 'MONITORING', element: <MonitoringPage /> },
     { path: TOOL_ROUTES.CHAT, toolKey: 'CHAT', element: <ChatPage /> },
+    { path: TOOL_ROUTES.AI_ASSISTANT, toolKey: 'CHAT', element: <AiAssistantPage /> },
   ];
 
   const isAuthorized = (tool: keyof typeof TOOLS) => toolsAccess.includes(TOOLS[tool]);

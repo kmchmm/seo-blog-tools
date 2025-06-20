@@ -236,6 +236,12 @@ const Sidebar: FC = () => {
                 </Link>
               </RaketMenuItem>
             )}
+            <RaketMenuItem>
+              <Link tabIndex={isSidebarOpen ? 0 : -1} to={TOOL_ROUTES.AI_ASSISTANT}>
+                <Loom />
+                <span>Ai Assistant</span>
+              </Link>
+            </RaketMenuItem>
           </ul>
         </li>
         <li>

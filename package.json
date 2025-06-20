@@ -19,6 +19,7 @@
     "axios": "^1.8.4",
     "clsx": "^2.1.1",
     "dotenv": "^16.5.0",
+    "googleapis": "^150.0.1",
     "html-entities": "^2.6.0",
     "js-beautify": "^1.15.4",
     "pocketbase": "^0.26.0",
