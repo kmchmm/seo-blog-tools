@@ -80,7 +80,7 @@ export const Provider: React.FC<{ children: React.ReactNode }> = ({ children }) 
     )}&sheetName=${encodeURIComponent(sheetName)}`;
 
     const eventSource = new EventSource(
-      `http://localhost:3000/api/process-sheet-progress${query}`
+      `http://localhost:8022/api/process-sheet-progress${query}`
     );
     eventSourceRef.current = eventSource;
 

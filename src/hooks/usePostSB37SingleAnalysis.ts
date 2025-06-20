@@ -29,7 +29,7 @@ const usePostSB37SingleAnalysis = () => {
     setLoading(true);
 
     const eventSource = new EventSource(
-      `http://localhost:3000/api/check-doc-progress?docUrl=${encodeURIComponent(docUrl)}`
+      `http://localhost:8022/api/check-doc-progress?docUrl=${encodeURIComponent(docUrl)}`
     );
     eventSourceRef.current = eventSource;
 

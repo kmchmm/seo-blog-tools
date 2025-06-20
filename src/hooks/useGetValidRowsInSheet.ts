@@ -28,7 +28,7 @@ const useGetValidRowsInSheet = () => {
     setLoading(true);
     setErrorMessage('');
     try {
-      const res = await axios.post('http://localhost:3000/api/get-sheet-rows', {
+      const res = await axios.post('http://localhost:8022/api/get-sheet-rows', {
         spreadsheetUrl,
         sheetName,
       });

@@ -20,7 +20,7 @@ const useGetDocumentInfo = () => {
   const sendRequest = async ({ docUrl }: { docUrl: string }) => {
     setLoading(true);
     try {
-      const res = await axios.post('http://localhost:3000/api/get-doc-info', {
+      const res = await axios.post('http://localhost:8022/api/get-doc-info', {
         docUrl,
       });
       if (res && res.status === 200) {
@@ -42,7 +42,7 @@ const useGetDocumentInfo = () => {
       const results = await Promise.allSettled(
         docs.map(doc =>
           axios
-            .post('http://localhost:3000/api/get-doc-info', {
+            .post('http://localhost:8022/api/get-doc-info', {
               docUrl: doc.url,
             })
             .then(res => ({

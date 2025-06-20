@@ -37,7 +37,7 @@ const useParseJsonToText = () => {
     setLoading(true);
 
     try {
-      const res = await axios.post('http://localhost:3000/api/parse-analysis-to-text', {
+      const res = await axios.post('http://localhost:8022/api/parse-analysis-to-text', {
         analysisJson,
         originalDocName,
         originalDocUrl,
