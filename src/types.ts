@@ -21,6 +21,7 @@ export enum TOOL_ROUTES {
   CROSS_SITE_POSTING = '/publishing/cross-site-posting',
   KOMPASS = '/publishing/text-kompass',
   LOOM = '/publishing/link-loom',
+  AI_ASSISTANT = '/publishing/ai-assistant',
 
   CHRONOS = '/hr/chronos/admin',
   MONITORING = '/hr/hub/monitoring',
