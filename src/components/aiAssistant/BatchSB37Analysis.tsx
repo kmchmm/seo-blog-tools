@@ -107,6 +107,16 @@ const BatchSB37Analysis = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [validRows]);
 
+  useEffect(() => {
+    if (sheetCompleted[sheetName]) {
+      handleSheetUpdate(sheetName, {
+        sheetValidDocsCount: 0,
+        docsTotalWords: 0,
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sheetCompleted[sheetName]]);
+
   const renderSheetSelector = () => (
     <div className="mx-auto max-w-xl w-full">
       <div className="flex gap-5 items-center justify-between">
@@ -262,7 +272,7 @@ const BatchSB37Analysis = () => {
       )}
 
       {isSheetProcessing && !sheetCompleted[sheetName] && renderProgress()}
-      {sheetCompleted[sheetName] && !loadingSheets && renderCompletion()}
+      {sheetCompleted[sheetName] && !loadingSheets[sheetName] && renderCompletion()}
     </>
   );
 };
