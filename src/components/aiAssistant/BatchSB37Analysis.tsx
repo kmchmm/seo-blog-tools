@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo } from 'react';
+import { useCallback, useEffect } from 'react';
 import { Button, Input } from '../common';
 import { FaCircleChevronRight } from 'react-icons/fa6';
 
@@ -9,10 +9,8 @@ import {
 } from '../../hooks';
 import { Loading } from '../Loading';
 import { SingleDoc } from '../../hooks/useGetDocumentInfo';
+import ProgressBar from '../common/ProgressBar';
 import { SheetInfo } from '../../context/SB37ProgressContext';
-import StatsSection from './StatsSection';
-import ProgressSection from './ProgressSection';
-import SelectSheetNameSection from './SelectSheetNameSection';
 
 const BatchSB37Analysis = () => {
   const {
@@ -51,25 +49,6 @@ const BatchSB37Analysis = () => {
     loading: isDocInfoLoading,
     reset: resetDocInfo,
   } = useGetDocumentInfo();
-
-  const disableProceedButton = useMemo(() => {
-    return (
-      isSheetProcessing ||
-      isDocInfoLoading ||
-      isValidating ||
-      sheetCompleted[sheetName] ||
-      Boolean(sheetNamesError) ||
-      sheetInfo[sheetName].sheetValidDocsCount === 0
-    );
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [
-    isSheetProcessing,
-    isDocInfoLoading,
-    isValidating,
-    sheetNamesError,
-    sheetInfo,
-    sheetCompleted,
-  ]);
 
   const handleProcessAnother = () => {
     setFormValues({ url: '', sheetName: '' });
@@ -129,32 +108,91 @@ const BatchSB37Analysis = () => {
   }, [validRows]);
 
   const renderSheetSelector = () => (
-    <SelectSheetNameSection
-      completed={sheetCompleted}
-      handleSheetChange={handleSheetChange}
-      loadingSheets={loadingSheets}
-      sheetName={sheetName}
-      sheetNames={sheetNames}
-    />
+    <div className="mx-auto max-w-xl w-full">
+      <div className="flex gap-5 items-center justify-between">
+        <p className="font-semibold">Select Sheet Name:</p>
+        <select
+          value={sheetName}
+          onChange={handleSheetChange}
+          className="h-12 px-2 border rounded w-full bg-red-100">
+          <option value="" disabled>
+            Select a sheet
+          </option>
+          {sheetNames.map(name => (
+            <option key={name} value={name}>
+              {name} {loadingSheets[name] ? '(Processing...)' : ''}
+              {sheetCompleted[name] && ' ✅'}
+            </option>
+          ))}
+        </select>
+      </div>
+    </div>
   );
 
   const renderStats = () => (
-    <StatsSection
-      disableButton={disableProceedButton}
-      loading={isValidating || isDocInfoLoading}
-      errorMessage={!docInfoError || !validRowsError}
-      handleClickProceed={handleClickProceed}
-      totalDocWords={sheetInfo[formValues.sheetName]?.docsTotalWords}
-      sheetValidDocsCount={sheetInfo[formValues.sheetName]?.sheetValidDocsCount}
-    />
+    <div className="w-full flex flex-col gap-y-4 mt-4">
+      <div className="flex items-center justify-between">
+        <p className="font-semibold flex-1">Valid Documents:</p>
+        <div className="text-left w-full flex-1">
+          <p
+            className={`${isValidating || isDocInfoLoading ? 'bg-gray-500 animate-pulse text-gray-500' : ''}`}>
+            {sheetInfo[formValues.sheetName]?.sheetValidDocsCount &&
+            (!docInfoError || !validRowsError)
+              ? sheetInfo[formValues.sheetName]?.sheetValidDocsCount
+              : 0}
+          </p>
+        </div>
+      </div>
+      <div className="flex items-center justify-between">
+        <p className="font-semibold flex-1">Total Word Count:</p>
+        <div className="text-left w-full flex-1">
+          <p
+            className={`${isDocInfoLoading || isValidating ? 'bg-gray-500 animate-pulse text-gray-500' : ''}`}>
+            {sheetInfo[formValues.sheetName]?.docsTotalWords &&
+            (!docInfoError || !validRowsError)
+              ? sheetInfo[formValues.sheetName]?.docsTotalWords
+              : 0}
+          </p>
+        </div>
+      </div>
+      <div className="self-center w-fit">
+        <Button
+          className="!bg-blue-200 text-gray-100 border-none"
+          onClick={handleClickProceed}
+          disabled={
+            isSheetProcessing ||
+            isDocInfoLoading ||
+            isValidating ||
+            sheetCompleted[sheetName] ||
+            Boolean(sheetNamesError) ||
+            sheetInfo[sheetName].sheetValidDocsCount === 0
+          }>
+          Proceed
+        </Button>
+      </div>
+    </div>
   );
 
   const renderProgress = () => (
-    <ProgressSection
-      currentProgress={sheetProgressCount[sheetName]}
-      currentTitle={sheetCurrentTitle[sheetName]}
-      validDocCount={sheetInfo[formValues.sheetName]?.sheetValidDocsCount}
-    />
+    <div className="w-full max-w-xl mx-auto">
+      <ProgressBar
+        current={sheetProgressCount[sheetName]}
+        total={sheetInfo[formValues.sheetName]?.sheetValidDocsCount || 1}
+      />
+      <p className="text-center mt-2 text-sm text-gray-500">
+        {sheetProgressCount[sheetName]}/
+        {sheetInfo[formValues.sheetName]?.sheetValidDocsCount} completed
+      </p>
+      {sheetCurrentTitle[sheetName] && (
+        <div className="flex items-center gap-x-2 justify-center">
+          <p className="text-center mt-1 text-sm italic text-gray-600">
+            Currently processing:{' '}
+            <span className="font-semibold">{sheetCurrentTitle[sheetName]}</span>
+          </p>
+          <Loading size="sm" />
+        </div>
+      )}
+    </div>
   );
 
   const renderCompletion = () => (
