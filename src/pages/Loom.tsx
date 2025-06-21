@@ -208,30 +208,30 @@ const Loom: FC = () => {
 
   const escapeRegex = (str: string) => str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
-  const applyHighlights = (html: string, phrases: string[], className: string) => {
-    const parser = new DOMParser();
-    const doc = parser.parseFromString(html, 'text/html');
+  // const applyHighlights = (html: string, phrases: string[], className: string) => {
+  //   const parser = new DOMParser();
+  //   const doc = parser.parseFromString(html, 'text/html');
 
-    const regex = new RegExp(`\\b(${phrases.map(escapeRegex).join('|')})\\b`, 'gi');
+  //   const regex = new RegExp(`\\b(${phrases.map(escapeRegex).join('|')})\\b`, 'gi');
 
-    const walk = (node: Node) => {
-      if (node.nodeType === Node.TEXT_NODE && regex.test(node.nodeValue || '')) {
-        const tempDiv = document.createElement('div');
-        tempDiv.innerHTML = (node.nodeValue || '').replace(
-          regex,
-          match => `<mark class="highlight-keyword ${className}">${match}</mark>`
-        );
-        const fragment = document.createDocumentFragment();
-        [...tempDiv.childNodes].forEach(n => fragment.appendChild(n));
-        node.parentNode?.replaceChild(fragment, node);
-      } else if (node.nodeType === Node.ELEMENT_NODE) {
-        node.childNodes.forEach(child => walk(child));
-      }
-    };
+  //   const walk = (node: Node) => {
+  //     if (node.nodeType === Node.TEXT_NODE && regex.test(node.nodeValue || '')) {
+  //       const tempDiv = document.createElement('div');
+  //       tempDiv.innerHTML = (node.nodeValue || '').replace(
+  //         regex,
+  //         match => `<mark class="highlight-keyword ${className}">${match}</mark>`
+  //       );
+  //       const fragment = document.createDocumentFragment();
+  //       [...tempDiv.childNodes].forEach(n => fragment.appendChild(n));
+  //       node.parentNode?.replaceChild(fragment, node);
+  //     } else if (node.nodeType === Node.ELEMENT_NODE) {
+  //       node.childNodes.forEach(child => walk(child));
+  //     }
+  //   };
 
-    walk(doc.body);
-    return doc.body.innerHTML;
-  };
+  //   walk(doc.body);
+  //   return doc.body.innerHTML;
+  // };
 
   function highlightTextNode(
     node: Text,
@@ -308,133 +308,161 @@ const Loom: FC = () => {
   }
 
 
-  function highlightAllErrorsInHTML(html: string, formatErrors: ErrorList): string {
-    if (!formatErrors || typeof formatErrors !== 'object') return html;
+  // function highlightAllErrorsInHTML(html: string, formatErrors: ErrorList): string {
+  //   if (!formatErrors || typeof formatErrors !== 'object') return html;
 
-    const parser = new DOMParser();
-    const doc = parser.parseFromString(html, 'text/html'); 
+  //   const parser = new DOMParser();
+  //   const doc = parser.parseFromString(html, 'text/html'); 
 
-    const regexMap: Record<string, RegExp> = {
-      multipleSpaceErrors: /\s{2,}/g,
-      emDashErrors: /[^ ]—|—[^ ]/g,
-      spaceBeforePunctuationErrors: /\s+([.,!?;:])/g,
-    };
+  //   const regexMap: Record<string, RegExp> = {
+  //     multipleSpaceErrors: /\s{2,}/g,
+  //     emDashErrors: /[^ ]—|—[^ ]/g,
+  //     spaceBeforePunctuationErrors: /\s+([.,!?;:])/g,
+  //   };
 
-    const elements = Array.from(doc.body.querySelectorAll('p, h1, h2, h3, h4, h5, h6'));
+  //   const elements = Array.from(doc.body.querySelectorAll('p, h1, h2, h3, h4, h5, h6'));
 
-    elements.forEach((el, index) => {
-      // Highlight regex-based errors using highlightTextNode
-      for (const [errorType, regex] of Object.entries(regexMap)) {
-        const errorList = (formatErrors as any)[errorType] as FormatError[] | undefined;
-        if (!errorList || errorList.length === 0) continue;
+  //   elements.forEach((el, index) => {
+  //     // Highlight regex-based errors using highlightTextNode
+  //     for (const [errorType, regex] of Object.entries(regexMap)) {
+  //       const errorList = (formatErrors as any)[errorType] as FormatError[] | undefined;
+  //       if (!errorList || errorList.length === 0) continue;
 
-        const matchedErrors = errorList.filter(err => err.paragraphIndex === index);
-        if (matchedErrors.length === 0) continue;
+  //       const matchedErrors = errorList.filter(err => err.paragraphIndex === index);
+  //       if (matchedErrors.length === 0) continue;
 
-        const treeWalker = doc.createTreeWalker(el, NodeFilter.SHOW_TEXT);
-        let node: Text | null;
-        while ((node = treeWalker.nextNode() as Text | null)) {
-          if (regex.test(node.textContent || '')) {
-            regex.lastIndex = 0;
-            highlightTextNode(node, regex, errorType, doc);
-          }
-        }
-      }
+  //       const treeWalker = doc.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+  //       let node: Text | null;
+  //       while ((node = treeWalker.nextNode() as Text | null)) {
+  //         if (regex.test(node.textContent || '')) {
+  //           regex.lastIndex = 0;
+  //           highlightTextNode(node, regex, errorType, doc);
+  //         }
+  //       }
+  //     }
 
-      // Missing punctuation errors: highlight last word if paragraph missing punctuation
-      const missingPunctuationErrors = (
-        formatErrors.missingPunctuationErrors || []
-      ).filter(err => err.paragraphIndex === index);
-      if (missingPunctuationErrors.length > 0) {
-        const textContent = el.textContent?.trimEnd() || '';
-        if (!/[.?!]$/.test(textContent)) {
-          const textNodes: Text[] = [];
-          const treeWalker = doc.createTreeWalker(el, NodeFilter.SHOW_TEXT);
-          let node: Text | null;
-          while ((node = treeWalker.nextNode() as Text | null)) {
-            textNodes.push(node);
-          }
-          for (let i = textNodes.length - 1; i >= 0; i--) {
-            const nodeText = textNodes[i].textContent?.trimEnd() || '';
-            if (nodeText.length > 0) {
-              highlightLastWordInTextNode(textNodes[i], 'Missing punctuation error', doc);
-              break;
-            }
-          }
-        }
-      }
+  //     // Missing punctuation errors: highlight last word if paragraph missing punctuation
+  //     const missingPunctuationErrors = (
+  //       formatErrors.missingPunctuationErrors || []
+  //     ).filter(err => err.paragraphIndex === index);
+  //     if (missingPunctuationErrors.length > 0) {
+  //       const textContent = el.textContent?.trimEnd() || '';
+  //       if (!/[.?!]$/.test(textContent)) {
+  //         const textNodes: Text[] = [];
+  //         const treeWalker = doc.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+  //         let node: Text | null;
+  //         while ((node = treeWalker.nextNode() as Text | null)) {
+  //           textNodes.push(node);
+  //         }
+  //         for (let i = textNodes.length - 1; i >= 0; i--) {
+  //           const nodeText = textNodes[i].textContent?.trimEnd() || '';
+  //           if (nodeText.length > 0) {
+  //             highlightLastWordInTextNode(textNodes[i], 'Missing punctuation error', doc);
+  //             break;
+  //           }
+  //         }
+  //       }
+  //     }
 
-      // Title case errors: highlight lowercase-start words
-      const titleErrors =
-        formatErrors?.titleCaseErrors?.filter(err => err.paragraphIndex === index) ?? [];
-      if (titleErrors.length > 0) {
-        const treeWalker = doc.createTreeWalker(el, NodeFilter.SHOW_TEXT);
-        let node: Text | null;
-        while ((node = treeWalker.nextNode() as Text | null)) {
-          const words = node.textContent?.split(/(\s+)/) || [];
-          let changed = false;
-          const frag = doc.createDocumentFragment();
+  //     // Title case errors: highlight lowercase-start words
+  //     const titleErrors =
+  //       formatErrors?.titleCaseErrors?.filter(err => err.paragraphIndex === index) ?? [];
+  //     if (titleErrors.length > 0) {
+  //       const treeWalker = doc.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+  //       let node: Text | null;
+  //       while ((node = treeWalker.nextNode() as Text | null)) {
+  //         const words = node.textContent?.split(/(\s+)/) || [];
+  //         let changed = false;
+  //         const frag = doc.createDocumentFragment();
 
-          words.forEach(word => {
-            if (
-              word.trim() &&
-              word[0] === word[0].toLowerCase() &&
-              /[a-z]/.test(word[0])
-            ) {
-              const mark = doc.createElement('mark');
-              mark.className = 'bg-red-300 text-red-700 rounded-sm px-1';
-              mark.title = 'Title case error';
-              mark.textContent = word;
-              frag.appendChild(mark);
-              changed = true;
-            } else {
-              frag.appendChild(doc.createTextNode(word));
-            }
-          });
+  //         words.forEach(word => {
+  //           if (
+  //             word.trim() &&
+  //             word[0] === word[0].toLowerCase() &&
+  //             /[a-z]/.test(word[0])
+  //           ) {
+  //             const mark = doc.createElement('mark');
+  //             mark.className = 'bg-red-300 text-red-700 rounded-sm px-1';
+  //             mark.title = 'Title case error';
+  //             mark.textContent = word;
+  //             frag.appendChild(mark);
+  //             changed = true;
+  //           } else {
+  //             frag.appendChild(doc.createTextNode(word));
+  //           }
+  //         });
 
-          if (changed) {
-            node.parentNode?.replaceChild(frag, node);
-          }
-        }
-      }
+  //         if (changed) {
+  //           node.parentNode?.replaceChild(frag, node);
+  //         }
+  //       }
+  //     }
 
-      // === Highlight whole paragraph if it has leading/trailing space errors ===
-      const leadingTrailingErrors = (
-        formatErrors.leadingTrailingSpaceErrors || []
-      ).filter(err => err.paragraphIndex === index);
+  //     // === Highlight whole paragraph if it has leading/trailing space errors ===
+  //     const leadingTrailingErrors = (
+  //       formatErrors.leadingTrailingSpaceErrors || []
+  //     ).filter(err => err.paragraphIndex === index);
 
-      if (leadingTrailingErrors.length > 0) {
-        // Wrap entire paragraph text inside one <mark>
-      const mark = doc.createElement('mark');
-      mark.className = 'highlight-format bg-red-300 text-red-700 rounded-sm px-1';
-      mark.title = 'Leading or trailing space error';
+  //     if (leadingTrailingErrors.length > 0) {
+  //       // Wrap entire paragraph text inside one <mark>
+  //     const mark = doc.createElement('mark');
+  //     mark.className = 'highlight-format bg-red-300 text-red-700 rounded-sm px-1';
+  //     mark.title = 'Leading or trailing space error';
 
 
-        while (el.firstChild) {
-          mark.appendChild(el.firstChild);
-        }
+  //       while (el.firstChild) {
+  //         mark.appendChild(el.firstChild);
+  //       }
 
-        el.appendChild(mark);
-      }
-    });
+  //       el.appendChild(mark);
+  //     }
+  //   });
 
-    return doc.body.innerHTML;
-  }
+  //   return doc.body.innerHTML;
+  // }
 
   // useEffect(() => {
   //   console.log('[Editor HTML]', htmlString);
   // }, [htmlString]);
 
   const highlightPhrases = (phrases: string[]) => {
-    const baseHtml = highlightedHtml || htmlString;
-    if (!phrases.length) return setHighlightedHtml(null);
-    const newHtml = applyHighlights(baseHtml, phrases, 'bg-yellow-300'); // or your desired class
-    setHighlightedHtml(newHtml);
+    if (!divRef.current || !phrases.length) return;
+
+    const container = divRef.current as HTMLElement;
+
+    const regex = new RegExp(`\\b(${phrases.map(escapeRegex).join('|')})\\b`, 'gi');
+
+    const walk = (node: Node) => {
+      if (
+        node.nodeType === Node.TEXT_NODE &&
+        regex.test(node.nodeValue || '') &&
+        !node.parentElement?.closest('mark.highlight-keyword')
+      ) {
+        const tempDiv = document.createElement('div');
+        tempDiv.innerHTML = (node.nodeValue || '').replace(
+          regex,
+          match => `<mark class="highlight-keyword bg-yellow-300">${match}</mark>`
+        );
+        const fragment = document.createDocumentFragment();
+        [...tempDiv.childNodes].forEach(n => fragment.appendChild(n));
+        node.parentNode?.replaceChild(fragment, node);
+      } else if (node.nodeType === Node.ELEMENT_NODE) {
+        node.childNodes.forEach(child => walk(child));
+      }
+    };
+
+    walk(container);
   };
 
 
-  const removeHighlights = () => removeMarksByClass('highlight-keyword');
-  const removeFormatHighlights = () => removeMarksByClass('highlight-format');
+  const removeHighlights = () => {
+    removeMarksByClass('highlight-keyword');
+  };
+
+const removeFormatHighlights = () => {
+  setHighlightedHtml(null);
+  removeMarksByClass('highlight-format');
+};
 
 
   useEffect(() => {
@@ -674,17 +702,125 @@ const Loom: FC = () => {
                 }
               }}
               onFormatHighlight={errors => {
-                // Validate input
                 if (!errors || typeof errors !== 'object' || Array.isArray(errors)) {
                   console.error('Invalid formatErrors object received:', errors);
                   return;
                 }
 
+                if (!divRef.current) return;
+
                 setFormatErrors(errors as ErrorList);
-                const baseHtml = highlightedHtml || htmlString;
-                const newHtml = highlightAllErrorsInHTML(baseHtml, errors as ErrorList);
-                setHighlightedHtml(newHtml);
+
+                const container = divRef.current as HTMLElement;
+                const regexMap: Record<string, RegExp> = {
+                  multipleSpaceErrors: /\s{2,}/g,
+                  emDashErrors: /[^ ]—|—[^ ]/g,
+                  spaceBeforePunctuationErrors: /\s+([.,!?;:])/g,
+                };
+
+                const elements = Array.from(container.querySelectorAll('p, h1, h2, h3, h4, h5, h6'));
+
+                elements.forEach((el, index) => {
+                  // Regex-based errors
+                  for (const [errorType, regex] of Object.entries(regexMap)) {
+                    const errorList = (errors as any)[errorType] as FormatError[] | undefined;
+                    if (!errorList?.length) continue;
+
+                    const matches = errorList.filter(err => err.paragraphIndex === index);
+                    if (!matches.length) continue;
+
+                    const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+                    let node: Text | null;
+
+                    while ((node = walker.nextNode() as Text | null)) {
+                      if (
+                        !node.textContent?.match(regex) ||
+                        node.parentElement?.closest('mark.highlight-format')
+                      ) {
+                        continue;
+                      }
+
+                      regex.lastIndex = 0;
+                      highlightTextNode(node, regex, errorType, document);
+                    }
+                  }
+
+                  // Missing punctuation
+                  const miss = errors.missingPunctuationErrors?.filter(e => e.paragraphIndex === index) || [];
+                  if (miss.length > 0) {
+                    const text = el.textContent?.trimEnd() || '';
+                    if (!/[.?!]$/.test(text)) {
+                      const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+                      const textNodes: Text[] = [];
+                      let node: Text | null;
+                      while ((node = walker.nextNode() as Text | null)) {
+                        if (!node.parentElement?.closest('mark.highlight-format')) {
+                          textNodes.push(node);
+                        }
+                      }
+                      for (let i = textNodes.length - 1; i >= 0; i--) {
+                        const nodeText = textNodes[i].textContent?.trimEnd() || '';
+                        if (nodeText.length > 0) {
+                          highlightLastWordInTextNode(textNodes[i], 'Missing punctuation error', document);
+                          break;
+                        }
+                      }
+                    }
+                  }
+
+                  // Title case errors
+                  const titleErrors = errors.titleCaseErrors?.filter(e => e.paragraphIndex === index) || [];
+                  if (titleErrors.length > 0) {
+                    const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+                    let node: Text | null;
+                    while ((node = walker.nextNode() as Text | null)) {
+                      if (!node.textContent?.trim()) continue;
+
+                      const words = node.textContent.split(/(\s+)/);
+                      const frag = document.createDocumentFragment();
+                      let changed = false;
+
+                      words.forEach(word => {
+                        if (
+                          word.trim() &&
+                          word[0] === word[0].toLowerCase() &&
+                          /[a-z]/.test(word[0]) &&
+                          !node.parentElement?.closest('mark.highlight-format')
+                        ) {
+                          const mark = document.createElement('mark');
+                          mark.className = 'highlight-format bg-red-300 text-red-700 rounded-sm px-1';
+                          mark.title = 'Title case error';
+                          mark.textContent = word;
+                          frag.appendChild(mark);
+                          changed = true;
+                        } else {
+                          frag.appendChild(document.createTextNode(word));
+                        }
+                      });
+
+                      if (changed) {
+                        node.parentNode?.replaceChild(frag, node);
+                      }
+                    }
+                  }
+
+                  // Leading/trailing space errors
+                  const leadTrailErrors = errors.leadingTrailingSpaceErrors?.filter(e => e.paragraphIndex === index) || [];
+                  if (leadTrailErrors.length > 0 && !el.querySelector('mark.highlight-format')) {
+                    const mark = document.createElement('mark');
+                    mark.className = 'highlight-format bg-red-300 text-red-700 rounded-sm px-1';
+                    mark.title = 'Leading or trailing space error';
+
+                    while (el.firstChild) {
+                      mark.appendChild(el.firstChild);
+                    }
+
+                    el.appendChild(mark);
+                  }
+                });
               }}
+
+
               onRemoveFormatHighlight={removeFormatHighlights}
               onHighlightContent={onContentIssuesHighlight}
               onRemoveContentHighlight={removeContentHighlights}

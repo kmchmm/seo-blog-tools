@@ -531,15 +531,24 @@ export const LoomSidebar: FC<LoomProps> = ({
     const preprocessed = text.replace(/<br\s*\/?>/gi, '\n');
     const doc = parser.parseFromString(preprocessed, 'text/html');
 
+    let headingIndex = 0;
+
     const paragraphs = Array.from(
       doc.body.querySelectorAll('p, h1, h2, h3, h4, h5, h6')
     ).map(el => {
       const htmlEl = el as HTMLElement;
+      const tag = htmlEl.tagName.toUpperCase();
+
+      let headingId: string | null = null;
+      if (tag.startsWith('H')) {
+        headingId = htmlEl.id || `heading-${headingIndex++}`;
+        htmlEl.id = headingId; // Ensure ID exists
+      }
+
       return {
         text: htmlEl.innerText || '',
-        heading: htmlEl.tagName.toUpperCase().startsWith('H')
-          ? htmlEl.tagName.toUpperCase()
-          : null,
+        heading: tag.startsWith('H') ? tag : null,
+        id: headingId,
       };
     });
 
@@ -549,7 +558,24 @@ export const LoomSidebar: FC<LoomProps> = ({
     };
 
     worker.postMessage(paragraphs);
-  }, [text]); 
+  }, [text]);
+
+  const scrollToHeading = (headingText: string) => {
+    const allHeadings = Array.from(document.querySelectorAll('h1, h2, h3, h4, h5, h6'));
+    const target = allHeadings.find(h => h.textContent?.trim() === headingText.trim());
+
+    if (target) {
+      target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+      target.classList.add('bg-black', 'text-white', 'transition-all');
+
+      setTimeout(() => {
+        target.classList.remove('bg-black', 'text-white');
+      }, 5000);
+    }
+  };
+
+
 
   type ErrorKey = keyof ErrorList;
 
@@ -590,16 +616,24 @@ export const LoomSidebar: FC<LoomProps> = ({
               <li key={idx}>
                 {err.heading && err.sentence !== err.heading ? (
                   <>
-                    <div
-                      className="font-bold cursor-pointer hover:text-blue-500"
-                      onClick={() => handleHeaderClick(type)}
-                      role="button"
-                      tabIndex={0}
-                      onKeyDown={e => {
-                        if (e.key === 'Enter' || e.key === ' ') handleHeaderClick(type);
-                      }}>
-                      {err.heading}
-                    </div>
+                  <div
+                    className="font-bold cursor-pointer hover:text-blue-500 text-sm"
+                    onClick={() => {
+                      handleHeaderClick(type);
+                      if (err.heading) scrollToHeading(err.heading);
+                    }}
+                    role="button"
+                    tabIndex={0}
+                    onKeyDown={e => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        handleHeaderClick(type);
+                        if (err.heading) scrollToHeading(err.heading);
+                      }
+                    }}
+                  >
+                    {err.heading}
+                  </div>
+
                     <ul className="pl-3 mt-2">
                       <li
                         className="list-disc"
@@ -671,38 +705,104 @@ export const LoomSidebar: FC<LoomProps> = ({
       .replace(/\b\w+/g, word => word.charAt(0).toUpperCase() + word.slice(1));
   };
 
-  const handleFixAll = () => {
+ const handleFixAll = () => {
     const parser = new DOMParser();
     const doc = parser.parseFromString(text, 'text/html');
 
-    const paragraphs = Array.from(doc.body.querySelectorAll('p, h1, h2, h3, h4, h5, h6'));
-    paragraphs.forEach(el => {
-      let fixedText = el.textContent || '';
-      const tagName = el.tagName.toUpperCase();
+    const isHeading = (tag: string) => /^H[1-6]$/.test(tag.toUpperCase());
 
-      // Fix multiple spaces
-      fixedText = fixedText.replace(/[ \u00A0]{2,}/g, ' ');
+    function normalizeTextContent(text: string) {
+      return text
+        .replace(/\u00A0/g, ' ') // non-breaking space to normal
+        .replace(/ {2,}/g, ' ') // multiple spaces to one
+        .replace(/\s*—\s*/g, ' — ') // spacing around em dash
+        .replace(/ ([.,;:!?])/g, '$1'); // no space before punctuation
+    }
 
-      // Fix em dash spacing
-      fixedText = fixedText.replace(/ ?— ?/g, ' — ');
+    function fixTextNodes(element: HTMLElement | Node) {
+      const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT, null);
 
-      // Fix leading/trailing spaces
-      fixedText = fixedText.trim();
-
-      // Fix space before punctuation
-      fixedText = fixedText.replace(/ ([.,;:!?])/g, '$1');
-
-      // Title Case Headings
-      if (tagName.startsWith('H')) {
-        fixedText = toTitleCase(fixedText);
+      const textNodes: Text[] = [];
+      while (walker.nextNode()) {
+        const node = walker.currentNode as Text;
+        if (node.nodeValue) {
+          textNodes.push(node);
+        }
       }
 
-      el.textContent = fixedText;
+      textNodes.forEach((node, index) => {
+        let value = node.nodeValue ?? '';
+
+        value = normalizeTextContent(value);
+
+        if (index > 0 && textNodes[index - 1].nodeValue?.endsWith(' ') && value.startsWith(' ')) {
+          value = value.replace(/^ /, '');
+        }
+
+        node.nodeValue = value;
+      });
+
+      for (const node of textNodes) {
+        if (node.nodeValue && node.nodeValue.trim().length > 0) {
+          node.nodeValue = node.nodeValue.replace(/^ +/, '');
+          break;
+        }
+      }
+
+      for (let i = textNodes.length - 1; i >= 0; i--) {
+        const node = textNodes[i];
+        if (node.nodeValue && node.nodeValue.trim().length > 0) {
+          node.nodeValue = node.nodeValue.replace(/ +$/, '');
+          break;
+        }
+      }
+    }
+
+    const blocks = Array.from(doc.body.querySelectorAll('p, h1, h2, h3, h4, h5, h6'));
+
+    blocks.forEach(el => {
+      fixTextNodes(el);
+
+      if (isHeading(el.tagName)) {
+        const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT, null);
+        while (walker.nextNode()) {
+          const node = walker.currentNode as Text;
+          if (node.nodeValue) {
+            node.nodeValue = toTitleCase(node.nodeValue);
+          }
+        }
+      }
     });
 
-    // Update the state and trigger follow-up
-    onFixAll(doc.body.innerHTML);
-    setDidFixAll(true);
+    const updatedHtml = doc.body.innerHTML;
+    onFixAll(updatedHtml);
+
+    const formatParagraphs = blocks.map(el => {
+      const rawText = (el as HTMLElement).innerText;
+
+      const normalizedText = rawText
+        .replace(/\u00A0/g, ' ')
+        .replace(/ {2,}/g, ' ')
+        .replace(/\s*—\s*/g, ' — ')
+        .replace(/ ([.,;:!?])/g, '$1')
+        .trim(); // This trim is fine for analysis, not DOM
+
+      return {
+        text: normalizedText,
+        heading: isHeading(el.tagName) ? el.tagName.toUpperCase() : null,
+      };
+    });
+
+    const worker = new Worker(new URL('../../utils/formatErrors.ts', import.meta.url), {
+      type: 'module',
+    });
+
+    worker.onmessage = e => {
+      setFormatErrors(e.data);
+      worker.terminate();
+    };
+
+    worker.postMessage(formatParagraphs);
   };
 
   useEffect(() => {
@@ -780,6 +880,7 @@ export const LoomSidebar: FC<LoomProps> = ({
           runAllChecks();
           setShowSummary('summary');
           setHasRunChecks(true);
+          
         }}
         className="w-full mb-4">
         Run All Checks
