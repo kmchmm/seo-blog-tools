@@ -1,31 +1,40 @@
-import { useEffect } from 'react';
+import { useCallback, useEffect, useMemo } from 'react';
 import { Button, Input } from '../common';
 import { FaCircleChevronRight } from 'react-icons/fa6';
 
 import {
   useGetDocumentInfo,
-  useGetSheetNames,
   useGetValidRowsInSheet,
   useSB37AnalysisContext,
 } from '../../hooks';
 import { Loading } from '../Loading';
 import { SingleDoc } from '../../hooks/useGetDocumentInfo';
-import ProgressBar from '../common/ProgressBar';
+import { SheetInfo } from '../../context/SB37ProgressContext';
+import StatsSection from './StatsSection';
+import ProgressSection from './ProgressSection';
+import SelectSheetNameSection from './SelectSheetNameSection';
 
 const BatchSB37Analysis = () => {
   const {
     formValues,
     setFormValues,
     startBatch,
-    isLoading: isBatchLoading,
-    errorMessage: batchError,
-    progressCount,
+    loadingSheets,
+    sheetErorMessages,
+    sheetProgressCount,
     resetBatch,
-    currentTitle,
-    isCompleted: contextCompleted,
-    totalCount,
-    setTotalCount,
+    sheetCurrentTitle,
+    sheetCompleted,
+    sheetInfo,
+    updateSheetInfo,
+    sheetNames,
+    fetchSheetNames,
+    isFetchingSheetNames,
+    sheetNamesError,
+    resetSheetNames,
   } = useSB37AnalysisContext();
+  const { sheetName, url } = formValues || {};
+  const isSheetProcessing = loadingSheets[sheetName] ? loadingSheets[sheetName] : false;
 
   const {
     sendRequest: fetchValidRows,
@@ -33,28 +42,38 @@ const BatchSB37Analysis = () => {
     loading: isValidating,
     errorMessage: validRowsError,
     reset: resetValidRows,
+    handleResetErrorMessage,
   } = useGetValidRowsInSheet();
 
   const {
-    sendRequest: fetchSheetNames,
-    sheetNames,
-    loading: isFetchingSheetNames,
-    errorMessage: sheetNamesError,
-    reset: resetSheetNames,
-  } = useGetSheetNames();
-
-  const {
     sendBatchRequest,
-    totalBatchWordCount,
     errorMessage: docInfoError,
     loading: isDocInfoLoading,
     reset: resetDocInfo,
   } = useGetDocumentInfo();
 
+  const disableProceedButton = useMemo(() => {
+    return (
+      isSheetProcessing ||
+      isDocInfoLoading ||
+      isValidating ||
+      sheetCompleted[sheetName] ||
+      Boolean(sheetNamesError) ||
+      sheetInfo[sheetName].sheetValidDocsCount === 0
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    isSheetProcessing,
+    isDocInfoLoading,
+    isValidating,
+    sheetNamesError,
+    sheetInfo,
+    sheetCompleted,
+  ]);
+
   const handleProcessAnother = () => {
     setFormValues({ url: '', sheetName: '' });
-
-    resetBatch();
+    resetBatch(sheetName);
     resetDocInfo();
     resetSheetNames();
     resetValidRows();
@@ -65,99 +84,77 @@ const BatchSB37Analysis = () => {
   };
 
   const handleClickNext = () => {
-    if (!formValues.url) return;
-    fetchSheetNames({ spreadsheetUrl: formValues.url });
+    if (!url) return;
+    fetchSheetNames({ spreadsheetUrl: url });
   };
 
   const handleSheetChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const selected = e.target.value;
     setFormValues({ ...formValues, sheetName: selected });
-    fetchValidRows({ spreadsheetUrl: formValues.url, sheetName: selected });
+
+    if (!sheetInfo[selected]) {
+      fetchValidRows({ spreadsheetUrl: url, sheetName: selected });
+    }
+    if (validRowsError) {
+      handleResetErrorMessage();
+    }
   };
 
   const handleClickProceed = () => {
-    if (!formValues.sheetName) return;
-    startBatch(formValues.url, formValues.sheetName);
+    if (!sheetName) return;
+    startBatch(url, sheetName);
   };
+
+  const handleSheetUpdate = useCallback(
+    (sheetName: string, updates: Partial<SheetInfo>) => {
+      updateSheetInfo(sheetName, updates);
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [sheetName]
+  );
 
   useEffect(() => {
     if (validRows && !isValidating) {
-      sendBatchRequest(validRows.docs as SingleDoc[]);
-      setTotalCount(validRows?.totalDocs || 0);
+      (async () => {
+        const results = await sendBatchRequest(validRows.docs as SingleDoc[]);
+        const totalWords = results.reduce((acc, cur) => acc + (cur.wordCount || 0), 0);
+
+        handleSheetUpdate(sheetName, {
+          sheetValidDocsCount: validRows.totalDocs,
+          docsTotalWords: totalWords,
+        });
+      })();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [validRows]);
 
   const renderSheetSelector = () => (
-    <div className="mx-auto max-w-xl w-full">
-      <div className="flex gap-5 items-center justify-between">
-        <p className="font-semibold">Select Sheet Name:</p>
-        <select
-          disabled={isBatchLoading}
-          value={formValues.sheetName}
-          onChange={handleSheetChange}
-          className="h-12 px-2 border rounded">
-          <option value="" disabled>
-            Select a sheet
-          </option>
-          {sheetNames.map(name => (
-            <option key={name} value={name}>
-              {name}
-            </option>
-          ))}
-        </select>
-      </div>
-    </div>
+    <SelectSheetNameSection
+      completed={sheetCompleted}
+      handleSheetChange={handleSheetChange}
+      loadingSheets={loadingSheets}
+      sheetName={sheetName}
+      sheetNames={sheetNames}
+    />
   );
 
   const renderStats = () => (
-    <div className="w-full flex flex-col gap-y-4 mt-4">
-      <div className="flex items-center justify-between">
-        <p className="font-semibold flex-1">Valid Documents:</p>
-        <div className="text-left w-full flex-1">
-          <p
-            className={`${isValidating || isDocInfoLoading ? 'bg-gray-500 animate-pulse text-gray-500' : ''}`}>
-            {validRows && (!docInfoError || !validRowsError) ? validRows?.totalDocs : 0}
-          </p>
-        </div>
-      </div>
-      <div className="flex items-center justify-between">
-        <p className="font-semibold flex-1">Total Word Count:</p>
-        <div className="text-left w-full flex-1">
-          <p
-            className={`${isDocInfoLoading || isValidating ? 'bg-gray-500 animate-pulse text-gray-500' : ''}`}>
-            {!docInfoError || !validRowsError ? totalBatchWordCount : 0}
-          </p>
-        </div>
-      </div>
-      <div className="self-center w-fit">
-        <Button
-          className="!bg-blue-200 text-gray-100 border-none"
-          onClick={handleClickProceed}
-          disabled={
-            isBatchLoading || isDocInfoLoading || isValidating || contextCompleted
-          }>
-          Proceed
-        </Button>
-      </div>
-    </div>
+    <StatsSection
+      disableButton={disableProceedButton}
+      loading={isValidating || isDocInfoLoading}
+      errorMessage={!docInfoError || !validRowsError}
+      handleClickProceed={handleClickProceed}
+      totalDocWords={sheetInfo[formValues.sheetName]?.docsTotalWords}
+      sheetValidDocsCount={sheetInfo[formValues.sheetName]?.sheetValidDocsCount}
+    />
   );
 
   const renderProgress = () => (
-    <div className="w-full max-w-xl mx-auto">
-      <ProgressBar current={progressCount} total={totalCount || 1} />
-      <p className="text-center mt-2 text-sm text-gray-500">
-        {progressCount}/{totalCount} completed
-      </p>
-      {currentTitle && (
-        <div className="flex items-center gap-x-2 justify-center">
-          <p className="text-center mt-1 text-sm italic text-gray-600">
-            Currently processing: <span className="font-semibold">{currentTitle}</span>
-          </p>
-          <Loading size="sm" />
-        </div>
-      )}
-    </div>
+    <ProgressSection
+      currentProgress={sheetProgressCount[sheetName]}
+      currentTitle={sheetCurrentTitle[sheetName]}
+      validDocCount={sheetInfo[formValues.sheetName]?.sheetValidDocsCount}
+    />
   );
 
   const renderCompletion = () => (
@@ -171,8 +168,12 @@ const BatchSB37Analysis = () => {
     </div>
   );
 
-  const renderErrors = () => {
-    const error = sheetNamesError || validRowsError || batchError || docInfoError;
+  const renderErrors = (sheetName: string) => {
+    const isActive = sheetErorMessages[sheetName];
+    const error =
+      validRowsError ||
+      (isActive && (sheetNamesError || sheetErorMessages[sheetName] || docInfoError));
+
     return error ? <p className="text-red-600">{error}</p> : null;
   };
 
@@ -180,18 +181,20 @@ const BatchSB37Analysis = () => {
     <>
       <div className="w-full flex items-center gap-x-4 sm:flex-row flex-col">
         <Input
-          disabled={isFetchingSheetNames || isBatchLoading || contextCompleted}
+          disabled={
+            isFetchingSheetNames || isSheetProcessing || sheetCompleted[sheetName]
+          }
           id="ai-assistant-input"
           label="Enter the spreadsheet URL:"
           name="ai-assistant-input"
           onInputChange={handleUrlChange}
-          value={formValues.url}
+          value={url}
           customClassName="w-full flex items-center sm:flex-row flex-col"
         />
         <button
           type="button"
           disabled={
-            isFetchingSheetNames || isBatchLoading || contextCompleted || !formValues.url
+            isFetchingSheetNames || isSheetProcessing || sheetCompleted[sheetName] || !url
           }
           className="cursor-pointer hover:scale-125 transform duration-300 disabled:pointer-events-none"
           onClick={handleClickNext}>
@@ -199,7 +202,7 @@ const BatchSB37Analysis = () => {
         </button>
       </div>
 
-      {renderErrors()}
+      {renderErrors(sheetName)}
 
       {isFetchingSheetNames ? (
         <div className="self-center flex items-center flex-col">
@@ -208,18 +211,20 @@ const BatchSB37Analysis = () => {
       ) : (
         <div className="max-w-2xl mx-auto flex flex-col">
           {sheetNames.length > 0 && renderSheetSelector()}
-          {(validRows || isValidating) && renderStats()}
+          {(sheetInfo[sheetName] || isValidating || isDocInfoLoading) && renderStats()}
         </div>
       )}
 
-      {isBatchLoading && (
+      {isSheetProcessing && (
         <div className="self-center flex items-center flex-col my-2">
-          {isBatchLoading && <p>Processing, this could take a while. Please wait...</p>}
+          {isSheetProcessing && (
+            <p>Processing, this could take a while. Please wait...</p>
+          )}
         </div>
       )}
 
-      {isBatchLoading && !contextCompleted && renderProgress()}
-      {contextCompleted && !isBatchLoading && renderCompletion()}
+      {isSheetProcessing && !sheetCompleted[sheetName] && renderProgress()}
+      {sheetCompleted[sheetName] && !loadingSheets && renderCompletion()}
     </>
   );
 };

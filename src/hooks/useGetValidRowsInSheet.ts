@@ -18,6 +18,10 @@ const useGetValidRowsInSheet = () => {
     setErrorMessage('');
   };
 
+  const handleResetErrorMessage = () => {
+    setErrorMessage('');
+  };
+
   const sendRequest = async ({
     spreadsheetUrl,
     sheetName,
@@ -43,7 +47,7 @@ const useGetValidRowsInSheet = () => {
     }
   };
 
-  return { result, sendRequest, loading, errorMessage, reset };
+  return { result, sendRequest, loading, errorMessage, reset, handleResetErrorMessage };
 };
 
 export default useGetValidRowsInSheet;
