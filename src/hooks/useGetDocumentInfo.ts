@@ -35,7 +35,7 @@ const useGetDocumentInfo = () => {
     }
   };
 
-  const sendBatchRequest = async (docs: SingleDoc[]) => {
+  const sendBatchRequest = async (docs: SingleDoc[]): Promise<DocInfo[]> => {
     setLoading(true);
     setBatchResults([]);
     try {
@@ -55,6 +55,7 @@ const useGetDocumentInfo = () => {
       const successfulResults = results
         .filter((r): r is PromiseFulfilledResult<DocInfo> => r.status === 'fulfilled')
         .map(r => r.value);
+
       setBatchResults(successfulResults);
       return successfulResults;
     } catch (e) {
