@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import axios, { AxiosError } from 'axios';
+import { AI_GET_SHEET_NAMES_API_URL } from '../services/constants';
 
 const useGetSheetNames = () => {
   const [sheetNames, setSheetNames] = useState<string[]>([]);
@@ -16,7 +17,7 @@ const useGetSheetNames = () => {
     setLoading(true);
     setErrorMessage('');
     try {
-      const res = await axios.post('http://localhost:8022/api/get-sheet-names', {
+      const res = await axios.post(AI_GET_SHEET_NAMES_API_URL, {
         spreadsheetUrl,
       });
       if (res && res.status === 200) {

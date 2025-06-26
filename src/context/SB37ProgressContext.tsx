@@ -3,6 +3,7 @@ import usePostSB37SingleAnalysis, {
   SB37AnalysisResult,
 } from '../hooks/usePostSB37SingleAnalysis';
 import { useGetSheetNames } from '../hooks';
+import { AI_PROCESS_SHEET_API_URL } from '../services/constants';
 
 type ProgressItem = {
   row: number;
@@ -114,9 +115,7 @@ export const Provider: React.FC<{ children: React.ReactNode }> = ({ children }) 
       spreadsheetUrl
     )}&sheetName=${encodeURIComponent(sheetName)}`;
 
-    const eventSource = new EventSource(
-      `http://localhost:8022/api/process-sheet-progress${query}`
-    );
+    const eventSource = new EventSource(`${AI_PROCESS_SHEET_API_URL}${query}`);
     eventSourceRef.current = eventSource;
 
     eventSource.onmessage = e => {
