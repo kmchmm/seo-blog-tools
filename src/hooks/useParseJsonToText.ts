@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import axios, { AxiosError } from 'axios';
-import { AI_PARSE_ANALYSIS_TO_TEXT_API_URL } from '../services/constants';
 
 export type SB37AnalysisJSON = {
   name: string;
@@ -38,7 +37,7 @@ const useParseJsonToText = () => {
     setLoading(true);
 
     try {
-      const res = await axios.post(AI_PARSE_ANALYSIS_TO_TEXT_API_URL, {
+      const res = await axios.post('http://localhost:8022/api/parse-analysis-to-text', {
         analysisJson,
         originalDocName,
         originalDocUrl,

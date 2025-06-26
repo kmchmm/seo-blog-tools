@@ -1,6 +1,5 @@
 import { useState, useMemo } from 'react';
-import axios, { AxiosError } from 'axios';
-import { AI_GET_DOC_INFO_API_URL } from '../services/constants';
+import axios from 'axios';
 
 type DocInfo = { title: string; wordCount: number };
 export type SingleDoc = { title: string; url: string };
@@ -21,16 +20,16 @@ const useGetDocumentInfo = () => {
   const sendRequest = async ({ docUrl }: { docUrl: string }) => {
     setLoading(true);
     try {
-      const res = await axios.post(AI_GET_DOC_INFO_API_URL, {
+      const res = await axios.post('http://localhost:8022/api/get-doc-info', {
         docUrl,
       });
       if (res && res.status === 200) {
         setResult(res.data);
       }
     } catch (e) {
-      const error = e as AxiosError<{ error: string }>;
-      console.log(`error`, error);
-      setErrorMessage(error?.response?.data?.error as string);
+      const error =
+        e instanceof Error ? e.message : 'ERROR FETCHING DOCUMENT INFORMATION';
+      setErrorMessage(error);
     } finally {
       setLoading(false);
     }
@@ -43,7 +42,7 @@ const useGetDocumentInfo = () => {
       const results = await Promise.allSettled(
         docs.map(doc =>
           axios
-            .post(AI_GET_DOC_INFO_API_URL, {
+            .post('http://localhost:8022/api/get-doc-info', {
               docUrl: doc.url,
             })
             .then(res => ({

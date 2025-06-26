@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import axios, { AxiosError } from 'axios';
 import { SingleDoc } from './useGetDocumentInfo';
-import { AI_GET_VALID_ROWS_API_URL } from '../services/constants';
 
 type DocRowsItems = {
   totalDocs: number;
@@ -33,7 +32,7 @@ const useGetValidRowsInSheet = () => {
     setLoading(true);
     setErrorMessage('');
     try {
-      const res = await axios.post(AI_GET_VALID_ROWS_API_URL, {
+      const res = await axios.post('http://localhost:8022/api/get-sheet-rows', {
         spreadsheetUrl,
         sheetName,
       });

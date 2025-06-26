@@ -38,7 +38,7 @@ const SingleSB37Analysis = () => {
     errorMessage: errorMessageDocInfo,
     reset: resetDocInfo,
   } = useGetDocumentInfo();
-  console.log(`errorMessageDocInfo`, errorMessageDocInfo);
+
   const { title, wordCount } = docInfoResult || {};
   const { completionTime, reviewOutput } = singleResult || {};
 
