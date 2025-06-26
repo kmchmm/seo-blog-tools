@@ -1,5 +1,6 @@
 import { useState, useRef } from 'react';
 import { SB37AnalysisJSON } from './useParseJsonToText';
+import { AI_PROCESS_DOCUMENT_API_URL } from '../services/constants';
 
 export type SB37AnalysisResult = {
   reviewOutput: SB37AnalysisJSON;
@@ -29,7 +30,7 @@ const usePostSB37SingleAnalysis = () => {
     setLoading(true);
 
     const eventSource = new EventSource(
-      `http://localhost:8022/api/check-doc-progress?docUrl=${encodeURIComponent(docUrl)}`
+      `${AI_PROCESS_DOCUMENT_API_URL}?docUrl=${encodeURIComponent(docUrl)}`
     );
     eventSourceRef.current = eventSource;
 
