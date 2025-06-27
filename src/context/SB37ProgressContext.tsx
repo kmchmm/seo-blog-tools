@@ -1,16 +1,19 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { createContext, useRef, useState } from 'react';
 import usePostSB37SingleAnalysis, {
   SB37AnalysisResult,
 } from '../hooks/usePostSB37SingleAnalysis';
 import { useGetSheetNames } from '../hooks';
 import { AI_PROCESS_SHEET_API_URL } from '../services/constants';
+import axios, { AxiosError } from 'axios';
 
-type ProgressItem = {
+export type ProgressItem = {
   row: number;
   title: string;
   docUrl: string;
   status: string;
   error?: string;
+  completionTime?: string;
 };
 
 export type SheetInfo = {
@@ -21,7 +24,7 @@ export type SheetInfo = {
 type BatchProgressContextType = {
   // batch fields
   formValues: { url: string; sheetName: string };
-  items: ProgressItem[];
+  items: Record<string, ProgressItem[]>;
   loadingSheets: Record<string, boolean>;
   resetBatch: (sheetName: string) => void;
   setFormValues: ({ url, sheetName }: { url: string; sheetName: string }) => void;
@@ -52,12 +55,19 @@ type BatchProgressContextType = {
   sheetNamesError: string;
 };
 
+interface BatchResponse {
+  status: 'progress' | 'complete' | 'error';
+  message?: string;
+  results?: any[];
+  progress?: any[];
+}
+
 // eslint-disable-next-line react-refresh/only-export-components
 export const Context = createContext<BatchProgressContextType | undefined>(undefined);
 
 export const Provider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [formValues, setFormValues] = useState({ url: '', sheetName: '' });
-  const [items, setItems] = useState<ProgressItem[]>([]);
+  const [items, setItems] = useState<Record<string, ProgressItem[]>>({});
 
   const [sheetCurrentTitle, setSheetCurrentTitle] = useState<Record<string, string>>({});
 
@@ -104,8 +114,8 @@ export const Provider: React.FC<{ children: React.ReactNode }> = ({ children }) 
     sendSingleRequest(docUrl);
   };
 
-  const startBatch = (spreadsheetUrl: string, sheetName: string) => {
-    setItems([]);
+  const startBatch = async (spreadsheetUrl: string, sheetName: string) => {
+    setItems(prev => ({ ...prev, [sheetName]: [] }));
     setSheetProgressCount(prev => ({ ...prev, [sheetName]: 0 }));
     setSheetCompleted(prev => ({ ...prev, [sheetName]: false }));
     setLoadingSheets(prev => ({ ...prev, [sheetName]: true }));
@@ -115,71 +125,58 @@ export const Provider: React.FC<{ children: React.ReactNode }> = ({ children }) 
       spreadsheetUrl
     )}&sheetName=${encodeURIComponent(sheetName)}`;
 
-    const eventSource = new EventSource(`${AI_PROCESS_SHEET_API_URL}${query}`);
-    eventSourceRef.current = eventSource;
+    const poll = async (): Promise<void> => {
+      try {
+        const res = await axios.get<BatchResponse>(`${AI_PROCESS_SHEET_API_URL}${query}`);
+        const data = res.data;
 
-    eventSource.onmessage = e => {
-      const data = JSON.parse(e.data);
-      if (data.status === 'processing' && data.title) {
-        setSheetCurrentTitle(prev => ({ ...prev, [sheetName]: data.title }));
-      }
+        if (data.status === 'error') {
+          setSheetErorMessages(prev => ({
+            ...prev,
+            [sheetName]: data.message || 'Batch failed.',
+          }));
+          setLoadingSheets(prev => ({ ...prev, [sheetName]: false }));
+          return;
+        }
 
-      if (data.type === 'progress' && data.status === 'success') {
-        setItems(prev => [...prev, data]);
-        setSheetProgressCount(prev => ({
-          ...prev,
-          [sheetName]: (prev[sheetName] || 0) + 1,
-        }));
-      } else if (data.type === 'complete') {
-        setItems(data.results || []);
-        setLoadingSheets(prev => ({ ...prev, [sheetName]: false }));
-        setSheetCompleted(prev => ({ ...prev, [sheetName]: true }));
-        eventSource.close();
-      } else if (data.type === 'error') {
+        if (data.status === 'complete') {
+          setItems(prev => ({ ...prev, [sheetName]: data.results || [] }));
+          setLoadingSheets(prev => ({ ...prev, [sheetName]: false }));
+          setSheetCompleted(prev => ({ ...prev, [sheetName]: true }));
+          return;
+        }
+
+        if (data.progress) {
+          setItems(prev => ({ ...prev, [sheetName]: data.progress || [] }));
+          setSheetProgressCount(prev => ({
+            ...prev,
+            [sheetName]: data?.progress?.length || 0,
+          }));
+        }
+
+        // Continue polling
+        setTimeout(poll, 3000);
+      } catch (err) {
+        const error = err as AxiosError<{ error: string }>;
         setSheetErorMessages(prev => ({
           ...prev,
-          [sheetName]: data.message || 'Batch failed.',
+          [sheetName]:
+            error?.response?.data.error ||
+            'Connection error or server closed unexpectedly.',
         }));
         setLoadingSheets(prev => ({ ...prev, [sheetName]: false }));
-        setSheetProgressCount(prev => {
-          const copy = { ...prev };
-          delete copy[sheetName];
-          return copy;
-        });
-
-        setSheetCompleted(prev => {
-          const copy = { ...prev };
-          delete copy[sheetName];
-          return copy;
-        });
-        eventSource.close();
       }
     };
 
-    eventSource.onerror = () => {
-      setSheetErorMessages(prev => ({
-        ...prev,
-        [sheetName]: 'Connection error or server closed unexpectedly.',
-      }));
-      setLoadingSheets(prev => ({ ...prev, [sheetName]: false }));
-      setSheetProgressCount(prev => {
-        const copy = { ...prev };
-        delete copy[sheetName];
-        return copy;
-      });
-
-      setSheetCompleted(prev => {
-        const copy = { ...prev };
-        delete copy[sheetName];
-        return copy;
-      });
-      eventSource.close();
-    };
+    poll();
   };
-
   const resetBatch = (sheetName: string) => {
     eventSourceRef.current?.close();
-    setItems([]);
+    setItems(prev => {
+      const updated = { ...prev };
+      delete updated[sheetName];
+      return updated;
+    });
     setSheetCurrentTitle(prev => {
       const updated = { ...prev };
       delete updated[sheetName];
