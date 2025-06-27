@@ -1,4 +1,5 @@
-import { useState, useRef } from 'react';
+import { useState } from 'react';
+import axios, { AxiosError } from 'axios';
 import { SB37AnalysisJSON } from './useParseJsonToText';
 import { AI_PROCESS_DOCUMENT_API_URL } from '../services/constants';
 
@@ -13,52 +14,36 @@ const usePostSB37SingleAnalysis = () => {
   const [result, setResult] = useState<SB37AnalysisResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
-  const eventSourceRef = useRef<EventSource | null>(null);
 
   const reset = () => {
-    if (eventSourceRef.current) {
-      eventSourceRef.current.close();
-      eventSourceRef.current = null;
-    }
     setResult(null);
     setLoading(false);
     setErrorMessage('');
   };
 
-  const sendRequest = (docUrl: string) => {
-    reset(); // clear any prior state
+  const sendRequest = async (docUrl: string) => {
+    reset();
     setLoading(true);
 
-    const eventSource = new EventSource(
-      `${AI_PROCESS_DOCUMENT_API_URL}?docUrl=${encodeURIComponent(docUrl)}`
-    );
-    eventSourceRef.current = eventSource;
+    try {
+      const res = await axios.get(`${AI_PROCESS_DOCUMENT_API_URL}`, {
+        params: { docUrl },
+      });
 
-    eventSource.onmessage = event => {
-      const data = JSON.parse(event.data);
+      const data = res.data;
 
-      if (data.type === 'start') {
-        console.log('Started processing', data.docUrl);
-      } else if (data.type === 'complete') {
+      if (data.type === 'complete') {
         const { reviewOutput, completionTime, wordCount, title } = data;
         setResult({ reviewOutput, completionTime, wordCount, title });
-        setLoading(false);
-        eventSource.close();
-        eventSourceRef.current = null;
       } else if (data.type === 'error') {
         setErrorMessage(data.message || 'Unexpected error');
-        setLoading(false);
-        eventSource.close();
-        eventSourceRef.current = null;
       }
-    };
-
-    eventSource.onerror = () => {
-      setErrorMessage('Connection error or server closed unexpectedly');
+    } catch (err) {
+      const error = err as AxiosError<{ error: string }>;
+      setErrorMessage(error?.response?.data?.error || 'Network or server error');
+    } finally {
       setLoading(false);
-      eventSource.close();
-      eventSourceRef.current = null;
-    };
+    }
   };
 
   return { sendRequest, loading, result, errorMessage, reset };

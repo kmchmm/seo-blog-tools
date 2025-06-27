@@ -1,4 +1,4 @@
-import { useCallback, useEffect } from 'react';
+import { useCallback, useEffect, useMemo } from 'react';
 import { Button, Input } from '../common';
 import { FaCircleChevronRight } from 'react-icons/fa6';
 
@@ -9,7 +9,6 @@ import {
 } from '../../hooks';
 import { Loading } from '../Loading';
 import { SingleDoc } from '../../hooks/useGetDocumentInfo';
-import ProgressBar from '../common/ProgressBar';
 import { SheetInfo } from '../../context/SB37ProgressContext';
 
 const BatchSB37Analysis = () => {
@@ -19,7 +18,6 @@ const BatchSB37Analysis = () => {
     startBatch,
     loadingSheets,
     sheetErorMessages,
-    sheetProgressCount,
     resetBatch,
     sheetCurrentTitle,
     sheetCompleted,
@@ -29,7 +27,7 @@ const BatchSB37Analysis = () => {
     fetchSheetNames,
     isFetchingSheetNames,
     sheetNamesError,
-    resetSheetNames,
+    items: sheetResult,
   } = useSB37AnalysisContext();
   const { sheetName, url } = formValues || {};
   const isSheetProcessing = loadingSheets[sheetName] ? loadingSheets[sheetName] : false;
@@ -39,7 +37,7 @@ const BatchSB37Analysis = () => {
     result: validRows,
     loading: isValidating,
     errorMessage: validRowsError,
-    reset: resetValidRows,
+
     handleResetErrorMessage,
   } = useGetValidRowsInSheet();
 
@@ -47,15 +45,21 @@ const BatchSB37Analysis = () => {
     sendBatchRequest,
     errorMessage: docInfoError,
     loading: isDocInfoLoading,
-    reset: resetDocInfo,
   } = useGetDocumentInfo();
 
+  const completionTime = useMemo(() => {
+    if (!sheetResult[sheetName]) return;
+    const timeArray: number[] = sheetResult[sheetName].map(result => {
+      const time = result?.completionTime?.split(' ')[0];
+      return Number(time);
+    });
+    const totalTime = timeArray.reduce((sum, time) => sum + time, 0);
+    return totalTime;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sheetResult[sheetName]]);
+
   const handleProcessAnother = () => {
-    setFormValues({ url: '', sheetName: '' });
     resetBatch(sheetName);
-    resetDocInfo();
-    resetSheetNames();
-    resetValidRows();
   };
 
   const handleUrlChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -185,18 +189,11 @@ const BatchSB37Analysis = () => {
 
   const renderProgress = () => (
     <div className="w-full max-w-xl mx-auto">
-      <ProgressBar
-        current={sheetProgressCount[sheetName]}
-        total={sheetInfo[formValues.sheetName]?.sheetValidDocsCount || 1}
-      />
-      <p className="text-center mt-2 text-sm text-gray-500">
-        {sheetProgressCount[sheetName]}/
-        {sheetInfo[formValues.sheetName]?.sheetValidDocsCount} completed
-      </p>
-      {sheetCurrentTitle[sheetName] && (
+      {isSheetProcessing && (
         <div className="flex items-center gap-x-2 justify-center">
           <p className="text-center mt-1 text-sm italic text-gray-600">
-            Currently processing:{' '}
+            Feel free to use other tools or process another sheet but{' '}
+            <strong>DO NOT</strong> refresh the page!{' '}
             <span className="font-semibold">{sheetCurrentTitle[sheetName]}</span>
           </p>
           <Loading size="sm" />
@@ -206,8 +203,14 @@ const BatchSB37Analysis = () => {
   );
 
   const renderCompletion = () => (
-    <div className="mt-6 w-full max-w-xl mx-auto flex flex-col items-center gap-4">
+    <div className="mt-6 w-full max-w-lg mx-auto flex flex-col items-center gap-4">
       <p className="text-green-600 font-semibold">Batch analysis completed!</p>
+      {sheetResult[sheetName][0] && (
+        <p className="font-semibold flex w-full justify-between px-4">
+          Completion Time:
+          <span>{completionTime}s</span>
+        </p>
+      )}
       <Button
         className="!bg-blue-200 text-gray-100 border-none px-4 py-2"
         onClick={handleProcessAnother}>
