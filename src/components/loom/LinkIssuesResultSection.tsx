@@ -32,10 +32,10 @@ const LinkIssuesResultSection = ({ result }: Props) => {
     req => !allLinkURLs.includes(req.url)
   );
 
-  const linkErrorMessage =
+  const linkErrorMessage =  
     totalLinkIssues === 0
-      ? 'No link issues found! Good job! 🎉'
-      : 'Some link issues found! Please review.⚠️';
+      ? '🎉 No link issues found! Good job! '
+      : 'Some link issues found! Please review';
 
   const formatErrorLabel = (label: string) =>
     label.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase());
@@ -156,7 +156,7 @@ const LinkIssuesResultSection = ({ result }: Props) => {
                 className="before:content-['•'] before:mr-2 font-bold text-black hover:bg-green-100 hover:text-white p-2">
                 {link.anchor || '(no anchor)'}
               </span>
-              <span>— {link.url}</span>
+              <span className="ml-5"> {link.url}</span>
             </li>
           ))}
         </ul>

@@ -23,7 +23,7 @@ import {
 } from 'react-icons/go';
 import { FiEyeOff } from 'react-icons/fi';
 
-import { FaCheckCircle, FaTimesCircle, FaTrash } from 'react-icons/fa';
+import { FaCheckCircle, FaTimesCircle, FaTrash, FaBars } from 'react-icons/fa';
 import {
   AssessmentResult,
   ContentIssueReport,
@@ -32,7 +32,7 @@ import {
   FormatError,
   KeywordAnalysisResult,
 } from '../../types/loom.js';
-import { VIOLATION_PHRASES } from './contants.js';
+// import { VIOLATION_PHRASES } from './contants.js';
 import { formatList } from './helpers.js';
 
 import KeywordResultSection from './KeywordResultSection.js';
@@ -41,7 +41,7 @@ import ContentIssuesResultSection from './ContentIssuesResultSection.js';
 import LinkIssuesResultSection from './LinkIssuesResultSection.js';
 import { LinkAnalysisResult } from '../../utils/analyzeLinksWorker.js';
 import { groupIssuesByType } from '../../utils/analyzeLinksWorker'; 
-
+import '../../assets/css/Loom.css';
 
 // import { Paper, AnalysisWorkerWrapper } from 'yoastseo';
 // import type { AssessmentResult } from 'yoastseo';
@@ -75,6 +75,15 @@ interface LoomProps {
   loadingAnalyzeLink: boolean;
   onLinkIssuesRemoveHighlightClick: () => void;
 }
+
+interface DictionaryEntry {
+  id: number;
+  keyword: string;
+  created_by: string;
+  deleted_at: string | null;
+  // add other fields if needed
+}
+
 
 const tabHeaderStyle = clsx(
   'text-xs w-15 text-center cursor-pointer flex flex-col items-center rounded-md p-1',
@@ -139,12 +148,16 @@ export const LoomSidebar: FC<LoomProps> = ({
   >([]);
   const [seoProblems, setSEOProblems] = useState<AssessmentResult[]>([]);
   const [seoAchievements, setSEOAchievements] = useState<AssessmentResult[]>([]);
-  const [violations, setViolations] = useState<string[]>([]);
-  const [violationResults, setViolationResults] = useState<
-    Record<string, { heading: string; id: string }[]>
-  >({});
+  // const [violations, setViolations] = useState<string[]>([]);
+  // const [violationResults, setViolationResults] = useState<
+  //   Record<string, { heading: string; id: string }[]>
+  // >({});
+  const [violationCheckMessage, setViolationCheckMessage] = useState<{
+  type: 'success' | 'error' | null;
+  text: string;
+} | null>(null);
   const [highlightActive, setHighlightActive] = useState(false);
-  const [hasCheckedViolations, setHasCheckedViolations] = useState(false);
+  // const [hasCheckedViolations, setHasCheckedViolations] = useState(false);
   const [customSearchTerm, setCustomSearchTerm] = useState('');
   const [customSearchResults, setCustomSearchResults] = useState<CustomSearchResult[]>(
     []
@@ -154,8 +167,9 @@ export const LoomSidebar: FC<LoomProps> = ({
   const [activeHighlights, setActiveHighlights] = useState<string[]>([]);
 
   const [dictionary, setDictionary] = useState<
-    { id: number; keyword: string; created_by: string }[]
+    { id: number; keyword: string; created_by: string; deleted_at: string | null }[]
   >([]);
+
   const [newPhrase, setNewPhrase] = useState('');
   const [addStatus, setAddStatus] = useState<null | 'success' | 'exists' | 'error'>(null);
   const [dictionaryViolations, setDictionaryViolations] = useState<string[]>([]);
@@ -174,6 +188,46 @@ export const LoomSidebar: FC<LoomProps> = ({
   const [linkHighlightsActive, setLinkHighlightsActive] = useState(false);
   const [contentHighlightsActive, setContentHighlightsActive] = useState(false);
   const [keywordHighlightsActive, setKeywordHighlightsActive] = useState(false);
+
+
+  // const uniqueViolationHeadings = prepareHeadingsForAccordion(violationResults);
+  const uniqueDictionaryHeadings = prepareHeadingsForAccordion(dictionaryViolationResults);
+  const [activeView, setActiveView] = useState('default'); // 'default' or 'trash' SB37 VIEW MODAL
+
+
+  const [currentPage, setCurrentPage] = useState(1);
+  const rowsPerPage = 6;
+
+  const filteredDictionary = dictionary.filter(entry => entry.deleted_at === null);
+
+  const totalPages = Math.ceil(filteredDictionary.length / rowsPerPage);
+  const startIndex = (currentPage - 1) * rowsPerPage;
+  const paginatedData = filteredDictionary.slice(startIndex, startIndex + rowsPerPage);
+
+
+  // Assume these states exist:
+  const pageSize = 6;
+  const [archivedDictionary, setArchivedDictionary] = useState<DictionaryEntry[]>([]);
+
+  useEffect(() => {
+    const deleted = dictionary.filter(entry => entry.deleted_at !== null);
+    setArchivedDictionary(deleted);
+  }, [dictionary]);
+
+  const totalPagesForDeleted = Math.ceil(archivedDictionary.length / pageSize);
+  const deletedEntries = archivedDictionary.slice(
+    (currentPage - 1) * pageSize,
+    currentPage * pageSize
+  );
+
+  useEffect(() => {
+    if (currentPage > totalPagesForDeleted) {
+      setCurrentPage(totalPagesForDeleted || 1);
+    }
+  }, [archivedDictionary, totalPagesForDeleted]);
+  const [statusMessage, setStatusMessage] = useState<string | null>(null);
+
+
 
   // const [loading, setLoading] = useState(false);
   const [loading] = useState(false);
@@ -255,32 +309,32 @@ export const LoomSidebar: FC<LoomProps> = ({
   ////////////////////////////////////////////////////////
   //////////////////SB37 TOOL/////////////////////////////
   ////////////////////////////////////////////////////////
-  const checkForStaticViolations = () => {
-    const allMatches: string[] = [];
-    const lowerText = text.toLowerCase();
+  // const checkForStaticViolations = () => {
+  //   const allMatches: string[] = [];
+  //   const lowerText = text.toLowerCase();
 
-    for (const phrase of VIOLATION_PHRASES) {
-      const escapedPhrase = phrase.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-      const regex = new RegExp(`\\b${escapedPhrase}\\b`, 'gi');
-      const matches = lowerText.match(regex);
+  //   for (const phrase of VIOLATION_PHRASES) {
+  //     const escapedPhrase = phrase.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  //     const regex = new RegExp(`\\b${escapedPhrase}\\b`, 'gi');
+  //     const matches = lowerText.match(regex);
 
-      if (matches) {
-        for (let i = 0; i < matches.length; i++) {
-          allMatches.push(phrase);
-        }
-      }
-    }
+  //     if (matches) {
+  //       for (let i = 0; i < matches.length; i++) {
+  //         allMatches.push(phrase);
+  //       }
+  //     }
+  //   }
 
-    setViolations(allMatches);
-    setHighlightActive(true);
-    setHasCheckedViolations(true);
+  //   setViolations(allMatches);
+  //   setHighlightActive(true);
+  //   setHasCheckedViolations(true);
 
-    const uniquePhrases = [...new Set(allMatches)];
-    const mappedResults = mapViolationsToHeadings(text, uniquePhrases);
-    setViolationResults(mappedResults);
+  //   const uniquePhrases = [...new Set(allMatches)];
+  //   const mappedResults = mapViolationsToHeadings(text, uniquePhrases);
+  //   setViolationResults(mappedResults);
 
-    return allMatches;
-  };
+  //   return allMatches;
+  // };
 
   useEffect(() => {
     const handleAnchorClick = (e: MouseEvent) => {
@@ -295,13 +349,19 @@ export const LoomSidebar: FC<LoomProps> = ({
         if (el) {
           el.scrollIntoView({ behavior: 'smooth', block: 'center' });
 
-          // Add highlight class
-          el.classList.add('bg-black-200', 'text-white', 'transition-colors');
+          el.classList.remove('anchor-highlight-fade'); // Reset if still fading
+          el.classList.add('anchor-highlight-pulse');
 
-          // Remove it after 5 seconds
+          // Start fading out after delay
           setTimeout(() => {
-            el.classList.remove('bg-black-200', 'text-white');
-          }, 5000);
+            el.classList.remove('anchor-highlight-pulse');
+            el.classList.add('anchor-highlight-fade');
+
+            // Fully remove after fade completes
+            setTimeout(() => {
+              el.classList.remove('anchor-highlight-fade');
+            }, 1000); // match fade duration
+          }, 2500); // how long highlight stays
         }
       }
     };
@@ -310,20 +370,19 @@ export const LoomSidebar: FC<LoomProps> = ({
     return () => document.removeEventListener('click', handleAnchorClick);
   }, []);
 
-
   const checkForDictionaryViolations = () => {
     const allMatches: string[] = [];
-    const lowerText = text.toLowerCase();
+    // const lowerText = text.toLowerCase();
 
     for (const item of dictionary) {
-      const phrase = item.keyword.toLowerCase();
+      const phrase = item.keyword;
       const escapedPhrase = phrase.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
       const regex = new RegExp(`\\b${escapedPhrase}\\b`, 'gi');
-      const matches = lowerText.match(regex);
+      const matches = text.match(regex); // match original text, not lowerText
 
       if (matches) {
-        for (let i = 0; i < matches.length; i++) {
-          allMatches.push(phrase);
+        for (const match of matches) {
+          allMatches.push(match); // preserve original casing
         }
       }
     }
@@ -331,23 +390,63 @@ export const LoomSidebar: FC<LoomProps> = ({
     setDictionaryViolations(allMatches);
     setHighlightActive(true);
 
-    const uniquePhrases = [...new Set(allMatches)];
+    const uniquePhrases = [...new Set(allMatches.map(m => m.toLowerCase()))];
     const mappedResults = mapViolationsToHeadings(text, uniquePhrases);
     setDictionaryViolationResults(mappedResults);
 
     return allMatches;
   };
 
+
+  // Helper to flatten, sort and dedupe headings by their 'id' or 'heading'
+function prepareHeadingsForAccordion(violationResults: Record<string, any[]>) {
+  const allHeadings = Object.values(violationResults).flat();
+
+  allHeadings.sort((a, b) => {
+    if ('position' in a && 'position' in b) {
+      return a.position - b.position;
+    }
+    return a.heading?.localeCompare(b.heading ?? '') ?? 0;
+  });
+
+  const seen = new Set();
+  const uniqueHeadings = [];
+
+  for (const h of allHeadings) {
+    const key = h.heading || h.id || JSON.stringify(h); // Ensure a key is always defined
+    if (!seen.has(key)) {
+      seen.add(key);
+      uniqueHeadings.push(h);
+    }
+  }
+
+  return uniqueHeadings;
+}
+
   const checkForViolations = () => {
-    checkForStaticViolations();
-    checkForDictionaryViolations();
+    // const staticMatches = checkForStaticViolations();
+    const dictionaryMatches = checkForDictionaryViolations();
+    // const totalMatches = staticMatches.length + dictionaryMatches.length;
+    const totalMatches = dictionaryMatches.length;
+
+  if (totalMatches === 0) {
+    setViolationCheckMessage({
+      type: 'success',
+      text: '🎉 No potential violations found! Good job',
+    });
+  } else {
+    setViolationCheckMessage({
+      type: 'error',
+      text: '⚠️ Potential violations found. Please review carefully',
+    });
+  }
   };
 
   useEffect(() => {
     const fetchDictionary = async () => {
       const { data, error } = await supabase
         .from('loom_dictionary')
-        .select('id, keyword, created_by');
+        .select('id, keyword, created_by, deleted_at');
 
       if (!error && data) {
         setDictionary(data);
@@ -431,7 +530,7 @@ export const LoomSidebar: FC<LoomProps> = ({
   const fetchDictionary = async () => {
     const { data, error } = await supabase
       .from('loom_dictionary')
-      .select('id, keyword, created_by');
+      .select('id, keyword, created_by, deleted_at');
 
     if (!error) setDictionary(data || []);
   };
@@ -478,14 +577,83 @@ export const LoomSidebar: FC<LoomProps> = ({
   };
 
   const handleDeletePhrase = async (id: number) => {
-    const { error } = await supabase.from('loom_dictionary').delete().eq('id', id);
+    const { error } = await supabase
+      .from('loom_dictionary')
+      .update({ deleted_at: new Date().toISOString() })
+      .eq('id', id);
 
     if (error) {
       console.error('Failed to delete phrase:', error.message);
     } else {
-      setDictionary(prev => prev.filter(entry => entry.id !== id));
+      setDictionary(prev =>
+        prev.map(entry =>
+          entry.id === id ? { ...entry, deleted_at: new Date().toISOString() } : entry
+        )
+      );
+      setStatusMessage('Phrase successfully archived.');
     }
   };
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages || 1);
+    }
+  }, [currentPage, totalPages]);
+
+  const handlePermanentDelete = async (id: number) => {
+    const { error } = await supabase.from('loom_dictionary').delete().eq('id', id);
+
+    if (error) {
+      console.error('Failed to permanently delete:', error);
+      alert('Failed to delete entry. Please try again.');
+    } else {
+      setArchivedDictionary(prev => prev.filter(item => item.id !== id));
+      setStatusMessage('Phrase permanently deleted.');
+
+      if ((deletedEntries.length === 1) && currentPage > 1) {
+        setCurrentPage(currentPage - 1);
+      }
+    }
+  };
+
+  useEffect(() => {
+  if (statusMessage) {
+    const timer = setTimeout(() => {
+      setStatusMessage(null);
+    }, 5000); // 5000ms = 5 seconds
+
+    return () => clearTimeout(timer); // cleanup
+  }
+}, [statusMessage]);
+
+  useEffect(() => {
+    const now = new Date();
+
+    archivedDictionary.forEach(entry => {
+      const deletedAt = new Date(entry.deleted_at as string);
+      const diffDays = (now.getTime() - deletedAt.getTime()) / (1000 * 60 * 60 * 24);
+
+      if (diffDays > 30) {
+        handlePermanentDelete(entry.id);
+      }
+    });
+  }, [archivedDictionary]);
+
+  // MINUTE TEST
+//   useEffect(() => {
+//   const now = new Date();
+
+//   archivedDictionary.forEach(entry => {
+//     if (!entry.deleted_at) return;
+
+//     const deletedAt = new Date(entry.deleted_at);
+//     const diffMinutes = (now.getTime() - deletedAt.getTime()) / (1000 * 60);
+
+//     if (diffMinutes > 1) {
+//       handlePermanentDelete(entry.id);
+//     }
+//   });
+// }, [archivedDictionary]);
+
 
   const handleCustomSearch = () => {
     const term = customSearchTerm.trim().toLowerCase();
@@ -999,7 +1167,7 @@ export const LoomSidebar: FC<LoomProps> = ({
                           const updated = Array.from(
                             new Set([
                               ...activeHighlights,
-                              ...violations,
+                              // ...violations,
                               ...dictionaryViolations,
                             ])
                           );
@@ -1014,16 +1182,18 @@ export const LoomSidebar: FC<LoomProps> = ({
                     <li className="flex items-start gap-2 mt-2">
                       <GoDotFill
                         className={
-                          violations.length === 0 && dictionaryViolations.length === 0
+                          // violations.length === 0 && 
+                          dictionaryViolations.length === 0
                             ? 'text-yellow-200 mt-1'
                             : 'text-yellow-200 mt-1'
                         }
                       />
                       <span>
-                        {violations.length === 0 && dictionaryViolations.length === 0
+                        {/* {violations.length === 0 && dictionaryViolations.length === 0 */}
+                        {dictionaryViolations.length === 0
                           ? 'No potential SB37 violations found.'
                           : `Potential SB37 violations found in ${
-                              Object.keys(violationResults).length +
+                              // Object.keys(violationResults).length +
                               Object.keys(dictionaryViolationResults).length
                             } section(s).`}
                       </span>
@@ -1513,13 +1683,14 @@ export const LoomSidebar: FC<LoomProps> = ({
                   <Button
                     className="w-full text-sm !bg-white text-black !border-black-200 border rounded-none hover:shadow-none hover:!bg-black-200 hover:text-white dark:hover:shadow-none dark:!text-black-200 dark:hover:!text-white"
                     disabled={
-                      violations.length === 0 && dictionaryViolations.length === 0
+                      // violations.length === 0 && dictionaryViolations.length === 0
+                       dictionaryViolations.length === 0
                     }
                     onClick={() => {
                       const updated = Array.from(
                         new Set([
                           ...activeHighlights,
-                          ...violations,
+                          // ...violations,
                           ...dictionaryViolations,
                         ])
                       );
@@ -1541,12 +1712,23 @@ export const LoomSidebar: FC<LoomProps> = ({
                     Remove Highlights
                   </Button>
                 </div>
+
               </div>
 
               <div className="mb-4 dark:!text-black">
-                <h4 className="mb-2 font-semibold">Results:</h4>
+                {violationCheckMessage && (
+                  <div
+                    className={clsx(
+                      'mt-3 p-3 rounded text-sm flex items-center gap-2 mb-5',
+                      violationCheckMessage.type === 'success'
+                        ? 'bg-[#e6f6e9] text-green-100'
+                        : 'bg-[#faeaea] text-red-600'
+                    )}>
+                    <span>{violationCheckMessage.text}</span>
+                  </div>
+                )}
 
-                <Accordion
+                {/* <Accordion
                   header={
                     <div className="flex justify-between items-center w-full text-sm">
                       <span className="text-sm">Potential Violations</span>
@@ -1573,26 +1755,67 @@ export const LoomSidebar: FC<LoomProps> = ({
                         <span>Potential SB37 violations found in:</span>
                       </div>
                       <ul className="list-disc pl-4 space-y-2">
-                        {Object.entries(violationResults).map(([, headings], index) =>
-                          headings.map((headingInfo, i) => (
-                            <li key={`${index}-${i}`}>
-                              <a
-                                href={`#${headingInfo.id}`}
-                                className="text-black font-bold hover:underline">
-                                {headingInfo.heading}
-                              </a>
-                            </li>
-                          ))
-                        )}
+                        {uniqueViolationHeadings.map(({ id, heading }) => (
+                          <li key={id ?? heading}>
+                            <a href={`#${id}`} className="text-black font-bold hover:underline">
+                              {heading}
+                            </a>
+                          </li>
+                        ))}
+
                       </ul>
-                      <div className="text-sm text-gray-500">
+                      <div className="text-sm text-gray-500 italic">
                         {`Matched ${violations.length} total phrase occurrences across ${Object.keys(violationResults).length} unique phrases.`}
+                      </div>
+                    </div>
+                  )}
+                </Accordion> */}
+
+                <Accordion
+                  header={
+                    <div className="flex justify-between items-center w-full text-sm">
+                      <span className="text-sm">Potential Violations</span>
+                      {/* {hasCheckedViolations && */}
+                        {dictionaryViolations.length > 0 ? (
+                          <div className="bg-[#f5ecee] w-[40px] text-right rounded-2xl px-2">
+                            <span className="text-red-100">{dictionaryViolations.length}</span>
+                          </div>
+                        ) : (
+                          <div className="bg-[#e5f5ea] w-[40px] text-right rounded-2xl px-2">
+                            <span className="text-green-100">0</span>
+                          </div>
+                         )}
+                        {/* // } */}
+                    </div>
+                  }
+                  className="border mb-2">
+                  {dictionaryViolations.length === 0 ? (
+                    <div className="flex justify-between">
+                      <span>No potential SB37 violations found!</span>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      <div className="flex justify-between">
+                        <span>Potential SB37 violations found in:</span>
+                      </div>
+                      <ul className="list-disc pl-4 space-y-2">
+                        {uniqueDictionaryHeadings.map(({ id, heading }) => (
+                          <li key={id ?? heading}>
+                            <a href={`#${id}`} className="text-black font-bold hover:underline">
+                              {heading}
+                            </a>
+                          </li>
+                        ))}
+
+                      </ul>
+                      <div className="text-sm text-gray-500 italic">
+                        {`Matched ${dictionaryViolations.length} total phrase occurrences across ${Object.keys(dictionaryViolationResults).length} unique phrases.`}
                       </div>
                     </div>
                   )}
                 </Accordion>
 
-                <Accordion
+                {/* <Accordion
                   header={
                     <div className="flex justify-between items-center w-full text-sm">
                       <span className="text-sm">Potential Violations (Dictionary)</span>
@@ -1620,29 +1843,24 @@ export const LoomSidebar: FC<LoomProps> = ({
                         <span>Potential dictionary violations found in:</span>
                       </div>
                       <ul className="list-disc pl-4 space-y-2">
-                        {Object.entries(dictionaryViolationResults).map(
-                          ([, headings], index) =>
-                            headings.map((headingInfo, i) => (
-                              <li key={`${index}-${i}`}>
-                                <a
-                                  href={`#${headingInfo.id}`}
-                                  className="text-black font-bold hover:underline">
-                                  {headingInfo.heading}
-                                </a>
-                              </li>
-                            ))
-                        )}
+                        {uniqueDictionaryHeadings.map(({ id, heading }) => (
+                          <li key={id ?? heading}>
+                            <a href={`#${id}`} className="text-black font-bold hover:underline">
+                              {heading}
+                            </a>
+                          </li>
+                        ))}
                       </ul>
-                      <div className="text-sm text-gray-500">
+                      <div className="text-sm text-gray-500 italic">
                         {`Matched ${dictionaryViolations.length} total phrase occurrences across ${Object.keys(dictionaryViolationResults).length} unique dictionary phrases.`}
                       </div>
                     </div>
                   )}
-                </Accordion>
+                </Accordion> */}
               </div>
 
               <div className="mb-3">
-                <h5 className="dark:!text-black">Check for additional words/phrases:</h5>
+                <h5 className="dark:!text-black !font-bold">Check for additional words/phrases:</h5>
                 <div className="relative mb-1">
                   <input
                     type="text"
@@ -1679,16 +1897,26 @@ export const LoomSidebar: FC<LoomProps> = ({
                   </div>
                 )}
 
-                <Button
-                  className="w-full !bg-white border !border-black-200 hover:!bg-black-200 hover:text-white rounded-none  text-black hover:shadow-none dark:hover:shadow-none dark:!text-black-200 dark:hover:!text-white"
-                  onClick={handleCustomSearch}>
-                  Search Now
-                </Button>
+              <Button
+                className={clsx(
+                  'w-full !bg-white border !border-black-200 rounded-none text-black',
+                  'hover:!bg-black-200 hover:text-white hover:shadow-none',
+                  'dark:hover:shadow-none dark:!text-black-200 dark:hover:!text-white',
+                  customSearchTerm.trim()
+                    ? ''
+                    : 'opacity-50 cursor-not-allowed pointer-events-none'
+                )}
+                onClick={handleCustomSearch}
+                disabled={customSearchTerm.trim().length === 0}
+              >
+                Search Now
+              </Button>
+
 
                 <div className="flex gap-2 mt-3">
                   <Button
                     onClick={handleAddOpenModal}
-                    className="w-full border !border-black-200 text-white hover:!bg-black-200 hover:text-white rounded-none !bg-[#6B7280] hover:shadow-none dark:hover:shadow-none dark:!text-black-200 dark:hover:!text-white">
+                    className="w-full border !border-black-200 !text-white hover:!bg-black-200 hover:text-white rounded-none !bg-[#6B7280] hover:shadow-none dark:hover:shadow-none  dark:hover:!text-white">
                     Add to Dictionary
                   </Button>
 
@@ -1766,55 +1994,237 @@ export const LoomSidebar: FC<LoomProps> = ({
                       backgroundColor="#0a1a31"
                       showCloseButton={false}>
                       <div className="w-full h-full">
-                        <h2 className="!text-left text-white text-2xl font-extrabold">
-                          Added Potential Violations
-                        </h2>
-                        <div>
-                          <table
-                            className={clsx(
-                              'w-full my-[20px] mx-auto border-collapse',
-                              'table-fixed shadow-[0_4px_6px_rgba(0, 0, 0, 0.1)]'
-                            )}>
-                            <thead>
-                              <tr>
-                                <th>Keyword</th>
-                                <th>Added By</th>
-                                <th className="w-[80px]"></th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {dictionary.length === 0 ? (
-                                <tr>
-                                  <td colSpan={3} className="text-center">
-                                    No entries found.
-                                  </td>
-                                </tr>
-                              ) : (
-                                dictionary.map((entry, index) => (
-                                  <tr key={index}>
-                                    <td className=" px-4 py-2 !text-white">
-                                      {entry.keyword}
-                                    </td>
-                                    <td className=" px-4 py-2 !text-white">
-                                      {entry.created_by}
-                                    </td>
-                                    <td className=" px-4 py-2 !text-white">
-                                      <FaTrash
-                                        className="text-white hover:text-red-500 cursor-pointer"
-                                        onClick={() => {
-                                          if (
-                                            confirm(`Delete phrase "${entry.keyword}"?`)
-                                          ) {
-                                            handleDeletePhrase(entry.id);
-                                          }
-                                        }}
-                                      />
-                                    </td>
-                                  </tr>
-                                ))
+                        <div className="flex justify-between items-center">
+                          <h2 className="!text-left text-white text-2xl font-extrabold w-full">
+                            {activeView === 'default' ? 'Added Potential Violations' : 'Deleted Potential Violations'}
+                          </h2>
+
+                          <div className="relative w-full">
+                            <input
+                              type="text"
+                              placeholder="Search for Keyword"
+                              className="!w-full"
+
+                            />
+
+                            <GoSearch className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500" />
+                          </div>
+
+                        </div>
+                        {statusMessage && (
+                          <div className="mt-2 text-sm text-green-400 font-semibold">
+                            {statusMessage}
+                          </div>
+                        )}
+                        <div className="flex justify-between items-baseline">
+                          <div className="w-[50px] flex flex-col gap-5 items-center">
+                            {/* View Potential Violations */}
+                            <div
+                              onClick={() => setActiveView("default")}
+                              className={clsx(
+                                "group relative p-2 rounded-md cursor-pointer transition-all duration-200",
+                                activeView === "default"
+                                  ? "bg-blue-500 text-white"
+                                  : "bg-transparent hover:bg-white text-white/60 hover:text-black-200"
                               )}
-                            </tbody>
-                          </table>
+                            >
+                              <FaBars className="text-2xl" />
+                              <span className="absolute left-[110%] top-1/2 -translate-y-1/2 whitespace-nowrap rounded bg-black text-white text-xs px-2 py-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-10">
+                                View Potential Violations
+                              </span>
+                            </div>
+
+                            {/* Trash */}
+                            <div
+                              onClick={() => setActiveView("trash")}
+                              className={clsx(
+                                "group relative p-2 rounded-md cursor-pointer transition-all duration-200",
+                                activeView === "trash"
+                                  ? "bg-blue-500 text-white"
+                                  : "bg-transparent hover:bg-white text-white/60 hover:text-black-200"
+                              )}
+                            >
+                              <FaTrash className="text-2xl" />
+                              <span className="absolute left-[110%] top-1/2 -translate-y-1/2 whitespace-nowrap rounded bg-black text-white text-xs px-2 py-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-10">
+                                Archived Potential Violations
+                              </span>
+                            </div>
+                          </div>
+
+
+
+
+                          <div className="flex-1 px-5">
+                              {activeView === 'default' && (
+                                <>
+                                  <table
+                                    className={clsx(
+                                      'w-full my-[20px] mx-auto border-collapse',
+                                      'table-fixed shadow-[0_4px_6px_rgba(0, 0, 0, 0.1)]'
+                                    )}>
+                                    <thead>
+                                      <tr>
+                                        <th>Keyword</th>
+                                        <th>Added By</th>
+                                        <th className="w-[80px]"></th>
+                                      </tr>
+                                    </thead>
+                                    <tbody>
+                                      {paginatedData.length === 0 ? (
+                                        <tr>
+                                          <td colSpan={3} className="text-center text-white">
+                                            No entries found.
+                                          </td>
+                                        </tr>
+                                      ) : (
+                                        paginatedData.map((entry, ) => (
+                                          <tr key={entry.id}>
+                                            <td className="px-4 py-2 !text-white">{entry.keyword}</td>
+                                            <td className="px-4 py-2 !text-white">{entry.created_by}</td>
+                                            <td className="px-4 py-2 !text-white">
+                                              <FaTrash
+                                                className="text-white hover:text-red-500 cursor-pointer"
+                                                onClick={() => {
+                                                  if (confirm(`Move phrase "${entry.keyword}" to trash?`)) {
+                                                    handleDeletePhrase(entry.id);
+                                                  }
+                                                }}
+                                              />
+                                            </td>
+                                          </tr>
+                                        ))
+                                      )}
+                                    </tbody>
+
+                                  </table>
+
+                                  {/* Pagination Controls */}
+                                  {totalPages > 1 && (
+                                    <div className="flex justify-center mt-4 gap-2">
+                                      <button
+                                        onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+                                        disabled={currentPage === 1}
+                                        className="px-3 py-1 text-white border border-yellow-100 rounded disabled:opacity-50 cursor-pointer hover:bg-yellow-100 hover:text-black-200"
+                                      >
+                                        Prev
+                                      </button>
+
+                                      {Array.from({ length: totalPages }, (_, i) => (
+                                        <button
+                                          key={i}
+                                          onClick={() => setCurrentPage(i + 1)}
+                                          className={clsx(
+                                            "px-3 py-1 cursor-pointer hover:bg-white hover:text-black-200",
+                                            currentPage === i + 1
+                                              ? "bg-yellow-100 text-black"
+                                              : "text-white border-white"
+                                          )}
+                                        >
+                                          {i + 1}
+                                        </button>
+                                      ))}
+
+                                      <button
+                                        onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
+                                        disabled={currentPage === totalPages}
+                                        className="px-3 py-1 text-white border border-yellow-100 rounded disabled:opacity-50 cursor-pointer hover:bg-yellow-100 hover:text-black-200"
+                                      >
+                                        Next
+                                      </button>
+                                    </div>
+                                  )}
+                                </>
+                              )}
+
+
+                            {activeView === 'trash' && (
+                              <>
+                                <table
+                                  className={clsx(
+                                    'w-full my-[20px] mx-auto border-collapse',
+                                    'table-fixed shadow-[0_4px_6px_rgba(0, 0, 0, 0.1)]'
+                                  )}
+                                >
+                                  <thead>
+                                    <tr>
+                                      <th>Keyword</th>
+                                      <th>Added By</th>
+                                      <th>Days Left</th>
+                                      <th className="w-[80px]"></th>
+                                    </tr>
+                                  </thead>
+                                  <tbody>
+                                    {deletedEntries.length === 0 ? (
+                                      <tr>
+                                        <td colSpan={4} className="text-center text-white">
+                                          No deleted entries found.
+                                        </td>
+                                      </tr>
+                                    ) : (
+                                      deletedEntries.map((entry, ) => {
+                                        const deletedAt = new Date(entry.deleted_at as string);
+                                        const now = new Date();
+                                        const diffDays = 30 - Math.floor((now.getTime() - deletedAt.getTime()) / (1000 * 60 * 60 * 24));
+
+                                        return (
+                                          <tr key={entry.id}>
+                                            <td className="px-4 py-2 !text-white">{entry.keyword}</td>
+                                            <td className="px-4 py-2 !text-white">{entry.created_by}</td>
+                                            <td className="px-4 py-2 !text-white">{diffDays} days left</td>
+                                            <td className="px-4 py-2 !text-white">
+                                              <FaTrash
+                                                className="text-white hover:text-red-500 cursor-pointer"
+                                                onClick={() => {
+                                                  if (confirm(`Permanently delete phrase "${entry.keyword}"?`)) {
+                                                    handlePermanentDelete(entry.id);
+                                                  }
+                                                }}
+                                              />
+                                            </td>
+                                          </tr>
+                                        );
+                                      })
+                                    )}
+                                  </tbody>
+                                </table>
+
+                                {/* Pagination Controls */}
+                                {totalPagesForDeleted > 1 && (
+                                  <div className="flex justify-center mt-4 gap-2">
+                                    <button
+                                      onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+                                      disabled={currentPage === 1}
+                                      className="px-3 py-1 text-white border border-yellow-100 rounded disabled:opacity-50 cursor-pointer hover:bg-yellow-100 hover:text-black-200"
+                                    >
+                                      Prev
+                                    </button>
+
+                                    {Array.from({ length: totalPagesForDeleted }, (_, i) => (
+                                      <button
+                                        key={i}
+                                        onClick={() => setCurrentPage(i + 1)}
+                                        className={clsx(
+                                          'px-3 py-1 cursor-pointer hover:bg-white hover:text-black-200',
+                                          currentPage === i + 1 ? 'bg-yellow-100 text-black' : 'text-white border-white'
+                                        )}
+                                      >
+                                        {i + 1}
+                                      </button>
+                                    ))}
+
+                                    <button
+                                      onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPagesForDeleted))}
+                                      disabled={currentPage === totalPagesForDeleted}
+                                      className="px-3 py-1 text-white border border-yellow-100 rounded disabled:opacity-50 cursor-pointer hover:bg-yellow-100 hover:text-black-200"
+                                    >
+                                      Next
+                                    </button>
+                                  </div>
+                                )}
+                              </>
+                            )}
+
+                          </div>             
                         </div>
                         <div className="flex justify-end">
                           <button
@@ -1862,7 +2272,7 @@ export const LoomSidebar: FC<LoomProps> = ({
                     className={`mb-4 p-4 rounded ${hasErrors ? 'bg-[#faeaea] text-red-600' : 'bg-[#e6f6e9] !text-green-100'}`}>
                     {!hasErrors ? (
                       <h6 className="!text-center">
-                        No formatting errors found! Good job! 🎉
+                       🎉 No formatting errors found! Good job! 
                       </h6>
                     ) : (
                       <div className="w-full flex justify-center flex-col">
@@ -1873,12 +2283,12 @@ export const LoomSidebar: FC<LoomProps> = ({
                         formatErrors.spaceBeforePunctuationErrors.length === 0 &&
                         formatErrors.titleCaseErrors.length === 0 ? (
                           <h6 className="!text-center !text-sm text-red-600">
-                            Missing Punctuation errors, fix manually ⚠️
+                           ⚠️ Missing Punctuation errors, fix manually 
                           </h6>
                         ) : (
                           <>
                             <h6 className="!text-center !text-sm text-red-600">
-                              Formatting Errors found! Please fix ⚠️
+                             ⚠️ Formatting Errors found! Please fix 
                             </h6>
                             <Button
                               onClick={handleFixAll}
@@ -1944,55 +2354,82 @@ export const LoomSidebar: FC<LoomProps> = ({
                   </Accordion>
 
                   <Accordion
-                    header={
-                      <div className="flex justify-between items-center w-full text-sm">
-                        <span>Lowercase in Heading</span>
-                        {showResults &&
-                          (formatErrors.titleCaseErrors.length > 0 ? (
-                            <div className="bg-[#f5ecee] w-[40px] text-right rounded-2xl px-2">
-                              <span className="text-red-100">
-                                {formatErrors.titleCaseErrors.length}
-                              </span>
-                            </div>
-                          ) : (
-                            <div className="bg-[#e5f5ea] w-[40px] text-right rounded-2xl px-2">
-                              <span className="text-green-100">0</span>
-                            </div>
-                          ))}
-                      </div>
-                    }
-                    className="mb-2 text-sm dark:!text-black-200">
+                  header={
+                    <div className="flex justify-between items-center w-full text-sm">
+                      <span>Lowercase in Heading</span>
+                      {showResults && (
+                        formatErrors.titleCaseErrors.length > 0 ? (
+                          <div className="bg-[#f5ecee] w-[40px] text-right rounded-2xl px-2">
+                            <span className="text-red-100">{formatErrors.titleCaseErrors.length}</span>
+                          </div>
+                        ) : (
+                          <div className="bg-[#e5f5ea] w-[40px] text-right rounded-2xl px-2">
+                            <span className="text-green-100">0</span>
+                          </div>
+                        )
+                      )}
+                    </div>
+                  }
+
+                    className="mb-2 text-sm dark:!text-black-200"
+                  >
                     {formatErrors.titleCaseErrors.length > 0 ? (
                       <ul className="text-xs space-y-1 pl-3">
                         {formatErrors.titleCaseErrors.map((err, idx) => {
-                          const highlighted = highlightTitleCaseErrorsStrict(
-                            err.sentence
-                          );
+                          const highlighted = highlightTitleCaseErrorsStrict(err.sentence);
+                          const handleClick = () => {
+                            if (err.heading) scrollToHeading(err.heading);
+                          };
+
                           return (
-                            <li key={idx} className="list-disc">
+                            <li key={idx} className="list-disc font-bold text-sm">
                               {err.heading && err.sentence !== err.heading ? (
                                 <>
-                                  <div className="font-bold">{err.heading}</div>
-                                  <ul className="pl-3 mt-2">
+                                  <div
+                                    className="font-bold cursor-pointer hover:text-blue-500 text-sm"
+                                    onClick={handleClick}
+                                    role="button"
+                                    tabIndex={0}
+                                    onKeyDown={e => {
+                                      if (e.key === 'Enter' || e.key === ' ') handleClick();
+                                    }}
+                                  >
+                                    {err.heading}
+                                  </div>
+                                  <ul className="pl-3 mt-2 ">
                                     <li
-                                      className="list-disc"
+                                      className="list-disc cursor-pointer hover:text-blue-500"
                                       dangerouslySetInnerHTML={{ __html: highlighted }}
+                                      onClick={handleClick}
+                                      role="button"
+                                      tabIndex={0}
+                                      onKeyDown={e => {
+                                        if (e.key === 'Enter' || e.key === ' ') handleClick();
+                                      }}
                                     />
                                   </ul>
                                 </>
                               ) : (
-                                <span dangerouslySetInnerHTML={{ __html: highlighted }} />
+                                <span
+                                  className="cursor-pointer hover:text-blue-500"
+                                  dangerouslySetInnerHTML={{ __html: highlighted }}
+                                  onClick={handleClick}
+                                  role="button"
+                                  tabIndex={0}
+                                  onKeyDown={e => {
+                                    if (e.key === 'Enter' || e.key === ' ') handleClick();
+                                  }}
+                                />
                               )}
                             </li>
                           );
                         })}
                       </ul>
                     ) : (
-                      <p className="text-gray-500 italic">
-                        No lowercase in heading. Rawr
-                      </p>
+                      <p className="text-gray-500 italic">No lowercase in heading. Rawr</p>
                     )}
                   </Accordion>
+
 
                   <Accordion
                     header={

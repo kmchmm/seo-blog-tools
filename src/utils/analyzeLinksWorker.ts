@@ -106,7 +106,30 @@ export async function analyzeLinks(html: string): Promise<LinkAnalysisResult> {
         heading,
         globalAlert: false,
       });
-    }
+      }
+      const punctuationCheck = (text: string) => {
+        const punctuations = `.?!,;:'"()[]{}-`;
+        const trimmed = text.trim();
+        const first = trimmed[0];
+        const last = trimmed[trimmed.length - 1];
+
+        console.log('First:', first, 'Last:', last);
+
+        return punctuations.includes(first) || punctuations.includes(last);
+      };
+
+      if (punctuationCheck(anchorText)) {
+        console.log('❗ Match found for:', anchorText);
+        issues.push({
+          issueType: 'Punctuation at beginning or end of anchor text',
+          anchor: anchorText,
+          url,
+          heading,
+          globalAlert: false,
+        });
+      }
+
+
   });
 
   seenUrls.forEach((arr, url) => {

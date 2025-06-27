@@ -10,6 +10,11 @@ export type SB37AnalysisResult = {
   title: string;
 };
 
+  // const API_BASE_URL =
+  //   import.meta.env.MODE === 'development'
+  //     ? import.meta.env.VITE_LOCAL_AI_ASSISTANT_API_URL
+  //     : import.meta.env.VITE_PROD_AI_ASSISTANT_API_URL;
+
 const usePostSB37SingleAnalysis = () => {
   const [result, setResult] = useState<SB37AnalysisResult | null>(null);
   const [loading, setLoading] = useState(false);

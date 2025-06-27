@@ -119,3 +119,16 @@ mark.dictionary {
 .decoration-external {
   text-decoration-color: #073b4c; /* dark blue */
 }
+
+.anchor-highlight-pulse {
+  background-color:  #000;
+  color: #ffffff;
+  transition: background-color 1s ease;
+  position: relative;
+  z-index: 10;
+}
+
+.anchor-highlight-fade {
+  background-color:  #ffffff;
+  transition: background-color 1s ease;
+}

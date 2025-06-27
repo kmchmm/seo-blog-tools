@@ -1,10 +1,27 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { FC, useMemo, useRef, useState, useEffect } from 'react';
 import clsx from 'clsx';
 import '../assets/css/Loom.css';
 
 import { Editor } from '@tinymce/tinymce-react';
 import { Editor as TinyMCEEditor } from 'tinymce';
+
+import 'tinymce/tinymce'; // core
+import 'tinymce/themes/silver/theme'; // theme
+
+import 'tinymce/plugins/anchor';
+import 'tinymce/plugins/charmap';
+import 'tinymce/plugins/codesample';
+import 'tinymce/plugins/emoticons';
+import 'tinymce/plugins/image';
+import 'tinymce/plugins/link';
+import 'tinymce/plugins/media';
+import 'tinymce/plugins/searchreplace';
+import 'tinymce/plugins/table';
+import 'tinymce/plugins/visualblocks';
+import 'tinymce/plugins/wordcount';
+
+import 'tinymce/skins/ui/oxide/skin.min.css';
+
 
 import { LoomSidebar } from '../components/loom/LoomSidebar';
 import { addHeadingIds } from '../utils/sb37HTMLHelper';
@@ -59,7 +76,7 @@ interface ErrorList {
   titleCaseErrors: FormatError[];
 }
 
-const TINYMCE_API_KEY = 'nadd9qtgsipyog9sw5zwf88wjx3jqzbpsdfn55jugpzy4tnn';
+// const TINYMCE_API_KEY = 'nadd9qtgsipyog9sw5zwf88wjx3jqzbpsdfn55jugpzy4tnn';
 
 const minHeightStyle = 'min-h-[450px]';
 
@@ -92,7 +109,7 @@ const Loom: FC = () => {
   // const [setFormatErrors] = useState<ErrorList | null>(null);
   // const [linkIssues, setLinkIssues] = useState<LinkIssue[] | null>(null);
 
-  const divRef = useRef<CustomHTMLElement | React.Ref<Editor> | null>(null);
+  const divRef = useRef<CustomHTMLElement| null>(null);
   const handleEditorChange = (content: string) => {
     setHtmlString(content);
   };
@@ -178,7 +195,7 @@ const Loom: FC = () => {
     if (!divRef.current || !focusKeyword) return;
     handleHighlightToggle(true);
     highlightKeywordsInDiv({
-      container: divRef.current as CustomHTMLElement,
+      container: divRef.current!,
       focusKeyword,
       alternateKeyword: alternateEsq,
     });
@@ -624,11 +641,11 @@ const removeFormatHighlights = () => {
 
             {editMode ? (
               <Editor
-                apiKey={TINYMCE_API_KEY}
                 onInit={(_, editor) => (editorRef.current = editor)}
                 onEditorChange={handleEditorChange}
                 value={htmlString}
                 init={{
+                  base_url: '/frontend-v2/tinymce',
                   height: EDITOR_MIN_HEIGHT,
                   width: '100%',
                   menubar: true,
@@ -658,6 +675,7 @@ const removeFormatHighlights = () => {
                 }}
                 ref={divRef as React.Ref<Editor>}
               />
+
             ) : (
               <div
                 className={clsx(
@@ -681,7 +699,10 @@ const removeFormatHighlights = () => {
             )}
           </div>
 
-          <div className="sticky top-4 self-start max-h-screen overflow-y-auto">
+          <div 
+          className=" top-4 self-start max-h-screen overflow-y-auto"
+          style={{ scrollbarGutter: 'stable' }}
+          >
             <LoomSidebar
               editMode={editMode}
               error={error || helperText}
@@ -714,14 +735,14 @@ const removeFormatHighlights = () => {
                 const container = divRef.current as HTMLElement;
                 const regexMap: Record<string, RegExp> = {
                   multipleSpaceErrors: /\s{2,}/g,
-                  emDashErrors: /[^ ]—|—[^ ]/g,
+                  emDashErrors: /(?<! )—(?! )/g, // Improved to avoid overlap
                   spaceBeforePunctuationErrors: /\s+([.,!?;:])/g,
                 };
 
                 const elements = Array.from(container.querySelectorAll('p, h1, h2, h3, h4, h5, h6'));
 
                 elements.forEach((el, index) => {
-                  // Regex-based errors
+                  // ===== Regex-based Errors =====
                   for (const [errorType, regex] of Object.entries(regexMap)) {
                     const errorList = (errors as any)[errorType] as FormatError[] | undefined;
                     if (!errorList?.length) continue;
@@ -730,34 +751,39 @@ const removeFormatHighlights = () => {
                     if (!matches.length) continue;
 
                     const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
-                    let node: Text | null;
+                    const nodesToProcess: Text[] = [];
 
+                    let node: Text | null;
                     while ((node = walker.nextNode() as Text | null)) {
                       if (
-                        !node.textContent?.match(regex) ||
-                        node.parentElement?.closest('mark.highlight-format')
+                        node.textContent?.match(regex) &&
+                        !node.parentElement?.closest('mark.highlight-format')
                       ) {
-                        continue;
+                        nodesToProcess.push(node);
                       }
-
-                      regex.lastIndex = 0;
-                      highlightTextNode(node, regex, errorType, document);
                     }
+
+                    nodesToProcess.forEach(textNode => {
+                      regex.lastIndex = 0; // Reset regex state
+                      highlightTextNode(textNode, regex, errorType, document);
+                    });
                   }
 
-                  // Missing punctuation
+                  // ===== Missing Punctuation =====
                   const miss = errors.missingPunctuationErrors?.filter(e => e.paragraphIndex === index) || [];
                   if (miss.length > 0) {
                     const text = el.textContent?.trimEnd() || '';
                     if (!/[.?!]$/.test(text)) {
                       const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
                       const textNodes: Text[] = [];
+
                       let node: Text | null;
                       while ((node = walker.nextNode() as Text | null)) {
                         if (!node.parentElement?.closest('mark.highlight-format')) {
                           textNodes.push(node);
                         }
                       }
+
                       for (let i = textNodes.length - 1; i >= 0; i--) {
                         const nodeText = textNodes[i].textContent?.trimEnd() || '';
                         if (nodeText.length > 0) {
@@ -768,15 +794,24 @@ const removeFormatHighlights = () => {
                     }
                   }
 
-                  // Title case errors
+                  // ===== Title Case Errors =====
                   const titleErrors = errors.titleCaseErrors?.filter(e => e.paragraphIndex === index) || [];
                   if (titleErrors.length > 0) {
                     const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+                    const nodesToProcess: Text[] = [];
+
                     let node: Text | null;
                     while ((node = walker.nextNode() as Text | null)) {
-                      if (!node.textContent?.trim()) continue;
+                      if (
+                        node.textContent?.trim() &&
+                        !node.parentElement?.closest('mark.highlight-format')
+                      ) {
+                        nodesToProcess.push(node);
+                      }
+                    }
 
-                      const words = node.textContent.split(/(\s+)/);
+                    nodesToProcess.forEach(node => {
+                      const words = (node.textContent ?? '').split(/(\s+)/);
                       const frag = document.createDocumentFragment();
                       let changed = false;
 
@@ -784,8 +819,7 @@ const removeFormatHighlights = () => {
                         if (
                           word.trim() &&
                           word[0] === word[0].toLowerCase() &&
-                          /[a-z]/.test(word[0]) &&
-                          !node.parentElement?.closest('mark.highlight-format')
+                          /[a-z]/.test(word[0])
                         ) {
                           const mark = document.createElement('mark');
                           mark.className = 'highlight-format bg-red-300 text-red-700 rounded-sm px-1';
@@ -801,10 +835,10 @@ const removeFormatHighlights = () => {
                       if (changed) {
                         node.parentNode?.replaceChild(frag, node);
                       }
-                    }
+                    });
                   }
 
-                  // Leading/trailing space errors
+                  // ===== Leading/Trailing Space Errors =====
                   const leadTrailErrors = errors.leadingTrailingSpaceErrors?.filter(e => e.paragraphIndex === index) || [];
                   if (leadTrailErrors.length > 0 && !el.querySelector('mark.highlight-format')) {
                     const mark = document.createElement('mark');
@@ -819,6 +853,7 @@ const removeFormatHighlights = () => {
                   }
                 });
               }}
+
 
 
               onRemoveFormatHighlight={removeFormatHighlights}

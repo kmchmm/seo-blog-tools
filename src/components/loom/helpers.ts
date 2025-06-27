@@ -6,7 +6,8 @@ import {
 } from '../../pages/Loom';
 import { CONSTRAINT, HeadingEntry, HeadingWithOptionalCount } from '../../types/loom';
 import { textToHtml } from '../../utils/formatter';
-import { normalizeKeyword, normalizeTextToWords } from '../../utils/keywordWorker';
+// import { normalizeKeyword, normalizeTextToWords } from '../../utils/keywordWorker';
+import { normalizeTextToWords } from '../../utils/keywordWorker';
 
 // Normalize URLs for matching
 export const normalizeUrl = (url: string): string => {
@@ -158,91 +159,62 @@ export function highlightKeywordsInDiv({
   focusKeyword,
   alternateKeyword,
 }: {
-  container: CustomHTMLElement;
+  container: HTMLElement;
   focusKeyword: string;
   alternateKeyword?: string;
 }) {
   if (!container || !focusKeyword.trim()) return;
 
-  const getWordVariants = (word: string): string[] => {
-    const base = normalizeKeyword(word);
-    const variants = new Set<string>([base]);
+  const normalize = (str: string) => str.trim().toLowerCase();
+  const escapeRegex = (str: string) =>
+    str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
-    if (!base.endsWith('s')) {
-      variants.add(`${base}s`);
-      variants.add(`${base}es`);
-      if (base.endsWith('y')) {
-        variants.add(base.replace(/y$/, 'ies'));
+  const focusWords = normalize(focusKeyword).split(/\s+/).filter(Boolean);
+  const altWords = alternateKeyword ? normalize(alternateKeyword).split(/\s+/) : [];
+
+  const keywordMap = new Map<string, string>();
+  focusWords.forEach(word => keywordMap.set(word, '#00ffff'));
+  altWords.forEach(word => keywordMap.set(word, '#00ff00'));
+
+  const allKeywords = [...new Set([...focusWords, ...altWords])];
+  if (allKeywords.length === 0) return;
+
+  const keywordRegex = new RegExp(
+    `\\b(${allKeywords.map(escapeRegex).join('|')})\\b`,
+    'gi'
+  );
+
+  // Walk all text nodes recursively
+  const walkAndHighlight = (node: Node) => {
+    if (
+      node.nodeType === Node.TEXT_NODE &&
+      node.nodeValue?.trim() &&
+      node.parentElement &&
+      !node.parentElement.closest('.highlight-keyword, .link-highlight, .content-highlight')
+    ) {
+      const text = node.nodeValue;
+      let hasMatch = false;
+
+      const replaced = text.replace(keywordRegex, match => {
+        const color = keywordMap.get(normalize(match));
+        if (!color) return match;
+        hasMatch = true;
+        return `<mark class="highlight-keyword" style="background:${color}">${match}</mark>`;
+      });
+
+      if (hasMatch) {
+        const span = document.createElement('span');
+        span.innerHTML = replaced;
+        (node as ChildNode).replaceWith(...span.childNodes);
       }
     } else {
-      if (base.endsWith('ies')) variants.add(base.replace(/ies$/, 'y'));
-      else if (base.endsWith('es')) variants.add(base.replace(/es$/, ''));
-      else variants.add(base.replace(/s$/, ''));
+      node.childNodes.forEach(child => walkAndHighlight(child));
     }
-
-    return [...variants];
   };
 
-  const getAllKeywordVariants = (phrase: string): string[][] =>
-    phrase.trim().toLowerCase().split(/\s+/).map(getWordVariants);
-
-  const escapeRegex = (str: string) => str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-
-  const buildHighlightRegex = (variants: string[]): RegExp =>
-    new RegExp(`\\b(${variants.map(escapeRegex).join('|')})\\b`, 'gi');
-
-  const focusWordVariants = getAllKeywordVariants(focusKeyword);
-  const altWordVariants = alternateKeyword?.trim()
-    ? getAllKeywordVariants(alternateKeyword)
-    : [];
-
-  const elements = container.querySelectorAll('p, h2, h3, h4, h5, h6');
-
-  elements.forEach(el => {
-    const originalText = el.textContent || '';
-    const sentences = originalText.match(/[^.!?]+[.!?]?/g) || [];
-
-    let newHTML = originalText;
-
-    sentences.forEach(sentence => {
-      const normalizedWords = sentence.toLowerCase().split(/\s+/).map(normalizeKeyword);
-      const wordSet = new Set(normalizedWords);
-
-      const isMatch = (variants: string[][]) =>
-        variants.every(wordForms =>
-          wordForms.some(form => wordSet.has(normalizeKeyword(form)))
-        );
-
-      const applyHighlight = (sentence: string, variants: string[][], color: string) => {
-        let updated = sentence;
-
-        variants.forEach(wordForms => {
-          const regex = buildHighlightRegex(wordForms);
-          updated = updated.replace(
-            regex,
-            `<mark class="highlight-keyword" style="background:${color}">$1</mark>`
-          );
-        });
-
-        return updated;
-      };
-
-      let updatedSentence = sentence;
-
-      if (isMatch(focusWordVariants)) {
-        updatedSentence = applyHighlight(sentence, focusWordVariants, '#00ffff');
-      } else if (altWordVariants.length && isMatch(altWordVariants)) {
-        updatedSentence = applyHighlight(sentence, altWordVariants, '#00ff00');
-      }
-
-      newHTML = newHTML.replace(sentence, updatedSentence);
-    });
-
-    if (newHTML !== originalText) {
-      el.innerHTML = newHTML;
-    }
-  });
+  walkAndHighlight(container);
 }
+
 
 export function removeKeywordHighlights(container: HTMLElement) {
   if (!container) return;

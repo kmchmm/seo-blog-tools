@@ -44,8 +44,8 @@ export const Accordion = (accProps: AccordionProps) => {
             <span
               className={clsx(
                 'text-xs font-semibold ml-3 px-2 py-0.5 rounded-full',
-                badgeColor === 'red' && 'bg-red-100 text-white',
-                badgeColor === 'green' && 'bg-green-100 text-white',
+                badgeColor === 'red' && 'bg-[#faeaea] text-red-600',
+                badgeColor === 'green' && 'bg-[#e6f6e9] text-green-100',
                 badgeColor === 'gray' && 'bg-gray-100 text-gray-700'
               )}>
               {badge}

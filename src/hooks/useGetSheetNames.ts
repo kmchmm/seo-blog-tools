@@ -7,6 +7,11 @@ const useGetSheetNames = () => {
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
 
+  // const API_BASE_URL =
+  //   import.meta.env.MODE === 'development'
+  //     ? import.meta.env.VITE_LOCAL_AI_ASSISTANT_API_URL
+  //     : import.meta.env.VITE_PROD_AI_ASSISTANT_API_URL;
+
   const reset = () => {
     setSheetNames([]);
     setLoading(false);
