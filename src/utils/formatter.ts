@@ -46,3 +46,20 @@ export function getCleanText({
     return getTextFromElement(container, excludeH1);
   }
 }
+
+export const formatSecondsString = (timeStr: string) => {
+  const seconds = parseFloat(timeStr);
+
+  if (isNaN(seconds)) return 'Invalid time';
+
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  const secs = (seconds % 60).toFixed(2);
+
+  const parts = [];
+  if (hours > 0) parts.push(`${hours}h`);
+  if (minutes > 0) parts.push(`${minutes}m`);
+  parts.push(`${secs}s`);
+
+  return parts.join(' ');
+};
