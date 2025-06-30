@@ -3,6 +3,7 @@ import { Button, Input } from '../common';
 import { FaCircleChevronRight } from 'react-icons/fa6';
 
 import {
+  useAuth,
   useGetDocumentInfo,
   useGetValidRowsInSheet,
   useSB37AnalysisContext,
@@ -10,8 +11,15 @@ import {
 import { Loading } from '../Loading';
 import { SingleDoc } from '../../hooks/useGetDocumentInfo';
 import { SheetInfo } from '../../context/SB37ProgressContext';
+import ProgressBar from '../common/ProgressBar';
+import { getEstimatedTime } from './helpers';
+import { formatSecondsString } from '../../utils/formatter';
+
+const { VITE_SECRET_EMAIL } = import.meta.env;
 
 const BatchSB37Analysis = () => {
+  const { userData } = useAuth();
+
   const {
     formValues,
     setFormValues,
@@ -28,6 +36,7 @@ const BatchSB37Analysis = () => {
     isFetchingSheetNames,
     sheetNamesError,
     items: sheetResult,
+    sheetProgressCount,
   } = useSB37AnalysisContext();
   const { sheetName, url } = formValues || {};
   const isSheetProcessing = loadingSheets[sheetName] ? loadingSheets[sheetName] : false;
@@ -37,7 +46,6 @@ const BatchSB37Analysis = () => {
     result: validRows,
     loading: isValidating,
     errorMessage: validRowsError,
-
     handleResetErrorMessage,
   } = useGetValidRowsInSheet();
 
@@ -47,12 +55,21 @@ const BatchSB37Analysis = () => {
     loading: isDocInfoLoading,
   } = useGetDocumentInfo();
 
+  const estimatedTime = useMemo(() => {
+    if (!sheetInfo[sheetName]) return;
+    return getEstimatedTime(sheetInfo[sheetName].docsTotalWords || 0);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sheetInfo[sheetName]]);
+
   const completionTime = useMemo(() => {
     if (!sheetResult[sheetName]) return;
-    const timeArray: number[] = sheetResult[sheetName].map(result => {
-      const time = result?.completionTime?.split(' ')[0];
-      return Number(time);
-    });
+    const timeArray: number[] = sheetResult[sheetName]
+      .filter(x => x.status !== 'error')
+      .map(result => {
+        const time = result?.completionTime?.split(' ')[0];
+        return Number(time);
+      });
+
     const totalTime = timeArray.reduce((sum, time) => sum + time, 0);
     return totalTime;
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -121,6 +138,22 @@ const BatchSB37Analysis = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sheetCompleted[sheetName]]);
 
+  useEffect(() => {
+    if (!isSheetProcessing) return;
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (e as any).returnValue =
+        'Your progress will be lost. Are you sure you want to leave?';
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, [isSheetProcessing]);
+
   const renderSheetSelector = () => (
     <div className="mx-auto max-w-xl w-full">
       <div className="flex gap-5 items-center justify-between">
@@ -128,6 +161,7 @@ const BatchSB37Analysis = () => {
         <select
           value={sheetName}
           onChange={handleSheetChange}
+          disabled={isDocInfoLoading || isValidating}
           className="h-12 px-2 border rounded w-full bg-red-100">
           <option value="" disabled>
             Select a sheet
@@ -169,7 +203,17 @@ const BatchSB37Analysis = () => {
           </p>
         </div>
       </div>
-      <div className="self-center w-fit">
+      <div className="flex items-center justify-between">
+        <p className="font-semibold flex-1">Estimated Completion Time:</p>
+        <div className="text-left w-full flex-1">
+          <p
+            className={`${isValidating || isDocInfoLoading ? 'bg-gray-500 animate-pulse text-gray-500' : ''}`}>
+            {estimatedTime ? estimatedTime : ''}s
+          </p>
+        </div>
+      </div>
+
+      <div className="self-center w-fit flex gap-x-2">
         <Button
           className="!bg-blue-200 text-gray-100 border-none"
           onClick={handleClickProceed}
@@ -181,22 +225,50 @@ const BatchSB37Analysis = () => {
             Boolean(sheetNamesError) ||
             sheetInfo[sheetName].sheetValidDocsCount === 0
           }>
-          Proceed
+          Proceed with Batch Analysis
         </Button>
+        {userData.email.toLowerCase() === VITE_SECRET_EMAIL && (
+          <Button
+            onClick={handleClickProceed}
+            className="!bg-blue-200 text-white border-none"
+            disabled={
+              isSheetProcessing ||
+              isDocInfoLoading ||
+              isValidating ||
+              sheetCompleted[sheetName] ||
+              Boolean(sheetNamesError) ||
+              sheetInfo[sheetName].sheetValidDocsCount === 0
+            }>
+            Proceed with Multi-Assistant Batch Analysis
+          </Button>
+        )}
       </div>
     </div>
   );
 
   const renderProgress = () => (
     <div className="w-full max-w-xl mx-auto">
+      <ProgressBar
+        current={sheetProgressCount[sheetName]}
+        total={sheetInfo[formValues.sheetName]?.sheetValidDocsCount || 1}
+      />
+      <p className="text-center mt-2 text-sm text-gray-500">
+        {sheetProgressCount[sheetName]}/
+        {sheetInfo[formValues.sheetName]?.sheetValidDocsCount} completed
+      </p>
       {isSheetProcessing && (
-        <div className="flex items-center gap-x-2 justify-center">
-          <p className="text-center mt-1 text-sm italic text-gray-600">
+        <div className="flex items-center flex-col gap-x-2 justify-center text-center mt-1 text-sm italic text-gray-600">
+          <p className="">
             Feel free to use other tools or process another sheet but{' '}
             <strong>DO NOT</strong> refresh the page!{' '}
-            <span className="font-semibold">{sheetCurrentTitle[sheetName]}</span>
           </p>
-          <Loading size="sm" />
+          <div className="flex items-center gap-x-2">
+            <p>
+              Currently processing:{' '}
+              <span className="font-semibold">{sheetCurrentTitle[sheetName]}</span>
+            </p>
+            <Loading size="sm" />
+          </div>
         </div>
       )}
     </div>
@@ -205,10 +277,10 @@ const BatchSB37Analysis = () => {
   const renderCompletion = () => (
     <div className="mt-6 w-full max-w-lg mx-auto flex flex-col items-center gap-4">
       <p className="text-green-600 font-semibold">Batch analysis completed!</p>
-      {sheetResult[sheetName][0] && (
+      {completionTime && (
         <p className="font-semibold flex w-full justify-between px-4">
           Completion Time:
-          <span>{completionTime}s</span>
+          <span>{formatSecondsString(`${completionTime}`)}</span>
         </p>
       )}
       <Button

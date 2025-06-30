@@ -1,11 +1,8 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { createContext, useRef, useState } from 'react';
 import usePostSB37SingleAnalysis, {
   SB37AnalysisResult,
 } from '../hooks/usePostSB37SingleAnalysis';
 import { useGetSheetNames } from '../hooks';
-import { AI_PROCESS_SHEET_API_URL } from '../services/constants';
-import axios, { AxiosError } from 'axios';
 
 export type ProgressItem = {
   row: number;
@@ -54,13 +51,6 @@ type BatchProgressContextType = {
   sheetNames: string[];
   sheetNamesError: string;
 };
-
-interface BatchResponse {
-  status: 'progress' | 'complete' | 'error';
-  message?: string;
-  results?: any[];
-  progress?: any[];
-}
 
 // eslint-disable-next-line react-refresh/only-export-components
 export const Context = createContext<BatchProgressContextType | undefined>(undefined);
@@ -114,62 +104,80 @@ export const Provider: React.FC<{ children: React.ReactNode }> = ({ children }) 
     sendSingleRequest(docUrl);
   };
 
-  const startBatch = async (spreadsheetUrl: string, sheetName: string) => {
+  const startBatch = (spreadsheetUrl: string, sheetName: string) => {
     setItems(prev => ({ ...prev, [sheetName]: [] }));
     setSheetProgressCount(prev => ({ ...prev, [sheetName]: 0 }));
     setSheetCompleted(prev => ({ ...prev, [sheetName]: false }));
     setLoadingSheets(prev => ({ ...prev, [sheetName]: true }));
     setSheetErorMessages(prev => ({ ...prev, [sheetName]: '' }));
 
-    const query = `?spreadsheetUrl=${encodeURIComponent(
-      spreadsheetUrl
-    )}&sheetName=${encodeURIComponent(sheetName)}`;
+    const ws = new WebSocket('ws://localhost:8024'); // Replace for prod
 
-    const poll = async (): Promise<void> => {
-      try {
-        const res = await axios.get<BatchResponse>(`${AI_PROCESS_SHEET_API_URL}${query}`);
-        const data = res.data;
+    ws.onopen = () => {
+      ws.send(JSON.stringify({ spreadsheetUrl, sheetName }));
+    };
 
-        if (data.status === 'error') {
+    ws.onmessage = event => {
+      const data = JSON.parse(event.data);
+
+      switch (data.type) {
+        case 'start':
+          console.log(`🟡 Processing started for ${sheetName}`);
+          break;
+
+        case 'progress':
+          setItems(prev => {
+            const prevItems = prev[sheetName] || [];
+            return { ...prev, [sheetName]: [...prevItems, data] };
+          });
+          // Only increment progress count if there are results
+          if (data.status === 'success') {
+            setSheetProgressCount(prev => ({
+              ...prev,
+              [sheetName]: (prev[sheetName] || 0) + 1,
+            }));
+          }
+          if (data.title) {
+            setSheetCurrentTitle(prev => ({ ...prev, [sheetName]: data.title }));
+          }
+          break;
+
+        case 'complete': {
+          const results = data.results || [];
+
+          setItems(prev => ({ ...prev, [sheetName]: results }));
+          setLoadingSheets(prev => ({ ...prev, [sheetName]: false }));
+
+          // Mark sheet as completed
+          setSheetCompleted(prev => ({ ...prev, [sheetName]: true }));
+
+          break;
+        }
+
+        case 'error':
           setSheetErorMessages(prev => ({
             ...prev,
             [sheetName]: data.message || 'Batch failed.',
           }));
           setLoadingSheets(prev => ({ ...prev, [sheetName]: false }));
-          return;
-        }
-
-        if (data.status === 'complete') {
-          setItems(prev => ({ ...prev, [sheetName]: data.results || [] }));
-          setLoadingSheets(prev => ({ ...prev, [sheetName]: false }));
-          setSheetCompleted(prev => ({ ...prev, [sheetName]: true }));
-          return;
-        }
-
-        if (data.progress) {
-          setItems(prev => ({ ...prev, [sheetName]: data.progress || [] }));
-          setSheetProgressCount(prev => ({
-            ...prev,
-            [sheetName]: data?.progress?.length || 0,
-          }));
-        }
-
-        // Continue polling
-        setTimeout(poll, 3000);
-      } catch (err) {
-        const error = err as AxiosError<{ error: string }>;
-        setSheetErorMessages(prev => ({
-          ...prev,
-          [sheetName]:
-            error?.response?.data.error ||
-            'Connection error or server closed unexpectedly.',
-        }));
-        setLoadingSheets(prev => ({ ...prev, [sheetName]: false }));
+          break;
       }
     };
 
-    poll();
+    ws.onerror = event => {
+      console.error('WebSocket error', event);
+      setSheetErorMessages(prev => ({
+        ...prev,
+        [sheetName]: 'WebSocket error occurred.',
+      }));
+      setLoadingSheets(prev => ({ ...prev, [sheetName]: false }));
+    };
+
+    ws.onclose = () => {
+      console.log(`🔴 WebSocket closed for ${sheetName}`);
+    };
   };
+
   const resetBatch = (sheetName: string) => {
     eventSourceRef.current?.close();
     setItems(prev => {
