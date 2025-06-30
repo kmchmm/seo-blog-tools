@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { Button, Input } from '../common';
 import { FaCircleChevronRight } from 'react-icons/fa6';
 import {
+  useAuth,
   useGetDocumentInfo,
   useParseJsonToText,
   useSB37AnalysisContext,
@@ -9,8 +10,14 @@ import {
 import { Loading } from '../Loading';
 import DocPreview from './DocPreview';
 import { SB37AnalysisJSON } from '../../hooks/useParseJsonToText';
+import { getEstimatedTime } from './helpers';
+import { formatSecondsString } from '../../utils/formatter';
+
+const { VITE_SECRET_EMAIL } = import.meta.env;
 
 const SingleSB37Analysis = () => {
+  const { userData } = useAuth();
+
   const {
     url,
     setUrl,
@@ -45,6 +52,7 @@ const SingleSB37Analysis = () => {
   const isBusy = singleLoading || loadingParsing || loadingDocInfo;
   const errorMessage = singleErrorMessage || errorMessageDocInfo || errorMessageParse;
 
+  const estimatedTime = getEstimatedTime(wordCount || 0);
   const handleReset = () => {
     setUrl('');
     setIsCompletedSingle(false);
@@ -77,6 +85,22 @@ const SingleSB37Analysis = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isCompletedSingle, reviewOutput, singleResult]);
 
+  useEffect(() => {
+    if (!singleLoading) return;
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (e as any).returnValue =
+        'Your progress will be lost. Are you sure you want to leave?';
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, [singleLoading]);
+
   return (
     <div className="flex flex-col gap-6">
       {/* URL Input */}
@@ -108,9 +132,20 @@ const SingleSB37Analysis = () => {
       {isBusy && (
         <div className="flex flex-col items-center">
           <Loading />
-          {singleLoading && (
-            <p className="text-sm text-gray-600 mt-2">Processing... Please wait.</p>
-          )}
+
+          <div className="flex flex-col text-center">
+            {!loadingDocInfo && (
+              <p className="text-sm text-gray-600 mt-2 italic">
+                {loadingParsing ? 'Preparing document...' : ' Processing...'} Please wait.
+              </p>
+            )}
+            {singleLoading && (
+              <p className="text-sm text-gray-600 mt-2 italic">
+                Feel free to use other tools or process another sheet but{' '}
+                <strong>DO NOT</strong> refresh the page!{' '}
+              </p>
+            )}
+          </div>
         </div>
       )}
 
@@ -134,10 +169,15 @@ const SingleSB37Analysis = () => {
               <span className="font-semibold">Word Count:</span>
               <span>{wordCount || singleResult?.wordCount}</span>
             </div>
-            {completionTime && (
+            {completionTime ? (
               <div className="flex justify-between">
                 <span className="font-semibold">Completion Time:</span>
-                <span>{completionTime}</span>
+                <span>{formatSecondsString(completionTime)}</span>
+              </div>
+            ) : (
+              <div className="flex justify-between">
+                <span className="font-semibold">Estimated Time:</span>
+                <span>{estimatedTime}s</span>
               </div>
             )}
           </div>
@@ -158,12 +198,22 @@ const SingleSB37Analysis = () => {
                 </Button>
               </>
             ) : (
-              <Button
-                onClick={handleProceedAnalysis}
-                className="!bg-blue-200 text-white border-none"
-                disabled={singleLoading || loadingParsing}>
-                Proceed
-              </Button>
+              <div className="flex gap-x-2">
+                <Button
+                  onClick={handleProceedAnalysis}
+                  className="!bg-blue-200 text-white border-none"
+                  disabled={singleLoading || loadingParsing}>
+                  Proceed with Single Analysis
+                </Button>
+                {userData.email.toLowerCase() === VITE_SECRET_EMAIL && (
+                  <Button
+                    onClick={handleProceedAnalysis}
+                    className="!bg-blue-200 text-white border-none"
+                    disabled={singleLoading || loadingParsing}>
+                    Proceed with Multi-Assistant Analysis
+                  </Button>
+                )}
+              </div>
             )}
           </div>
         </div>

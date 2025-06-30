@@ -1,7 +1,5 @@
 import { useState } from 'react';
-import axios, { AxiosError } from 'axios';
 import { SB37AnalysisJSON } from './useParseJsonToText';
-import { AI_PROCESS_DOCUMENT_API_URL } from '../services/constants';
 
 export type SB37AnalysisResult = {
   reviewOutput: SB37AnalysisJSON;
@@ -19,36 +17,63 @@ const usePostSB37SingleAnalysis = () => {
   const [result, setResult] = useState<SB37AnalysisResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
+  const [wsInstance, setWsInstance] = useState<WebSocket | null>(null);
 
   const reset = () => {
     setResult(null);
     setLoading(false);
     setErrorMessage('');
+    if (wsInstance?.readyState === WebSocket.OPEN) {
+      wsInstance.close();
+    }
   };
 
-  const sendRequest = async (docUrl: string) => {
+  const sendRequest = (docUrl: string) => {
     reset();
     setLoading(true);
 
-    try {
-      const res = await axios.get(`${AI_PROCESS_DOCUMENT_API_URL}`, {
-        params: { docUrl },
-      });
+    const ws = new WebSocket('ws://localhost:8025'); // Replace with production WS URL
 
-      const data = res.data;
+    ws.onopen = () => {
+      ws.send(JSON.stringify({ docUrl }));
+    };
 
-      if (data.type === 'complete') {
-        const { reviewOutput, completionTime, wordCount, title } = data;
-        setResult({ reviewOutput, completionTime, wordCount, title });
-      } else if (data.type === 'error') {
-        setErrorMessage(data.message || 'Unexpected error');
+    ws.onmessage = event => {
+      const data = JSON.parse(event.data);
+
+      switch (data.type) {
+        case 'start':
+          console.log('🟡 Processing started');
+          break;
+        case 'complete':
+          setResult({
+            reviewOutput: data.reviewOutput,
+            completionTime: data.completionTime,
+            wordCount: data.wordCount,
+            title: data.title,
+          });
+          setLoading(false);
+          ws.close();
+          break;
+        case 'error':
+          setErrorMessage(data.message || 'Unexpected error');
+          setLoading(false);
+          ws.close();
+          break;
       }
-    } catch (err) {
-      const error = err as AxiosError<{ error: string }>;
-      setErrorMessage(error?.response?.data?.error || 'Network or server error');
-    } finally {
+    };
+
+    ws.onerror = () => {
+      setErrorMessage('WebSocket error occurred.');
       setLoading(false);
-    }
+      ws.close();
+    };
+
+    ws.onclose = () => {
+      console.log('🔴 WebSocket closed');
+    };
+
+    setWsInstance(ws);
   };
 
   return { sendRequest, loading, result, errorMessage, reset };
