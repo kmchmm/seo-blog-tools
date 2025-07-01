@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { SB37AnalysisJSON } from './useParseJsonToText';
+import { AI_PROCESS_DOCUMENT_API_URL } from '../services/constants';
 
 export type SB37AnalysisResult = {
   reviewOutput: SB37AnalysisJSON;
@@ -32,7 +33,7 @@ const usePostSB37SingleAnalysis = () => {
     reset();
     setLoading(true);
 
-    const ws = new WebSocket('ws://localhost:8025'); // Replace with production WS URL
+    const ws = new WebSocket(AI_PROCESS_DOCUMENT_API_URL);
 
     ws.onopen = () => {
       ws.send(JSON.stringify({ docUrl }));
