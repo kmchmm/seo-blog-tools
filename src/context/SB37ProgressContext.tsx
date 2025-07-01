@@ -3,6 +3,7 @@ import usePostSB37SingleAnalysis, {
   SB37AnalysisResult,
 } from '../hooks/usePostSB37SingleAnalysis';
 import { useGetSheetNames } from '../hooks';
+import { AI_PROCESS_SHEET_API_URL } from '../services/constants';
 
 export type ProgressItem = {
   row: number;
@@ -111,7 +112,7 @@ export const Provider: React.FC<{ children: React.ReactNode }> = ({ children }) 
     setLoadingSheets(prev => ({ ...prev, [sheetName]: true }));
     setSheetErorMessages(prev => ({ ...prev, [sheetName]: '' }));
 
-    const ws = new WebSocket('ws://localhost:8024'); // Replace for prod
+    const ws = new WebSocket(AI_PROCESS_SHEET_API_URL);
 
     ws.onopen = () => {
       ws.send(JSON.stringify({ spreadsheetUrl, sheetName }));
