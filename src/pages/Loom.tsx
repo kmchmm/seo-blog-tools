@@ -569,13 +569,23 @@ const removeFormatHighlights = () => {
             <label>Google Appearance Preview</label>
             <div className="border border-black/17.5 rounded-md p-4 bg-white flex-1 flex flex-col dark:text-black-200">
               <span>Arash Law</span>
-              <cite className="text-[12px] leading-[18px]"></cite>
               <h3 className="text-xl truncate text-blue-1000 leading-[1.2] font-medium">
                 {title}
               </h3>
-              <span className="text-black-200/75 wrap-break-word">{description}</span>
+
+
+              <span className="text-black-200/75 wrap-break-word">              
+              <cite className="text-[12px] leading-[18px] text-black-500">
+                {new Date().toLocaleDateString('en-US', {
+                  year: 'numeric',
+                  month: 'short',
+                  day: 'numeric',
+                })}
+              </cite>
+              <span> - {description}</span></span>
             </div>
           </div>
+
         </section>
 
         <section className="w-full py-2 gap-5 flex flex-row">
@@ -671,7 +681,7 @@ const removeFormatHighlights = () => {
                   toolbar:
                     'blocks fontsize | bold italic underline | link image | alignleft indent outdent | emoticons charmap | removeformat',
                   content_style:
-                    'body { font-family:Helvetica,Arial,sans-serif; font-size:14px }',
+                    'body { font-family:Helvetica,Arial,sans-serif; font-size:13px }',
                 }}
                 ref={divRef as React.Ref<Editor>}
               />
