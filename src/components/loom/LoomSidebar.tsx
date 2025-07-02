@@ -80,6 +80,7 @@ interface DictionaryEntry {
   id: number;
   keyword: string;
   created_by: string;
+  created: string | null;
   deleted_at: string | null;
   // add other fields if needed
 }
@@ -195,37 +196,49 @@ export const LoomSidebar: FC<LoomProps> = ({
   const [activeView, setActiveView] = useState('default'); // 'default' or 'trash' SB37 VIEW MODAL
 
 
-  const [currentPage, setCurrentPage] = useState(1);
-  const rowsPerPage = 6;
+const rowsPerPage = 6;
 
-  const filteredDictionary = dictionary.filter(entry => entry.deleted_at === null);
+const [currentPage, setCurrentPage] = useState(1); // for active list
+const [currentPageDeleted, setCurrentPageDeleted] = useState(1); // for deleted list
 
-  const totalPages = Math.ceil(filteredDictionary.length / rowsPerPage);
-  const startIndex = (currentPage - 1) * rowsPerPage;
-  const paginatedData = filteredDictionary.slice(startIndex, startIndex + rowsPerPage);
+// Filter and sort active entries (latest added first)
+const filteredDictionary = dictionary
+  .filter(entry => entry.deleted_at === null)
+  .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+
+const totalPages = Math.ceil(filteredDictionary.length / rowsPerPage);
+const startIndex = (currentPage - 1) * rowsPerPage;
+const paginatedData = filteredDictionary.slice(startIndex, startIndex + rowsPerPage);
+
+const [archivedDictionary, setArchivedDictionary] = useState<DictionaryEntry[]>([]);
+
+useEffect(() => {
+  const deleted = dictionary
+    .filter(entry => entry.deleted_at !== null)
+    .sort((a, b) => new Date(b.deleted_at!).getTime() - new Date(a.deleted_at!).getTime());
+  setArchivedDictionary(deleted);
+}, [dictionary]);
+
+const totalPagesForDeleted = Math.ceil(archivedDictionary.length / rowsPerPage);
+const startIndexDeleted = (currentPageDeleted - 1) * rowsPerPage;
+const deletedEntries = archivedDictionary.slice(startIndexDeleted, startIndexDeleted + rowsPerPage);
+
+useEffect(() => {
+  if (currentPage > totalPages) {
+    setCurrentPage(totalPages || 1);
+  }
+}, [filteredDictionary, totalPages]);
+
+useEffect(() => {
+  if (currentPageDeleted > totalPagesForDeleted) {
+    setCurrentPageDeleted(totalPagesForDeleted || 1);
+  }
+}, [archivedDictionary, totalPagesForDeleted]);
 
 
-  // Assume these states exist:
-  const pageSize = 6;
-  const [archivedDictionary, setArchivedDictionary] = useState<DictionaryEntry[]>([]);
 
-  useEffect(() => {
-    const deleted = dictionary.filter(entry => entry.deleted_at !== null);
-    setArchivedDictionary(deleted);
-  }, [dictionary]);
+const [statusMessage, setStatusMessage] = useState<string | null>(null);
 
-  const totalPagesForDeleted = Math.ceil(archivedDictionary.length / pageSize);
-  const deletedEntries = archivedDictionary.slice(
-    (currentPage - 1) * pageSize,
-    currentPage * pageSize
-  );
-
-  useEffect(() => {
-    if (currentPage > totalPagesForDeleted) {
-      setCurrentPage(totalPagesForDeleted || 1);
-    }
-  }, [archivedDictionary, totalPagesForDeleted]);
-  const [statusMessage, setStatusMessage] = useState<string | null>(null);
 
 
 
@@ -309,6 +322,7 @@ export const LoomSidebar: FC<LoomProps> = ({
   ////////////////////////////////////////////////////////
   //////////////////SB37 TOOL/////////////////////////////
   ////////////////////////////////////////////////////////
+
   // const checkForStaticViolations = () => {
   //   const allMatches: string[] = [];
   //   const lowerText = text.toLowerCase();
@@ -336,69 +350,70 @@ export const LoomSidebar: FC<LoomProps> = ({
   //   return allMatches;
   // };
 
-  useEffect(() => {
-    const handleAnchorClick = (e: MouseEvent) => {
-      const target = e.target as HTMLElement;
+ useEffect(() => {
+  const handleAnchorClick = (e: MouseEvent) => {
+    const target = e.target as HTMLElement;
 
-      if (target.tagName === 'A' && target.getAttribute('href')?.startsWith('#')) {
-        e.preventDefault();
+    if (
+      target.tagName === 'A' &&
+      target.getAttribute('href')?.startsWith('#')
+    ) {
+      e.preventDefault();
 
-        const id = target.getAttribute('href')!.substring(1);
-        const el = document.getElementById(id);
+      const id = target.getAttribute('href')!.substring(1);
+      const el = document.getElementById(id);
 
-        if (el) {
-          el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
 
-          el.classList.remove('anchor-highlight-fade'); // Reset if still fading
-          el.classList.add('anchor-highlight-pulse');
+        el.classList.remove('anchor-highlight-fade'); // Reset if still fading
+        el.classList.add('anchor-highlight-pulse');
 
-          // Start fading out after delay
+        // Start fading out after delay
+        setTimeout(() => {
+          el.classList.remove('anchor-highlight-pulse');
+          el.classList.add('anchor-highlight-fade');
+
+          // Fully remove after fade completes
           setTimeout(() => {
-            el.classList.remove('anchor-highlight-pulse');
-            el.classList.add('anchor-highlight-fade');
-
-            // Fully remove after fade completes
-            setTimeout(() => {
-              el.classList.remove('anchor-highlight-fade');
-            }, 1000); // match fade duration
-          }, 2500); // how long highlight stays
-        }
-      }
-    };
-
-    document.addEventListener('click', handleAnchorClick);
-    return () => document.removeEventListener('click', handleAnchorClick);
-  }, []);
-
-  const checkForDictionaryViolations = () => {
-    const allMatches: string[] = [];
-    // const lowerText = text.toLowerCase();
-
-    for (const item of dictionary) {
-      const phrase = item.keyword;
-      const escapedPhrase = phrase.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-      const regex = new RegExp(`\\b${escapedPhrase}\\b`, 'gi');
-      const matches = text.match(regex); // match original text, not lowerText
-
-      if (matches) {
-        for (const match of matches) {
-          allMatches.push(match); // preserve original casing
-        }
+            el.classList.remove('anchor-highlight-fade');
+          }, 1000); // match fade duration
+        }, 2500); // how long highlight stays
       }
     }
-
-    setDictionaryViolations(allMatches);
-    setHighlightActive(true);
-
-    const uniquePhrases = [...new Set(allMatches.map(m => m.toLowerCase()))];
-    const mappedResults = mapViolationsToHeadings(text, uniquePhrases);
-    setDictionaryViolationResults(mappedResults);
-
-    return allMatches;
   };
 
+  document.addEventListener('click', handleAnchorClick);
+  return () => document.removeEventListener('click', handleAnchorClick);
+}, []);
 
-  // Helper to flatten, sort and dedupe headings by their 'id' or 'heading'
+const checkForDictionaryViolations = () => {
+  const allMatches: string[] = [];
+
+  for (const item of dictionary) {
+    const phrase = item.keyword;
+    const escapedPhrase = phrase.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const regex = new RegExp(`\\b${escapedPhrase}\\b`, 'gi');
+    const matches = text.match(regex);
+
+    if (matches) {
+      for (const match of matches) {
+        allMatches.push(match); // preserve original casing
+      }
+    }
+  }
+
+  setDictionaryViolations(allMatches);
+  setHighlightActive(true);
+
+  const uniquePhrases = [...new Set(allMatches.map((m) => m.toLowerCase()))];
+  const mappedResults = mapViolationsToHeadings(text, uniquePhrases);
+  setDictionaryViolationResults(mappedResults);
+
+  return allMatches;
+};
+
+// Helper to flatten, sort and dedupe headings by their 'id' or 'heading'
 function prepareHeadingsForAccordion(violationResults: Record<string, any[]>) {
   const allHeadings = Object.values(violationResults).flat();
 
@@ -423,11 +438,9 @@ function prepareHeadingsForAccordion(violationResults: Record<string, any[]>) {
   return uniqueHeadings;
 }
 
-  const checkForViolations = () => {
-    // const staticMatches = checkForStaticViolations();
-    const dictionaryMatches = checkForDictionaryViolations();
-    // const totalMatches = staticMatches.length + dictionaryMatches.length;
-    const totalMatches = dictionaryMatches.length;
+const checkForViolations = () => {
+  const dictionaryMatches = checkForDictionaryViolations();
+  const totalMatches = dictionaryMatches.length;
 
   if (totalMatches === 0) {
     setViolationCheckMessage({
@@ -440,23 +453,40 @@ function prepareHeadingsForAccordion(violationResults: Record<string, any[]>) {
       text: '⚠️ Potential violations found. Please review carefully',
     });
   }
+};
+
+useEffect(() => {
+  const fetchDictionary = async () => {
+    const { data, error } = await supabase
+      .from('loom_dictionary')
+      .select('id, keyword, created_by')
+      .is('deleted_at', null); // ✅ Only fetch active keywords
+
+    if (!error && data) {
+      setDictionary(data);
+    } else {
+      console.error('Failed to load dictionary', error);
+    }
   };
 
-  useEffect(() => {
-    const fetchDictionary = async () => {
-      const { data, error } = await supabase
-        .from('loom_dictionary')
-        .select('id, keyword, created_by, deleted_at');
+  fetchDictionary();
+}, []);
 
-      if (!error && data) {
-        setDictionary(data);
-      } else {
-        console.error('Failed to load dictionary', error);
-      }
-    };
+const getVisiblePages = (currentPage: number, totalPages: number, maxVisible: number = 5) => {
+  let startPage = Math.max(1, currentPage - Math.floor(maxVisible / 2));
+  let endPage = startPage + maxVisible - 1;
 
-    fetchDictionary();
-  }, []);
+  if (endPage > totalPages) {
+    endPage = totalPages;
+    startPage = Math.max(1, endPage - maxVisible + 1);
+  }
+
+  const pages = [];
+  for (let i = startPage; i <= endPage; i++) {
+    pages.push(i);
+  }
+  return pages;
+};
 
   const mapViolationsToHeadings = (text: string, violations: string[]) => {
     const parser = new DOMParser();
@@ -1992,7 +2022,8 @@ function prepareHeadingsForAccordion(violationResults: Record<string, any[]>) {
                       width="1200px"
                       height="auto"
                       backgroundColor="#0a1a31"
-                      showCloseButton={false}>
+                      showCloseButton={false}
+                    >
                       <div className="w-full h-full">
                         <div className="flex justify-between items-center">
                           <h2 className="!text-left text-white text-2xl font-extrabold w-full">
@@ -2004,18 +2035,18 @@ function prepareHeadingsForAccordion(violationResults: Record<string, any[]>) {
                               type="text"
                               placeholder="Search for Keyword"
                               className="!w-full"
-
                             />
 
                             <GoSearch className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500" />
                           </div>
-
                         </div>
+
                         {statusMessage && (
                           <div className="mt-2 text-sm text-green-400 font-semibold">
                             {statusMessage}
                           </div>
                         )}
+
                         <div className="flex justify-between items-baseline">
                           <div className="w-[50px] flex flex-col gap-5 items-center">
                             {/* View Potential Violations */}
@@ -2051,91 +2082,89 @@ function prepareHeadingsForAccordion(violationResults: Record<string, any[]>) {
                             </div>
                           </div>
 
-
-
-
                           <div className="flex-1 px-5">
-                              {activeView === 'default' && (
-                                <>
-                                  <table
-                                    className={clsx(
-                                      'w-full my-[20px] mx-auto border-collapse',
-                                      'table-fixed shadow-[0_4px_6px_rgba(0, 0, 0, 0.1)]'
-                                    )}>
-                                    <thead>
+                            {activeView === 'default' && (
+                              <>
+                                <table
+                                  className={clsx(
+                                    'w-full my-[20px] mx-auto border-collapse',
+                                    'table-fixed shadow-[0_4px_6px_rgba(0, 0, 0, 0.1)]'
+                                  )}
+                                >
+                                  <thead>
+                                    <tr>
+                                      <th>Keyword</th>
+                                      <th>Added By</th>
+                                      <th className="w-[80px]"></th>
+                                    </tr>
+                                  </thead>
+                                  <tbody>
+                                    {paginatedData.length === 0 ? (
                                       <tr>
-                                        <th>Keyword</th>
-                                        <th>Added By</th>
-                                        <th className="w-[80px]"></th>
+                                        <td colSpan={3} className="text-center text-white">
+                                          No entries found.
+                                        </td>
                                       </tr>
-                                    </thead>
-                                    <tbody>
-                                      {paginatedData.length === 0 ? (
-                                        <tr>
-                                          <td colSpan={3} className="text-center text-white">
-                                            No entries found.
+                                    ) : (
+                                      paginatedData.map((entry) => (
+                                        <tr key={entry.id}>
+                                          <td className="px-4 py-2 !text-white">{entry.keyword}</td>
+                                          <td className="px-4 py-2 !text-white">{entry.created_by}</td>
+                                          <td className="px-4 py-2 !text-white">
+                                            <FaTrash
+                                              className="text-white hover:text-red-500 cursor-pointer"
+                                              onClick={() => {
+                                                if (confirm(`Move phrase "${entry.keyword}" to trash?`)) {
+                                                  handleDeletePhrase(entry.id);
+                                                }
+                                              }}
+                                            />
                                           </td>
                                         </tr>
-                                      ) : (
-                                        paginatedData.map((entry, ) => (
-                                          <tr key={entry.id}>
-                                            <td className="px-4 py-2 !text-white">{entry.keyword}</td>
-                                            <td className="px-4 py-2 !text-white">{entry.created_by}</td>
-                                            <td className="px-4 py-2 !text-white">
-                                              <FaTrash
-                                                className="text-white hover:text-red-500 cursor-pointer"
-                                                onClick={() => {
-                                                  if (confirm(`Move phrase "${entry.keyword}" to trash?`)) {
-                                                    handleDeletePhrase(entry.id);
-                                                  }
-                                                }}
-                                              />
-                                            </td>
-                                          </tr>
-                                        ))
-                                      )}
-                                    </tbody>
+                                      ))
+                                    )}
+                                  </tbody>
+                                </table>
 
-                                  </table>
+                                {/* Pagination Controls for default view */}
+                                {totalPages > 1 && (
+                                  <div className="flex justify-center mt-4 gap-2">
+                                    <button
+                                      onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+                                      disabled={currentPage === 1}
+                                      className="px-3 py-1 text-white border border-yellow-100 rounded disabled:opacity-50 cursor-pointer hover:bg-yellow-100 hover:text-black-200"
+                                    >
+                                      Prev
+                                    </button>
 
-                                  {/* Pagination Controls */}
-                                  {totalPages > 1 && (
-                                    <div className="flex justify-center mt-4 gap-2">
+                                    {getVisiblePages(currentPage, totalPages).map((page) => (
                                       <button
-                                        onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
-                                        disabled={currentPage === 1}
-                                        className="px-3 py-1 text-white border border-yellow-100 rounded disabled:opacity-50 cursor-pointer hover:bg-yellow-100 hover:text-black-200"
+                                        key={page}
+                                        onClick={() => setCurrentPage(page)}
+                                        className={clsx(
+                                          "px-3 py-1 cursor-pointer hover:bg-white hover:text-black-200",
+                                          currentPage === page
+                                            ? "bg-yellow-100 text-black"
+                                            : "text-white border-white"
+                                        )}
                                       >
-                                        Prev
+                                        {page}
                                       </button>
+                                    ))}
 
-                                      {Array.from({ length: totalPages }, (_, i) => (
-                                        <button
-                                          key={i}
-                                          onClick={() => setCurrentPage(i + 1)}
-                                          className={clsx(
-                                            "px-3 py-1 cursor-pointer hover:bg-white hover:text-black-200",
-                                            currentPage === i + 1
-                                              ? "bg-yellow-100 text-black"
-                                              : "text-white border-white"
-                                          )}
-                                        >
-                                          {i + 1}
-                                        </button>
-                                      ))}
 
-                                      <button
-                                        onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
-                                        disabled={currentPage === totalPages}
-                                        className="px-3 py-1 text-white border border-yellow-100 rounded disabled:opacity-50 cursor-pointer hover:bg-yellow-100 hover:text-black-200"
-                                      >
-                                        Next
-                                      </button>
-                                    </div>
-                                  )}
-                                </>
-                              )}
 
+                                    <button
+                                      onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
+                                      disabled={currentPage === totalPages}
+                                      className="px-3 py-1 text-white border border-yellow-100 rounded disabled:opacity-50 cursor-pointer hover:bg-yellow-100 hover:text-black-200"
+                                    >
+                                      Next
+                                    </button>
+                                  </div>
+                                )}
+                              </>
+                            )}
 
                             {activeView === 'trash' && (
                               <>
@@ -2161,7 +2190,7 @@ function prepareHeadingsForAccordion(violationResults: Record<string, any[]>) {
                                         </td>
                                       </tr>
                                     ) : (
-                                      deletedEntries.map((entry, ) => {
+                                      deletedEntries.map((entry) => {
                                         const deletedAt = new Date(entry.deleted_at as string);
                                         const now = new Date();
                                         const diffDays = 30 - Math.floor((now.getTime() - deletedAt.getTime()) / (1000 * 60 * 60 * 24));
@@ -2188,33 +2217,35 @@ function prepareHeadingsForAccordion(violationResults: Record<string, any[]>) {
                                   </tbody>
                                 </table>
 
-                                {/* Pagination Controls */}
+                                {/* Pagination Controls for trash view */}
                                 {totalPagesForDeleted > 1 && (
                                   <div className="flex justify-center mt-4 gap-2">
                                     <button
-                                      onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
-                                      disabled={currentPage === 1}
+                                      onClick={() => setCurrentPageDeleted((prev) => Math.max(prev - 1, 1))}
+                                      disabled={currentPageDeleted === 1}
                                       className="px-3 py-1 text-white border border-yellow-100 rounded disabled:opacity-50 cursor-pointer hover:bg-yellow-100 hover:text-black-200"
                                     >
                                       Prev
                                     </button>
 
-                                    {Array.from({ length: totalPagesForDeleted }, (_, i) => (
+                                    {getVisiblePages(currentPageDeleted, totalPagesForDeleted).map((page) => (
                                       <button
-                                        key={i}
-                                        onClick={() => setCurrentPage(i + 1)}
+                                        key={page}
+                                        onClick={() => setCurrentPageDeleted(page)}
                                         className={clsx(
-                                          'px-3 py-1 cursor-pointer hover:bg-white hover:text-black-200',
-                                          currentPage === i + 1 ? 'bg-yellow-100 text-black' : 'text-white border-white'
+                                          "px-3 py-1 cursor-pointer hover:bg-white hover:text-black-200",
+                                          currentPageDeleted === page
+                                            ? "bg-yellow-100 text-black"
+                                            : "text-white border-white"
                                         )}
                                       >
-                                        {i + 1}
+                                        {page}
                                       </button>
                                     ))}
 
                                     <button
-                                      onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPagesForDeleted))}
-                                      disabled={currentPage === totalPagesForDeleted}
+                                      onClick={() => setCurrentPageDeleted((prev) => Math.min(prev + 1, totalPagesForDeleted))}
+                                      disabled={currentPageDeleted === totalPagesForDeleted}
                                       className="px-3 py-1 text-white border border-yellow-100 rounded disabled:opacity-50 cursor-pointer hover:bg-yellow-100 hover:text-black-200"
                                     >
                                       Next
@@ -2223,19 +2254,21 @@ function prepareHeadingsForAccordion(violationResults: Record<string, any[]>) {
                                 )}
                               </>
                             )}
-
-                          </div>             
+                          </div>
                         </div>
+
                         <div className="flex justify-end">
                           <button
                             onClick={handleViewCloseModal}
-                            className="border border-white cursor-pointer py-2 px-7 hover:bg-red-100 hover:border-red-100 text-white">
+                            className="border border-white cursor-pointer py-2 px-7 hover:bg-red-100 hover:border-red-100 text-white mt-5"
+                          >
                             Cancel
                           </button>
                         </div>
                       </div>
                     </Modal>
                   )}
+
                 </div>
               </div>
             </TabPanel>

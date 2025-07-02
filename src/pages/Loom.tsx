@@ -513,6 +513,15 @@ const removeFormatHighlights = () => {
     });
   }
   
+  const formattedDate = new Date().toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+  });
+
+  const descriptionWithDate = `${formattedDate} - ${description}`;
+
+
   return (
     <div
       className={clsx(
@@ -523,70 +532,77 @@ const removeFormatHighlights = () => {
       <p className="text-left italic self-start">For writers by developers</p>
 
       <div className="dark:!bg-[#f7f8fa] dark:!text-black-200 w-full p-5">
-        <section className="w-full py-2 gap-5 flex flex-row mb-5">
-          <div className="w-1/2">
-            <label>Meta Title</label>
-            {title && (
-              <span>
-                {' '}
-                - {title.length} {title.length > 1 ? 'characters' : 'character'}
-              </span>
-            )}
-            <input
-              type="text"
-              value={title}
-              className="!w-full py-2"
-              onChange={e => setTitle(e.target.value)}
-            />
-            <div className="w-full h-4 bg-gray-400 rounded-md overflow-hidden mb-5">
-              <div
-                className={clsx(
-                  'h-full transition-width duration-600 ease-[ease]',
-                  titleStyle.style
-                )}
-                style={titleStyle.width}></div>
-            </div>
-
-            <label>Meta Description</label>
-            <span> - {description.length} characters</span>
-            <textarea
-              value={description}
-              placeholder="Meta Description"
-              className="w-full min-h-10 h-25 my-2 dark:text-black-200"
-              onChange={e => setDescription(e.target.value)}
-            />
-            <div className="w-full h-4 bg-gray-400 rounded-md overflow-hidden">
-              <div
-                className={clsx(
-                  'h-full transition-width duration-600 ease-[ease]',
-                  descStyle.style
-                )}
-                style={descStyle.width}></div>
-            </div>
+      <section className="w-full py-2 gap-5 flex flex-row mb-5">
+        <div className="w-1/2">
+          <label>Meta Title</label>
+          {title && (
+            <span>
+              {' '}
+              - {title.length} {title.length > 1 ? 'characters' : 'character'}
+            </span>
+          )}
+          <input
+            type="text"
+            value={title}
+            className="!w-full py-2"
+            onChange={e => setTitle(e.target.value)}
+          />
+          <div className="w-full h-4 bg-gray-400 rounded-md overflow-hidden mb-5">
+            <div
+              className={clsx(
+                'h-full transition-width duration-600 ease-[ease]',
+                titleStyle.style
+              )}
+              style={titleStyle.width}></div>
           </div>
 
-          <div className="w-1/2 flex flex-col">
-            <label>Google Appearance Preview</label>
-            <div className="border border-black/17.5 rounded-md p-4 bg-white flex-1 flex flex-col dark:text-black-200">
-              <span>Arash Law</span>
-              <h3 className="text-xl truncate text-blue-1000 leading-[1.2] font-medium">
-                {title}
-              </h3>
+          <label>Meta Description</label>
+          <span>
+            {' '}
+            - {(descriptionWithDate.length)} characters
+          </span>
+          <textarea
+            value={description}
+            placeholder="Meta Description"
+            className="w-full min-h-10 h-25 my-2 dark:text-black-200"
+            onChange={e => setDescription(e.target.value)}
+          />
+          <div className="w-full h-4 bg-gray-400 rounded-md overflow-hidden">
+            <div
+              className={clsx(
+                'h-full transition-width duration-600 ease-[ease]',
+                descStyle.style
+              )}
+              style={descStyle.width}></div>
+          </div>
+        </div>
 
+        <div className="w-1/2 flex flex-col">
+          <label>Google Appearance Preview</label>
+          <div className="border border-black/17.5 rounded-md p-4 bg-white flex-1 flex flex-col dark:text-black-200">
+            <span>Arash Law</span>
+            <h3 className="text-xl truncate text-blue-1000 leading-[1.2] font-medium">
+              {title}
+            </h3>
 
-              <span className="text-black-200/75 wrap-break-word">              
-              <cite className="text-[12px] leading-[18px] text-black-500">
-                {new Date().toLocaleDateString('en-US', {
-                  year: 'numeric',
-                  month: 'short',
-                  day: 'numeric',
-                })}
+            <div
+              className="text-black-200/75 text-[14px] leading-[20px] mt-1 overflow-hidden"
+              style={{
+                display: '-webkit-box',
+                WebkitLineClamp: 10, // Adjust number of lines here
+                WebkitBoxOrient: 'vertical',
+              }}
+            >
+              <cite className="text-[12px] leading-[18px] text-black-500 not-italic">
+                {formattedDate}
               </cite>
-              <span> - {description}</span></span>
+              <span> - {description}</span>
             </div>
           </div>
+        </div>
 
-        </section>
+      </section>
+
 
         <section className="w-full py-2 gap-5 flex flex-row">
           <div className="flex-1 flex flex-col">
