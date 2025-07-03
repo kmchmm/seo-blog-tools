@@ -24,6 +24,7 @@ const SingleSB37Analysis = () => {
     isCompletedSingle,
     setIsCompletedSingle,
     analyzeSingleDoc,
+    analyzeMultiAssistantDoc,
     singleErrorMessage,
     resetSingleAnalysis,
     singleLoading,
@@ -47,7 +48,7 @@ const SingleSB37Analysis = () => {
   } = useGetDocumentInfo();
 
   const { title, wordCount } = docInfoResult || {};
-  const { completionTime, reviewOutput } = singleResult || {};
+  const { completionTime, reviewOutput, doc_url } = singleResult || {};
 
   const isBusy = singleLoading || loadingParsing || loadingDocInfo;
   const errorMessage = singleErrorMessage || errorMessageDocInfo || errorMessageParse;
@@ -71,6 +72,22 @@ const SingleSB37Analysis = () => {
 
   const onSuccess = () => {
     setIsCompletedSingle(true);
+  };
+
+  const handleProceedMultiAnalysis = () => {
+    if (url) analyzeMultiAssistantDoc({ docUrl: url, onSuccess });
+  };
+
+  const renderPreview = () => {
+    if (!parseResult?.docUrl && !doc_url) {
+      return null;
+    }
+
+    return (
+      <div className="w-full max-w-2xl mx-auto">
+        <DocPreview docUrl={parseResult?.docUrl || (doc_url as string)} />
+      </div>
+    );
   };
 
   useEffect(() => {
@@ -153,12 +170,7 @@ const SingleSB37Analysis = () => {
       {!isBusy && (docInfoResult || singleResult) && (
         <div className="w-full flex flex-col gap-6">
           {/* Preview */}
-          {parseResult?.docUrl && (
-            <div className="w-full max-w-2xl mx-auto">
-              <DocPreview docUrl={parseResult.docUrl} />
-            </div>
-          )}
-
+          {renderPreview()}
           {/* Metadata */}
           <div className="w-full max-w-lg mx-auto flex flex-col gap-3 text-lg">
             <div className="flex justify-between">
@@ -186,7 +198,10 @@ const SingleSB37Analysis = () => {
           <div className="flex justify-center gap-4 mt-4">
             {isCompletedSingle ? (
               <>
-                <a href={parseResult?.docUrl} target="_blank" rel="noopener noreferrer">
+                <a
+                  href={parseResult?.docUrl || doc_url}
+                  target="_blank"
+                  rel="noopener noreferrer">
                   <Button className="!bg-transparent !text-gray-900 border-none">
                     Get Google Doc URL
                   </Button>
@@ -207,7 +222,7 @@ const SingleSB37Analysis = () => {
                 </Button>
                 {userData.email.toLowerCase() === VITE_SECRET_EMAIL && (
                   <Button
-                    onClick={handleProceedAnalysis}
+                    onClick={handleProceedMultiAnalysis}
                     className="!bg-blue-200 text-white border-none"
                     disabled={singleLoading || loadingParsing}>
                     Proceed with Multi-Assistant Analysis

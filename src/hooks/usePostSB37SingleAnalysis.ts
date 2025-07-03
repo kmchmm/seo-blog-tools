@@ -1,83 +1,102 @@
 import { useState } from 'react';
 import { SB37AnalysisJSON } from './useParseJsonToText';
-import { AI_PROCESS_DOCUMENT_API_URL } from '../services/constants';
+import {
+  AI_MULTIPLE_ASSISTANT_API_URL,
+  AI_PROCESS_DOCUMENT_API_URL,
+} from '../services/constants';
+import axios, { AxiosError } from 'axios';
 
 export type SB37AnalysisResult = {
   reviewOutput: SB37AnalysisJSON;
   completionTime: string;
   wordCount: number;
   title: string;
+  doc_url?: string;
 };
 
-  // const API_BASE_URL =
-  //   import.meta.env.MODE === 'development'
-  //     ? import.meta.env.VITE_LOCAL_AI_ASSISTANT_API_URL
-  //     : import.meta.env.VITE_PROD_AI_ASSISTANT_API_URL;
-
-const usePostSB37SingleAnalysis = () => {
+const usePostSB37Analysis = () => {
   const [result, setResult] = useState<SB37AnalysisResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
-  const [wsInstance, setWsInstance] = useState<WebSocket | null>(null);
 
   const reset = () => {
     setResult(null);
     setLoading(false);
     setErrorMessage('');
-    if (wsInstance?.readyState === WebSocket.OPEN) {
-      wsInstance.close();
+  };
+
+  const sendSingleAssistantRequest = async (docUrl: string) => {
+    setLoading(true);
+    setErrorMessage('');
+    setResult(null);
+
+    try {
+      const response = await axios.post(`${AI_PROCESS_DOCUMENT_API_URL}`, {
+        docUrl,
+      });
+
+      const data = response.data;
+
+      if (data.type === 'complete') {
+        setResult({
+          reviewOutput: data.reviewOutput,
+          completionTime: data.completionTime,
+          wordCount: data.wordCount,
+          title: data.title,
+        });
+      } else if (data.type === 'error') {
+        setErrorMessage(data.message || 'Unexpected error');
+      } else {
+        setErrorMessage('Unexpected response type');
+      }
+    } catch (e) {
+      const error = e as AxiosError<{ error: string }>;
+      console.error('Request failed:', error);
+      setErrorMessage(error.response?.data?.error || 'Network or server error');
+    } finally {
+      setLoading(false);
     }
   };
 
-  const sendRequest = (docUrl: string) => {
+  const sendMultiAssistantRequest = async (docUrl: string, onSuccess?: () => void) => {
+    try {
+      const result = await axios.post(AI_MULTIPLE_ASSISTANT_API_URL, {
+        docUrl,
+      });
+
+      if (result && result.status === 200) {
+        setResult(result.data);
+        if (onSuccess) onSuccess();
+      }
+    } catch (e) {
+      const error = e as AxiosError<{ error: string }>;
+      const { message } = error || {};
+      setErrorMessage(message || 'Something went wrong. Code 1');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const sendRequest = async ({
+    mode = 'single',
+    docUrl,
+    onSuccess,
+  }: {
+    mode?: 'multi-assistant' | 'single';
+    docUrl: string;
+    onSuccess?: () => void;
+  }) => {
     reset();
     setLoading(true);
 
-    const ws = new WebSocket(AI_PROCESS_DOCUMENT_API_URL);
-
-    ws.onopen = () => {
-      ws.send(JSON.stringify({ docUrl }));
-    };
-
-    ws.onmessage = event => {
-      const data = JSON.parse(event.data);
-
-      switch (data.type) {
-        case 'start':
-          console.log('🟡 Processing started');
-          break;
-        case 'complete':
-          setResult({
-            reviewOutput: data.reviewOutput,
-            completionTime: data.completionTime,
-            wordCount: data.wordCount,
-            title: data.title,
-          });
-          setLoading(false);
-          ws.close();
-          break;
-        case 'error':
-          setErrorMessage(data.message || 'Unexpected error');
-          setLoading(false);
-          ws.close();
-          break;
-      }
-    };
-
-    ws.onerror = () => {
-      setErrorMessage('WebSocket error occurred.');
-      setLoading(false);
-      ws.close();
-    };
-
-    ws.onclose = () => {
-      console.log('🔴 WebSocket closed');
-    };
-
-    setWsInstance(ws);
+    if (mode === 'multi-assistant') {
+      await sendMultiAssistantRequest(docUrl, onSuccess);
+    } else {
+      sendSingleAssistantRequest(docUrl);
+    }
   };
 
   return { sendRequest, loading, result, errorMessage, reset };
 };
 
-export default usePostSB37SingleAnalysis;
+export default usePostSB37Analysis;
