@@ -14,58 +14,71 @@ export type SB37AnalysisResult = {
   doc_url?: string;
 };
 
-const usePostSB37Analysis = () => {
+const usePostSB37SingleAnalysis = () => {
   const [result, setResult] = useState<SB37AnalysisResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
+  const [currentTitle, setCurrentTitle] = useState('');
+
+  let eventSource: EventSource | null = null;
 
   const reset = () => {
     setResult(null);
     setLoading(false);
     setErrorMessage('');
-  };
-
-  const sendSingleAssistantRequest = async (docUrl: string) => {
-    setLoading(true);
-    setErrorMessage('');
-    setResult(null);
-
-    try {
-      const response = await axios.post(`${AI_PROCESS_DOCUMENT_API_URL}`, {
-        docUrl,
-      });
-
-      const data = response.data;
-
-      if (data.type === 'complete') {
-        setResult({
-          reviewOutput: data.reviewOutput,
-          completionTime: data.completionTime,
-          wordCount: data.wordCount,
-          title: data.title,
-        });
-      } else if (data.type === 'error') {
-        setErrorMessage(data.message || 'Unexpected error');
-      } else {
-        setErrorMessage('Unexpected response type');
-      }
-    } catch (e) {
-      const error = e as AxiosError<{ error: string }>;
-      console.error('Request failed:', error);
-      setErrorMessage(error.response?.data?.error || 'Network or server error');
-    } finally {
-      setLoading(false);
+    setCurrentTitle('');
+    if (eventSource) {
+      eventSource.close();
+      eventSource = null;
     }
   };
 
+  const sendSingleAssistantRequest = (docUrl: string) => {
+    reset();
+    setLoading(true);
+
+    // Replace with your actual SSE endpoint
+    const url = new URL(AI_PROCESS_DOCUMENT_API_URL);
+    url.searchParams.set('docUrl', docUrl);
+
+    const eventSource = new EventSource(url.toString());
+
+    eventSource.addEventListener('progress', event => {
+      const data = JSON.parse(event.data);
+      setCurrentTitle(data.title);
+    });
+
+    eventSource.addEventListener('complete', event => {
+      const data = JSON.parse(event.data);
+      setResult({
+        reviewOutput: data.reviewOutput,
+        completionTime: data.completionTime,
+        wordCount: data.wordCount,
+        title: data.title,
+      });
+      setLoading(false);
+      eventSource.close();
+    });
+
+    eventSource.addEventListener('error', event => {
+      console.error('SSE error', event);
+      setLoading(false);
+      setErrorMessage('Something went wrong while sending server events.');
+      eventSource.close();
+    });
+  };
+
   const sendMultiAssistantRequest = async (docUrl: string, onSuccess?: () => void) => {
+    reset();
+    setLoading(true);
+
     try {
-      const result = await axios.post(AI_MULTIPLE_ASSISTANT_API_URL, {
+      const response = await axios.post(AI_MULTIPLE_ASSISTANT_API_URL, {
         docUrl,
       });
 
-      if (result && result.status === 200) {
-        setResult(result.data);
+      if (response.status === 200) {
+        setResult(response.data);
         if (onSuccess) onSuccess();
       }
     } catch (e) {
@@ -86,9 +99,6 @@ const usePostSB37Analysis = () => {
     docUrl: string;
     onSuccess?: () => void;
   }) => {
-    reset();
-    setLoading(true);
-
     if (mode === 'multi-assistant') {
       await sendMultiAssistantRequest(docUrl, onSuccess);
     } else {
@@ -96,7 +106,14 @@ const usePostSB37Analysis = () => {
     }
   };
 
-  return { sendRequest, loading, result, errorMessage, reset };
+  return {
+    sendRequest,
+    loading,
+    result,
+    errorMessage,
+    reset,
+    currentTitle,
+  };
 };
 
-export default usePostSB37Analysis;
+export default usePostSB37SingleAnalysis;

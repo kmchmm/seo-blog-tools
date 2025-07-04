@@ -1,11 +1,9 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { createContext, useRef, useState } from 'react';
 import usePostSB37SingleAnalysis, {
   SB37AnalysisResult,
 } from '../hooks/usePostSB37SingleAnalysis';
 import { useGetSheetNames } from '../hooks';
 import { AI_PROCESS_SHEET_API_URL } from '../services/constants';
-import axios, { AxiosError } from 'axios';
 
 export type ProgressItem = {
   row: number;
@@ -53,6 +51,7 @@ type BatchProgressContextType = {
   singleLoading: boolean;
   singleResult: SB37AnalysisResult | null;
   url: string;
+  currentTitleSingle: string;
 
   //sheetnames
   fetchSheetNames: ({ spreadsheetUrl }: { spreadsheetUrl: string }) => Promise<void>;
@@ -90,6 +89,7 @@ export const Provider: React.FC<{ children: React.ReactNode }> = ({ children }) 
     result: singleResult,
     errorMessage: singleErrorMessage,
     reset: resetSingleAnalysis,
+    currentTitle: currentTitleSingle,
   } = usePostSB37SingleAnalysis();
 
   const {
@@ -125,59 +125,76 @@ export const Provider: React.FC<{ children: React.ReactNode }> = ({ children }) 
   };
 
   //TODO: implement SSE
-  const startBatch = async (spreadsheetUrl: string, sheetName: string) => {
+  const startBatch = (spreadsheetUrl: string, sheetName: string) => {
     setItems(prev => ({ ...prev, [sheetName]: [] }));
     setSheetProgressCount(prev => ({ ...prev, [sheetName]: 0 }));
     setSheetCompleted(prev => ({ ...prev, [sheetName]: false }));
     setLoadingSheets(prev => ({ ...prev, [sheetName]: true }));
     setSheetErorMessages(prev => ({ ...prev, [sheetName]: '' }));
 
-    try {
-      console.log(`🟡 Processing started for ${sheetName}`);
+    const query = `?spreadsheetUrl=${encodeURIComponent(
+      spreadsheetUrl
+    )}&sheetName=${encodeURIComponent(sheetName)}`;
 
-      const response = await axios.post(AI_PROCESS_SHEET_API_URL, {
-        spreadsheetUrl,
-        sheetName,
-      });
+    const eventSource = new EventSource(`${AI_PROCESS_SHEET_API_URL}${query}`);
+    eventSourceRef.current = eventSource;
 
-      const data = response.data;
+    eventSource.onmessage = e => {
+      const data = JSON.parse(e.data);
+      if (data.status === 'processing' && data.title) {
+        setSheetCurrentTitle(prev => ({ ...prev, [sheetName]: data.title }));
+      }
 
-      if (data.type === 'complete') {
-        const results = data.results || [];
-
-        setItems(prev => ({ ...prev, [sheetName]: results }));
-
-        const successCount = results.filter((r: any) => r.status === 'success').length;
-        setSheetProgressCount(prev => ({ ...prev, [sheetName]: successCount }));
-
-        const firstTitle = results.find((r: any) => r.title)?.title;
-        if (firstTitle) {
-          setSheetCurrentTitle(prev => ({ ...prev, [sheetName]: firstTitle }));
-        }
-
+      if (data.type === 'progress' && data.status === 'success') {
+        setSheetProgressCount(prev => ({
+          ...prev,
+          [sheetName]: (prev[sheetName] || 0) + 1,
+        }));
+      } else if (data.type === 'complete') {
+        setItems(prev => ({ ...prev, [sheetName]: data.results || [] }));
+        setLoadingSheets(prev => ({ ...prev, [sheetName]: false }));
         setSheetCompleted(prev => ({ ...prev, [sheetName]: true }));
+        eventSource.close();
       } else if (data.type === 'error') {
         setSheetErorMessages(prev => ({
           ...prev,
           [sheetName]: data.message || 'Batch failed.',
         }));
-      } else {
-        setSheetErorMessages(prev => ({
-          ...prev,
-          [sheetName]: 'Unexpected response.',
-        }));
+        setLoadingSheets(prev => ({ ...prev, [sheetName]: false }));
+        setSheetProgressCount(prev => {
+          const copy = { ...prev };
+          delete copy[sheetName];
+          return copy;
+        });
+
+        setSheetCompleted(prev => {
+          const copy = { ...prev };
+          delete copy[sheetName];
+          return copy;
+        });
+        eventSource.close();
       }
-    } catch (err) {
-      const error = err as AxiosError<{ error: string }>;
-      console.error('Request failed', err);
+    };
+
+    eventSource.onerror = () => {
       setSheetErorMessages(prev => ({
         ...prev,
-        [sheetName]: error.response?.data?.error || 'Network or server error.',
+        [sheetName]: 'Connection error or server closed unexpectedly.',
       }));
-    } finally {
       setLoadingSheets(prev => ({ ...prev, [sheetName]: false }));
-      console.log(`🔴 Batch request finished for ${sheetName}`);
-    }
+      setSheetProgressCount(prev => {
+        const copy = { ...prev };
+        delete copy[sheetName];
+        return copy;
+      });
+
+      setSheetCompleted(prev => {
+        const copy = { ...prev };
+        delete copy[sheetName];
+        return copy;
+      });
+      eventSource.close();
+    };
   };
 
   const resetBatch = (sheetName: string) => {
@@ -249,6 +266,7 @@ export const Provider: React.FC<{ children: React.ReactNode }> = ({ children }) 
         analyzeMultiAssistantDoc,
         resetSingleAnalysis,
         isCompletedSingle,
+        currentTitleSingle,
 
         //sheetnames
         fetchSheetNames,
