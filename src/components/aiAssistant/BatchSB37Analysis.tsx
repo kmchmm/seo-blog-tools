@@ -334,7 +334,9 @@ const BatchSB37Analysis = () => {
       ) : (
         <div className="max-w-2xl mx-auto flex flex-col">
           {sheetNames.length > 0 && renderSheetSelector()}
-          {(sheetInfo[sheetName] || isValidating || isDocInfoLoading) && renderStats()}
+          {(sheetInfo[sheetName] || isValidating || isDocInfoLoading) &&
+            !sheetCompleted[sheetName] &&
+            renderStats()}
         </div>
       )}
 

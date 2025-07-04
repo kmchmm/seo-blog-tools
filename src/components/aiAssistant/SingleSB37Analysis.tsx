@@ -29,6 +29,7 @@ const SingleSB37Analysis = () => {
     resetSingleAnalysis,
     singleLoading,
     singleResult,
+    currentTitleSingle,
   } = useSB37AnalysisContext();
 
   const {
@@ -153,7 +154,13 @@ const SingleSB37Analysis = () => {
           <div className="flex flex-col text-center">
             {!loadingDocInfo && (
               <p className="text-sm text-gray-600 mt-2 italic">
-                {loadingParsing ? 'Preparing document...' : ' Processing...'} Please wait.
+                {loadingParsing ? (
+                  'Preparing document...'
+                ) : (
+                  <>
+                    Processing <strong>{currentTitleSingle}</strong>... Please wait.
+                  </>
+                )}
               </p>
             )}
             {singleLoading && (
