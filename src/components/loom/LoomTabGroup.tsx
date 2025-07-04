@@ -1,7 +1,8 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { FC } from 'react';
 import clsx from 'clsx';
-import { AnalysisWebWorker, AnalysisWorkerWrapper, Paper } from 'yoastseo';
-import EnglishResearcher from 'yoastseo/build/languageProcessing/languages/en/Researcher';
+import { AnalysisWorkerWrapper, Paper } from 'yoastseo';
+// import EnglishResearcher from 'yoastseo/build/languageProcessing/languages/en/Researcher';
 
 import { Tabs, TabList, Tab, TabPanel } from 'react-aria-components';
 import YoastIcon from '../../assets/icons/yoast.svg?react';
@@ -24,11 +25,11 @@ const tabHeaderStyle = clsx(
 );
 const svgStyle = 'mb-1 w-4 text-black text-base';
 
-const workerFunction = () => {
-  const worker = new AnalysisWebWorker(self, new EnglishResearcher());
-  // Any custom registration should be done here (or send messages via postMessage to the wrapper).
-  worker.register();
-};
+// const workerFunction = () => {
+//   const worker = new AnalysisWebWorker(self, new EnglishResearcher());
+//   // Any custom registration should be done here (or send messages via postMessage to the wrapper).
+//   worker.register();
+// };
 
 export const LoomTabGroup: FC<LoomProps> = ({ text }) => {
   const YoastSEOAnalyze = () => {

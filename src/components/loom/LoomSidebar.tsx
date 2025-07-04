@@ -40,7 +40,7 @@ import { Button, Alert } from '../common';
 import ContentIssuesResultSection from './ContentIssuesResultSection.js';
 import LinkIssuesResultSection from './LinkIssuesResultSection.js';
 import { LinkAnalysisResult } from '../../utils/analyzeLinksWorker.js';
-import { groupIssuesByType } from '../../utils/analyzeLinksWorker'; 
+import { groupIssuesByType } from '../../utils/analyzeLinksWorker';
 import '../../assets/css/Loom.css';
 
 // import { Paper, AnalysisWorkerWrapper } from 'yoastseo';
@@ -80,11 +80,12 @@ interface DictionaryEntry {
   id: number;
   keyword: string;
   created_by: string;
-  created: string | null;
-  deleted_at: string | null;
+  deleted_at?: string | null;
+  created_at?: string;
+  created?: string | null;
+
   // add other fields if needed
 }
-
 
 const tabHeaderStyle = clsx(
   'text-xs w-15 text-center cursor-pointer flex flex-col items-center rounded-md p-1',
@@ -154,9 +155,9 @@ export const LoomSidebar: FC<LoomProps> = ({
   //   Record<string, { heading: string; id: string }[]>
   // >({});
   const [violationCheckMessage, setViolationCheckMessage] = useState<{
-  type: 'success' | 'error' | null;
-  text: string;
-} | null>(null);
+    type: 'success' | 'error' | null;
+    text: string;
+  } | null>(null);
   const [highlightActive, setHighlightActive] = useState(false);
   // const [hasCheckedViolations, setHasCheckedViolations] = useState(false);
   const [customSearchTerm, setCustomSearchTerm] = useState('');
@@ -168,7 +169,14 @@ export const LoomSidebar: FC<LoomProps> = ({
   const [activeHighlights, setActiveHighlights] = useState<string[]>([]);
 
   const [dictionary, setDictionary] = useState<
-    { id: number; keyword: string; created_by: string; deleted_at: string | null }[]
+    {
+      id: number;
+      keyword: string;
+      created_by: string;
+      deleted_at?: string | null;
+      created_at?: string;
+      created?: string | null;
+    }[]
   >([]);
 
   const [newPhrase, setNewPhrase] = useState('');
@@ -190,57 +198,61 @@ export const LoomSidebar: FC<LoomProps> = ({
   const [contentHighlightsActive, setContentHighlightsActive] = useState(false);
   const [keywordHighlightsActive, setKeywordHighlightsActive] = useState(false);
 
-
   // const uniqueViolationHeadings = prepareHeadingsForAccordion(violationResults);
-  const uniqueDictionaryHeadings = prepareHeadingsForAccordion(dictionaryViolationResults);
+  const uniqueDictionaryHeadings = prepareHeadingsForAccordion(
+    dictionaryViolationResults
+  );
   const [activeView, setActiveView] = useState('default'); // 'default' or 'trash' SB37 VIEW MODAL
 
+  const rowsPerPage = 6;
 
-const rowsPerPage = 6;
+  const [currentPage, setCurrentPage] = useState(1); // for active list
+  const [currentPageDeleted, setCurrentPageDeleted] = useState(1); // for deleted list
 
-const [currentPage, setCurrentPage] = useState(1); // for active list
-const [currentPageDeleted, setCurrentPageDeleted] = useState(1); // for deleted list
+  // Filter and sort active entries (latest added first)
+  const filteredDictionary = dictionary
+    .filter(entry => entry.deleted_at === null)
+    .sort(
+      (a, b) =>
+        new Date(b.created_at as string).getTime() -
+        new Date(a.created_at as string).getTime()
+    );
 
-// Filter and sort active entries (latest added first)
-const filteredDictionary = dictionary
-  .filter(entry => entry.deleted_at === null)
-  .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+  const totalPages = Math.ceil(filteredDictionary.length / rowsPerPage);
+  const startIndex = (currentPage - 1) * rowsPerPage;
+  const paginatedData = filteredDictionary.slice(startIndex, startIndex + rowsPerPage);
 
-const totalPages = Math.ceil(filteredDictionary.length / rowsPerPage);
-const startIndex = (currentPage - 1) * rowsPerPage;
-const paginatedData = filteredDictionary.slice(startIndex, startIndex + rowsPerPage);
+  const [archivedDictionary, setArchivedDictionary] = useState<DictionaryEntry[]>([]);
 
-const [archivedDictionary, setArchivedDictionary] = useState<DictionaryEntry[]>([]);
+  useEffect(() => {
+    const deleted = dictionary
+      .filter(entry => entry.deleted_at !== null)
+      .sort(
+        (a, b) => new Date(b.deleted_at!).getTime() - new Date(a.deleted_at!).getTime()
+      );
+    setArchivedDictionary(deleted);
+  }, [dictionary]);
 
-useEffect(() => {
-  const deleted = dictionary
-    .filter(entry => entry.deleted_at !== null)
-    .sort((a, b) => new Date(b.deleted_at!).getTime() - new Date(a.deleted_at!).getTime());
-  setArchivedDictionary(deleted);
-}, [dictionary]);
+  const totalPagesForDeleted = Math.ceil(archivedDictionary.length / rowsPerPage);
+  const startIndexDeleted = (currentPageDeleted - 1) * rowsPerPage;
+  const deletedEntries = archivedDictionary.slice(
+    startIndexDeleted,
+    startIndexDeleted + rowsPerPage
+  );
 
-const totalPagesForDeleted = Math.ceil(archivedDictionary.length / rowsPerPage);
-const startIndexDeleted = (currentPageDeleted - 1) * rowsPerPage;
-const deletedEntries = archivedDictionary.slice(startIndexDeleted, startIndexDeleted + rowsPerPage);
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages || 1);
+    }
+  }, [filteredDictionary, totalPages]);
 
-useEffect(() => {
-  if (currentPage > totalPages) {
-    setCurrentPage(totalPages || 1);
-  }
-}, [filteredDictionary, totalPages]);
+  useEffect(() => {
+    if (currentPageDeleted > totalPagesForDeleted) {
+      setCurrentPageDeleted(totalPagesForDeleted || 1);
+    }
+  }, [archivedDictionary, totalPagesForDeleted]);
 
-useEffect(() => {
-  if (currentPageDeleted > totalPagesForDeleted) {
-    setCurrentPageDeleted(totalPagesForDeleted || 1);
-  }
-}, [archivedDictionary, totalPagesForDeleted]);
-
-
-
-const [statusMessage, setStatusMessage] = useState<string | null>(null);
-
-
-
+  const [statusMessage, setStatusMessage] = useState<string | null>(null);
 
   // const [loading, setLoading] = useState(false);
   const [loading] = useState(false);
@@ -269,7 +281,7 @@ const [statusMessage, setStatusMessage] = useState<string | null>(null);
   ////////////////YOAST  TOOL/////////////////////////////
   ////////////////////////////////////////////////////////
   const yoastSEOAnalyze = () => {
-  const newWorker = new AnalysisWorkerWrapper(new YoastWorker());
+    const newWorker = new AnalysisWorkerWrapper(new YoastWorker());
 
     newWorker
       .initialize({
@@ -350,143 +362,144 @@ const [statusMessage, setStatusMessage] = useState<string | null>(null);
   //   return allMatches;
   // };
 
- useEffect(() => {
-  const handleAnchorClick = (e: MouseEvent) => {
-    const target = e.target as HTMLElement;
+  useEffect(() => {
+    const handleAnchorClick = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
 
-    if (
-      target.tagName === 'A' &&
-      target.getAttribute('href')?.startsWith('#')
-    ) {
-      e.preventDefault();
+      if (target.tagName === 'A' && target.getAttribute('href')?.startsWith('#')) {
+        e.preventDefault();
 
-      const id = target.getAttribute('href')!.substring(1);
-      const el = document.getElementById(id);
+        const id = target.getAttribute('href')!.substring(1);
+        const el = document.getElementById(id);
 
-      if (el) {
-        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        if (el) {
+          el.scrollIntoView({ behavior: 'smooth', block: 'center' });
 
-        el.classList.remove('anchor-highlight-fade'); // Reset if still fading
-        el.classList.add('anchor-highlight-pulse');
+          el.classList.remove('anchor-highlight-fade'); // Reset if still fading
+          el.classList.add('anchor-highlight-pulse');
 
-        // Start fading out after delay
-        setTimeout(() => {
-          el.classList.remove('anchor-highlight-pulse');
-          el.classList.add('anchor-highlight-fade');
-
-          // Fully remove after fade completes
+          // Start fading out after delay
           setTimeout(() => {
-            el.classList.remove('anchor-highlight-fade');
-          }, 1000); // match fade duration
-        }, 2500); // how long highlight stays
+            el.classList.remove('anchor-highlight-pulse');
+            el.classList.add('anchor-highlight-fade');
+
+            // Fully remove after fade completes
+            setTimeout(() => {
+              el.classList.remove('anchor-highlight-fade');
+            }, 1000); // match fade duration
+          }, 2500); // how long highlight stays
+        }
+      }
+    };
+
+    document.addEventListener('click', handleAnchorClick);
+    return () => document.removeEventListener('click', handleAnchorClick);
+  }, []);
+
+  const checkForDictionaryViolations = () => {
+    const allMatches: string[] = [];
+
+    for (const item of dictionary) {
+      const phrase = item.keyword;
+      const escapedPhrase = phrase.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const regex = new RegExp(`\\b${escapedPhrase}\\b`, 'gi');
+      const matches = text.match(regex);
+
+      if (matches) {
+        for (const match of matches) {
+          allMatches.push(match); // preserve original casing
+        }
       }
     }
+
+    setDictionaryViolations(allMatches);
+    setHighlightActive(true);
+
+    const uniquePhrases = [...new Set(allMatches.map(m => m.toLowerCase()))];
+    const mappedResults = mapViolationsToHeadings(text, uniquePhrases);
+    setDictionaryViolationResults(mappedResults);
+
+    return allMatches;
   };
 
-  document.addEventListener('click', handleAnchorClick);
-  return () => document.removeEventListener('click', handleAnchorClick);
-}, []);
+  // Helper to flatten, sort and dedupe headings by their 'id' or 'heading'
+  function prepareHeadingsForAccordion(violationResults: Record<string, any[]>) {
+    const allHeadings = Object.values(violationResults).flat();
 
-const checkForDictionaryViolations = () => {
-  const allMatches: string[] = [];
+    allHeadings.sort((a, b) => {
+      if ('position' in a && 'position' in b) {
+        return a.position - b.position;
+      }
+      return a.heading?.localeCompare(b.heading ?? '') ?? 0;
+    });
 
-  for (const item of dictionary) {
-    const phrase = item.keyword;
-    const escapedPhrase = phrase.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    const regex = new RegExp(`\\b${escapedPhrase}\\b`, 'gi');
-    const matches = text.match(regex);
+    const seen = new Set();
+    const uniqueHeadings = [];
 
-    if (matches) {
-      for (const match of matches) {
-        allMatches.push(match); // preserve original casing
+    for (const h of allHeadings) {
+      const key = h.heading || h.id || JSON.stringify(h); // Ensure a key is always defined
+      if (!seen.has(key)) {
+        seen.add(key);
+        uniqueHeadings.push(h);
       }
     }
+
+    return uniqueHeadings;
   }
 
-  setDictionaryViolations(allMatches);
-  setHighlightActive(true);
+  const checkForViolations = () => {
+    const dictionaryMatches = checkForDictionaryViolations();
+    const totalMatches = dictionaryMatches.length;
 
-  const uniquePhrases = [...new Set(allMatches.map((m) => m.toLowerCase()))];
-  const mappedResults = mapViolationsToHeadings(text, uniquePhrases);
-  setDictionaryViolationResults(mappedResults);
-
-  return allMatches;
-};
-
-// Helper to flatten, sort and dedupe headings by their 'id' or 'heading'
-function prepareHeadingsForAccordion(violationResults: Record<string, any[]>) {
-  const allHeadings = Object.values(violationResults).flat();
-
-  allHeadings.sort((a, b) => {
-    if ('position' in a && 'position' in b) {
-      return a.position - b.position;
-    }
-    return a.heading?.localeCompare(b.heading ?? '') ?? 0;
-  });
-
-  const seen = new Set();
-  const uniqueHeadings = [];
-
-  for (const h of allHeadings) {
-    const key = h.heading || h.id || JSON.stringify(h); // Ensure a key is always defined
-    if (!seen.has(key)) {
-      seen.add(key);
-      uniqueHeadings.push(h);
-    }
-  }
-
-  return uniqueHeadings;
-}
-
-const checkForViolations = () => {
-  const dictionaryMatches = checkForDictionaryViolations();
-  const totalMatches = dictionaryMatches.length;
-
-  if (totalMatches === 0) {
-    setViolationCheckMessage({
-      type: 'success',
-      text: '🎉 No potential violations found! Good job',
-    });
-  } else {
-    setViolationCheckMessage({
-      type: 'error',
-      text: '⚠️ Potential violations found. Please review carefully',
-    });
-  }
-};
-
-useEffect(() => {
-  const fetchDictionary = async () => {
-    const { data, error } = await supabase
-      .from('loom_dictionary')
-      .select('id, keyword, created_by')
-      .is('deleted_at', null); // ✅ Only fetch active keywords
-
-    if (!error && data) {
-      setDictionary(data);
+    if (totalMatches === 0) {
+      setViolationCheckMessage({
+        type: 'success',
+        text: '🎉 No potential violations found! Good job',
+      });
     } else {
-      console.error('Failed to load dictionary', error);
+      setViolationCheckMessage({
+        type: 'error',
+        text: '⚠️ Potential violations found. Please review carefully',
+      });
     }
   };
 
-  fetchDictionary();
-}, []);
+  useEffect(() => {
+    const fetchDictionary = async () => {
+      const { data, error } = await supabase
+        .from('loom_dictionary')
+        .select('id, keyword, created_by')
+        .is('deleted_at', null); // ✅ Only fetch active keywords
 
-const getVisiblePages = (currentPage: number, totalPages: number, maxVisible: number = 5) => {
-  let startPage = Math.max(1, currentPage - Math.floor(maxVisible / 2));
-  let endPage = startPage + maxVisible - 1;
+      if (!error && data) {
+        setDictionary(data);
+      } else {
+        console.error('Failed to load dictionary', error);
+      }
+    };
 
-  if (endPage > totalPages) {
-    endPage = totalPages;
-    startPage = Math.max(1, endPage - maxVisible + 1);
-  }
+    fetchDictionary();
+  }, []);
 
-  const pages = [];
-  for (let i = startPage; i <= endPage; i++) {
-    pages.push(i);
-  }
-  return pages;
-};
+  const getVisiblePages = (
+    currentPage: number,
+    totalPages: number,
+    maxVisible: number = 5
+  ) => {
+    let startPage = Math.max(1, currentPage - Math.floor(maxVisible / 2));
+    let endPage = startPage + maxVisible - 1;
+
+    if (endPage > totalPages) {
+      endPage = totalPages;
+      startPage = Math.max(1, endPage - maxVisible + 1);
+    }
+
+    const pages = [];
+    for (let i = startPage; i <= endPage; i++) {
+      pages.push(i);
+    }
+    return pages;
+  };
 
   const mapViolationsToHeadings = (text: string, violations: string[]) => {
     const parser = new DOMParser();
@@ -639,21 +652,21 @@ const getVisiblePages = (currentPage: number, totalPages: number, maxVisible: nu
       setArchivedDictionary(prev => prev.filter(item => item.id !== id));
       setStatusMessage('Phrase permanently deleted.');
 
-      if ((deletedEntries.length === 1) && currentPage > 1) {
+      if (deletedEntries.length === 1 && currentPage > 1) {
         setCurrentPage(currentPage - 1);
       }
     }
   };
 
   useEffect(() => {
-  if (statusMessage) {
-    const timer = setTimeout(() => {
-      setStatusMessage(null);
-    }, 5000); // 5000ms = 5 seconds
+    if (statusMessage) {
+      const timer = setTimeout(() => {
+        setStatusMessage(null);
+      }, 5000); // 5000ms = 5 seconds
 
-    return () => clearTimeout(timer); // cleanup
-  }
-}, [statusMessage]);
+      return () => clearTimeout(timer); // cleanup
+    }
+  }, [statusMessage]);
 
   useEffect(() => {
     const now = new Date();
@@ -669,21 +682,20 @@ const getVisiblePages = (currentPage: number, totalPages: number, maxVisible: nu
   }, [archivedDictionary]);
 
   // MINUTE TEST
-//   useEffect(() => {
-//   const now = new Date();
+  //   useEffect(() => {
+  //   const now = new Date();
 
-//   archivedDictionary.forEach(entry => {
-//     if (!entry.deleted_at) return;
+  //   archivedDictionary.forEach(entry => {
+  //     if (!entry.deleted_at) return;
 
-//     const deletedAt = new Date(entry.deleted_at);
-//     const diffMinutes = (now.getTime() - deletedAt.getTime()) / (1000 * 60);
+  //     const deletedAt = new Date(entry.deleted_at);
+  //     const diffMinutes = (now.getTime() - deletedAt.getTime()) / (1000 * 60);
 
-//     if (diffMinutes > 1) {
-//       handlePermanentDelete(entry.id);
-//     }
-//   });
-// }, [archivedDictionary]);
-
+  //     if (diffMinutes > 1) {
+  //       handlePermanentDelete(entry.id);
+  //     }
+  //   });
+  // }, [archivedDictionary]);
 
   const handleCustomSearch = () => {
     const term = customSearchTerm.trim().toLowerCase();
@@ -773,8 +785,6 @@ const getVisiblePages = (currentPage: number, totalPages: number, maxVisible: nu
     }
   };
 
-
-
   type ErrorKey = keyof ErrorList;
 
   function isErrorKey(key: string): key is ErrorKey {
@@ -814,23 +824,22 @@ const getVisiblePages = (currentPage: number, totalPages: number, maxVisible: nu
               <li key={idx}>
                 {err.heading && err.sentence !== err.heading ? (
                   <>
-                  <div
-                    className="font-bold cursor-pointer hover:text-blue-500 text-sm"
-                    onClick={() => {
-                      handleHeaderClick(type);
-                      if (err.heading) scrollToHeading(err.heading);
-                    }}
-                    role="button"
-                    tabIndex={0}
-                    onKeyDown={e => {
-                      if (e.key === 'Enter' || e.key === ' ') {
+                    <div
+                      className="font-bold cursor-pointer hover:text-blue-500 text-sm"
+                      onClick={() => {
                         handleHeaderClick(type);
                         if (err.heading) scrollToHeading(err.heading);
-                      }
-                    }}
-                  >
-                    {err.heading}
-                  </div>
+                      }}
+                      role="button"
+                      tabIndex={0}
+                      onKeyDown={e => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          handleHeaderClick(type);
+                          if (err.heading) scrollToHeading(err.heading);
+                        }
+                      }}>
+                      {err.heading}
+                    </div>
 
                     <ul className="pl-3 mt-2">
                       <li
@@ -903,7 +912,7 @@ const getVisiblePages = (currentPage: number, totalPages: number, maxVisible: nu
       .replace(/\b\w+/g, word => word.charAt(0).toUpperCase() + word.slice(1));
   };
 
- const handleFixAll = () => {
+  const handleFixAll = () => {
     const parser = new DOMParser();
     const doc = parser.parseFromString(text, 'text/html');
 
@@ -933,7 +942,11 @@ const getVisiblePages = (currentPage: number, totalPages: number, maxVisible: nu
 
         value = normalizeTextContent(value);
 
-        if (index > 0 && textNodes[index - 1].nodeValue?.endsWith(' ') && value.startsWith(' ')) {
+        if (
+          index > 0 &&
+          textNodes[index - 1].nodeValue?.endsWith(' ') &&
+          value.startsWith(' ')
+        ) {
           value = value.replace(/^ /, '');
         }
 
@@ -1078,7 +1091,6 @@ const getVisiblePages = (currentPage: number, totalPages: number, maxVisible: nu
           runAllChecks();
           setShowSummary('summary');
           setHasRunChecks(true);
-          
         }}
         className="w-full mb-4">
         Run All Checks
@@ -1212,7 +1224,7 @@ const getVisiblePages = (currentPage: number, totalPages: number, maxVisible: nu
                     <li className="flex items-start gap-2 mt-2">
                       <GoDotFill
                         className={
-                          // violations.length === 0 && 
+                          // violations.length === 0 &&
                           dictionaryViolations.length === 0
                             ? 'text-yellow-200 mt-1'
                             : 'text-yellow-200 mt-1'
@@ -1395,7 +1407,7 @@ const getVisiblePages = (currentPage: number, totalPages: number, maxVisible: nu
                   <div className="flex justify-between">
                     <span className="font-bold">Links</span>
                     {linkHighlightsActive ? (
-                      <FiEyeOff 
+                      <FiEyeOff
                         onClick={() => {
                           if (!text || !linkIssuesResult || editMode) return;
                           onLinkIssuesShowHighlightsClick();
@@ -1423,26 +1435,28 @@ const getVisiblePages = (currentPage: number, totalPages: number, maxVisible: nu
                             'opacity-50 cursor-not-allowed'
                         )}
                       />
-                    )}                  
-                    </div>
+                    )}
+                  </div>
                   {linkIssuesResult && (
                     <ul className="text-sm mt-2">
-                      {Object.entries(groupIssuesByType(linkIssuesResult.issues || [])).map(
-                        ([key, issues]) => {
-                          const count = issues.length;
-                          const hasIssues = count > 0;
+                      {Object.entries(
+                        groupIssuesByType(linkIssuesResult.issues || [])
+                      ).map(([key, issues]) => {
+                        const count = issues.length;
+                        const hasIssues = count > 0;
 
-                          return (
-                            <li key={key} className="flex justify-between mt-2">
-                              <div className="flex items-center gap-2">
-                                <GoDotFill className={hasIssues ? 'text-red-500' : 'text-green-500'} />
-                                <span className="capitalize">{key}:</span>
-                              </div>
-                              <span>{count}</span>
-                            </li>
-                          );
-                        }
-                      )}
+                        return (
+                          <li key={key} className="flex justify-between mt-2">
+                            <div className="flex items-center gap-2">
+                              <GoDotFill
+                                className={hasIssues ? 'text-red-500' : 'text-green-500'}
+                              />
+                              <span className="capitalize">{key}:</span>
+                            </div>
+                            <span>{count}</span>
+                          </li>
+                        );
+                      })}
                     </ul>
                   )}
                 </li>
@@ -1483,129 +1497,133 @@ const getVisiblePages = (currentPage: number, totalPages: number, maxVisible: nu
                     )}
                   </div>
 
-                <ul className="text-sm">
-                  {keywordAnalysisResult && !error && (
-                    <>
-                      {/* Focus Keyword Count */}
-                    <li className="flex justify-between mt-2">
-                      <div className="flex items-center gap-2">
-                        <GoDotFill
-                          className={
-                            keywordAnalysisResult.keywordCounts.focusCount > 0
-                              ? 'text-[#0ff3f5]'
-                              : 'text-red-500'
-                          }
-                        />
-                        <span>
-                          {keywordAnalysisResult.keywordCounts.focusCount > 0
-                            ? 'Focus keyword found'
-                            : 'Focus keyword missing'}
-                        </span>
-                      </div>
-                      <span>{keywordAnalysisResult.keywordCounts.focusCount}</span>
-                    </li>
-
-                      {/* Alt Keyword Count */}
-                    <li className="flex justify-between mt-2">
-                      <div className="flex items-center gap-2">
-                        <GoDotFill
-                          className={
-                            keywordAnalysisResult.keywordCounts.altCount > 0
-                              ? 'text-[#00ff00]'
-                              : 'text-red-500'
-                          }
-                        />
-                        <span>
-                          {keywordAnalysisResult.keywordCounts.altCount > 0
-                            ? 'Alt ESQ keyword found'
-                            : 'Alt ESQ keyword missing'}
-                        </span>
-                      </div>
-                      <span>{keywordAnalysisResult.keywordCounts.altCount}</span>
-                    </li>
-
-                      {/* Total Keyword Density */}
-                      <li className="flex justify-between mt-2">
-                        <div className="flex items-center gap-2">
-                          <GoDotFill
-                            className={
-                              keywordAnalysisResult.density > 2.5 ? 'text-red-500' : 'text-green-500'
-                            }
-                          />
-                          <span>Keyword density</span>
-                        </div>
-                        <span>{keywordAnalysisResult.density.toFixed(2)}%</span>
-                      </li>
-
-                      {/* H2/H3 Optimization */}
-                      <li className="mt-4 flex">
-                        <p className=" flex justify-between w-full">
-                          <span className="flex items-center gap-2">
-                              <GoDotFill
+                  <ul className="text-sm">
+                    {keywordAnalysisResult && !error && (
+                      <>
+                        {/* Focus Keyword Count */}
+                        <li className="flex justify-between mt-2">
+                          <div className="flex items-center gap-2">
+                            <GoDotFill
                               className={
-                                keywordAnalysisResult.headingAnalysis.percent <= 75
-                                  ? 'text-green-500'
+                                keywordAnalysisResult.keywordCounts.focusCount > 0
+                                  ? 'text-[#0ff3f5]'
                                   : 'text-red-500'
                               }
                             />
-                            <span className="">H2 & H3 Optimization: </span>
-                          </span>
-                          <span>
-                            {keywordAnalysisResult.headingAnalysis.percent}%
-                          </span>
-                        </p>
-                      </li>
+                            <span>
+                              {keywordAnalysisResult.keywordCounts.focusCount > 0
+                                ? 'Focus keyword found'
+                                : 'Focus keyword missing'}
+                            </span>
+                          </div>
+                          <span>{keywordAnalysisResult.keywordCounts.focusCount}</span>
+                        </li>
 
-                      {/* Section Optimization */}
-                      <li className="mt-4 flex">
-                        <p className=" flex justify-between w-full">
+                        {/* Alt Keyword Count */}
+                        <li className="flex justify-between mt-2">
+                          <div className="flex items-center gap-2">
+                            <GoDotFill
+                              className={
+                                keywordAnalysisResult.keywordCounts.altCount > 0
+                                  ? 'text-[#00ff00]'
+                                  : 'text-red-500'
+                              }
+                            />
+                            <span>
+                              {keywordAnalysisResult.keywordCounts.altCount > 0
+                                ? 'Alt ESQ keyword found'
+                                : 'Alt ESQ keyword missing'}
+                            </span>
+                          </div>
+                          <span>{keywordAnalysisResult.keywordCounts.altCount}</span>
+                        </li>
+
+                        {/* Total Keyword Density */}
+                        <li className="flex justify-between mt-2">
+                          <div className="flex items-center gap-2">
+                            <GoDotFill
+                              className={
+                                keywordAnalysisResult.density > 2.5
+                                  ? 'text-red-500'
+                                  : 'text-green-500'
+                              }
+                            />
+                            <span>Keyword density</span>
+                          </div>
+                          <span>{keywordAnalysisResult.density.toFixed(2)}%</span>
+                        </li>
+
+                        {/* H2/H3 Optimization */}
+                        <li className="mt-4 flex">
+                          <p className=" flex justify-between w-full">
                             <span className="flex items-center gap-2">
                               <GoDotFill
-                              className={
-                                keywordAnalysisResult.sectionAnalysis.percent === 100
-                                  ? 'text-green-500'
-                                  : 'text-red-500'
-                              }
-                            />
-                            <span>Per Section Optimization: </span>
+                                className={
+                                  keywordAnalysisResult.headingAnalysis.percent <= 75
+                                    ? 'text-green-500'
+                                    : 'text-red-500'
+                                }
+                              />
+                              <span className="">H2 & H3 Optimization: </span>
                             </span>
-                          <span
-                          >
-                            {keywordAnalysisResult.sectionAnalysis.percent}%
-                          </span>
-                        </p>
-                      </li>
-
-                      {/* Secondary Keywords */}
-                      {keywordAnalysisResult.otherKeywords.some(c => c.category === 'Secondary Keywords') && (
-                        <li className="mt-4">
-                          <p className="font-semibold mb-1">Other Keywords</p>
-                          {keywordAnalysisResult.otherKeywords
-                            .filter(category => category.category === 'Secondary Keywords')
-                            .map(category => (
-                              <div key={category.category} className="mb-2">
-                                <p className="underline">{category.category}</p>
-                                <ul className="ml-4">
-                                  {category.keywords.map(kw => (
-                                    <li
-                                      key={kw.keyword}
-                                      className="flex justify-between text-sm">
-                                      <span>{kw.keyword}</span>
-                                      <span className={kw.count > 0 ? 'text-green-600' : 'text-red-600'}>
-                                        {kw.count}
-                                      </span>
-                                    </li>
-                                  ))}
-                                </ul>
-                              </div>
-                            ))}
+                            <span>{keywordAnalysisResult.headingAnalysis.percent}%</span>
+                          </p>
                         </li>
-                      )}
 
-                    </>
-                  )}
-                </ul>
+                        {/* Section Optimization */}
+                        <li className="mt-4 flex">
+                          <p className=" flex justify-between w-full">
+                            <span className="flex items-center gap-2">
+                              <GoDotFill
+                                className={
+                                  keywordAnalysisResult.sectionAnalysis.percent === 100
+                                    ? 'text-green-500'
+                                    : 'text-red-500'
+                                }
+                              />
+                              <span>Per Section Optimization: </span>
+                            </span>
+                            <span>{keywordAnalysisResult.sectionAnalysis.percent}%</span>
+                          </p>
+                        </li>
 
+                        {/* Secondary Keywords */}
+                        {keywordAnalysisResult.otherKeywords.some(
+                          c => c.category === 'Secondary Keywords'
+                        ) && (
+                          <li className="mt-4">
+                            <p className="font-semibold mb-1">Other Keywords</p>
+                            {keywordAnalysisResult.otherKeywords
+                              .filter(
+                                category => category.category === 'Secondary Keywords'
+                              )
+                              .map(category => (
+                                <div key={category.category} className="mb-2">
+                                  <p className="underline">{category.category}</p>
+                                  <ul className="ml-4">
+                                    {category.keywords.map(kw => (
+                                      <li
+                                        key={kw.keyword}
+                                        className="flex justify-between text-sm">
+                                        <span>{kw.keyword}</span>
+                                        <span
+                                          className={
+                                            kw.count > 0
+                                              ? 'text-green-600'
+                                              : 'text-red-600'
+                                          }>
+                                          {kw.count}
+                                        </span>
+                                      </li>
+                                    ))}
+                                  </ul>
+                                </div>
+                              ))}
+                          </li>
+                        )}
+                      </>
+                    )}
+                  </ul>
                 </li>
               </ul>
             )}
@@ -1714,7 +1732,7 @@ const getVisiblePages = (currentPage: number, totalPages: number, maxVisible: nu
                     className="w-full text-sm !bg-white text-black !border-black-200 border rounded-none hover:shadow-none hover:!bg-black-200 hover:text-white dark:hover:shadow-none dark:!text-black-200 dark:hover:!text-white"
                     disabled={
                       // violations.length === 0 && dictionaryViolations.length === 0
-                       dictionaryViolations.length === 0
+                      dictionaryViolations.length === 0
                     }
                     onClick={() => {
                       const updated = Array.from(
@@ -1742,7 +1760,6 @@ const getVisiblePages = (currentPage: number, totalPages: number, maxVisible: nu
                     Remove Highlights
                   </Button>
                 </div>
-
               </div>
 
               <div className="mb-4 dark:!text-black">
@@ -1806,16 +1823,18 @@ const getVisiblePages = (currentPage: number, totalPages: number, maxVisible: nu
                     <div className="flex justify-between items-center w-full text-sm">
                       <span className="text-sm">Potential Violations</span>
                       {/* {hasCheckedViolations && */}
-                        {dictionaryViolations.length > 0 ? (
-                          <div className="bg-[#f5ecee] w-[40px] text-right rounded-2xl px-2">
-                            <span className="text-red-100">{dictionaryViolations.length}</span>
-                          </div>
-                        ) : (
-                          <div className="bg-[#e5f5ea] w-[40px] text-right rounded-2xl px-2">
-                            <span className="text-green-100">0</span>
-                          </div>
-                         )}
-                        {/* // } */}
+                      {dictionaryViolations.length > 0 ? (
+                        <div className="bg-[#f5ecee] w-[40px] text-right rounded-2xl px-2">
+                          <span className="text-red-100">
+                            {dictionaryViolations.length}
+                          </span>
+                        </div>
+                      ) : (
+                        <div className="bg-[#e5f5ea] w-[40px] text-right rounded-2xl px-2">
+                          <span className="text-green-100">0</span>
+                        </div>
+                      )}
+                      {/* // } */}
                     </div>
                   }
                   className="border mb-2">
@@ -1831,12 +1850,13 @@ const getVisiblePages = (currentPage: number, totalPages: number, maxVisible: nu
                       <ul className="list-disc pl-4 space-y-2">
                         {uniqueDictionaryHeadings.map(({ id, heading }) => (
                           <li key={id ?? heading}>
-                            <a href={`#${id}`} className="text-black font-bold hover:underline">
+                            <a
+                              href={`#${id}`}
+                              className="text-black font-bold hover:underline">
                               {heading}
                             </a>
                           </li>
                         ))}
-
                       </ul>
                       <div className="text-sm text-gray-500 italic">
                         {`Matched ${dictionaryViolations.length} total phrase occurrences across ${Object.keys(dictionaryViolationResults).length} unique phrases.`}
@@ -1890,7 +1910,9 @@ const getVisiblePages = (currentPage: number, totalPages: number, maxVisible: nu
               </div>
 
               <div className="mb-3">
-                <h5 className="dark:!text-black !font-bold">Check for additional words/phrases:</h5>
+                <h5 className="dark:!text-black !font-bold">
+                  Check for additional words/phrases:
+                </h5>
                 <div className="relative mb-1">
                   <input
                     type="text"
@@ -1927,21 +1949,19 @@ const getVisiblePages = (currentPage: number, totalPages: number, maxVisible: nu
                   </div>
                 )}
 
-              <Button
-                className={clsx(
-                  'w-full !bg-white border !border-black-200 rounded-none text-black',
-                  'hover:!bg-black-200 hover:text-white hover:shadow-none',
-                  'dark:hover:shadow-none dark:!text-black-200 dark:hover:!text-white',
-                  customSearchTerm.trim()
-                    ? ''
-                    : 'opacity-50 cursor-not-allowed pointer-events-none'
-                )}
-                onClick={handleCustomSearch}
-                disabled={customSearchTerm.trim().length === 0}
-              >
-                Search Now
-              </Button>
-
+                <Button
+                  className={clsx(
+                    'w-full !bg-white border !border-black-200 rounded-none text-black',
+                    'hover:!bg-black-200 hover:text-white hover:shadow-none',
+                    'dark:hover:shadow-none dark:!text-black-200 dark:hover:!text-white',
+                    customSearchTerm.trim()
+                      ? ''
+                      : 'opacity-50 cursor-not-allowed pointer-events-none'
+                  )}
+                  onClick={handleCustomSearch}
+                  disabled={customSearchTerm.trim().length === 0}>
+                  Search Now
+                </Button>
 
                 <div className="flex gap-2 mt-3">
                   <Button
@@ -1957,7 +1977,7 @@ const getVisiblePages = (currentPage: number, totalPages: number, maxVisible: nu
                       width="700px"
                       height="auto"
                       backgroundColor="#0a1a31"
-                      showCloseButton={false} >
+                      showCloseButton={false}>
                       <div className="w-full h-full">
                         <div>
                           {addStatus === 'success' && (
@@ -2022,12 +2042,13 @@ const getVisiblePages = (currentPage: number, totalPages: number, maxVisible: nu
                       width="1200px"
                       height="auto"
                       backgroundColor="#0a1a31"
-                      showCloseButton={false}
-                    >
+                      showCloseButton={false}>
                       <div className="w-full h-full">
                         <div className="flex justify-between items-center">
                           <h2 className="!text-left text-white text-2xl font-extrabold w-full">
-                            {activeView === 'default' ? 'Added Potential Violations' : 'Deleted Potential Violations'}
+                            {activeView === 'default'
+                              ? 'Added Potential Violations'
+                              : 'Deleted Potential Violations'}
                           </h2>
 
                           <div className="relative w-full">
@@ -2051,14 +2072,13 @@ const getVisiblePages = (currentPage: number, totalPages: number, maxVisible: nu
                           <div className="w-[50px] flex flex-col gap-5 items-center">
                             {/* View Potential Violations */}
                             <div
-                              onClick={() => setActiveView("default")}
+                              onClick={() => setActiveView('default')}
                               className={clsx(
-                                "group relative p-2 rounded-md cursor-pointer transition-all duration-200",
-                                activeView === "default"
-                                  ? "bg-blue-500 text-white"
-                                  : "bg-transparent hover:bg-white text-white/60 hover:text-black-200"
-                              )}
-                            >
+                                'group relative p-2 rounded-md cursor-pointer transition-all duration-200',
+                                activeView === 'default'
+                                  ? 'bg-blue-500 text-white'
+                                  : 'bg-transparent hover:bg-white text-white/60 hover:text-black-200'
+                              )}>
                               <FaBars className="text-2xl" />
                               <span className="absolute left-[110%] top-1/2 -translate-y-1/2 whitespace-nowrap rounded bg-black text-white text-xs px-2 py-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-10">
                                 View Potential Violations
@@ -2067,14 +2087,13 @@ const getVisiblePages = (currentPage: number, totalPages: number, maxVisible: nu
 
                             {/* Trash */}
                             <div
-                              onClick={() => setActiveView("trash")}
+                              onClick={() => setActiveView('trash')}
                               className={clsx(
-                                "group relative p-2 rounded-md cursor-pointer transition-all duration-200",
-                                activeView === "trash"
-                                  ? "bg-blue-500 text-white"
-                                  : "bg-transparent hover:bg-white text-white/60 hover:text-black-200"
-                              )}
-                            >
+                                'group relative p-2 rounded-md cursor-pointer transition-all duration-200',
+                                activeView === 'trash'
+                                  ? 'bg-blue-500 text-white'
+                                  : 'bg-transparent hover:bg-white text-white/60 hover:text-black-200'
+                              )}>
                               <FaTrash className="text-2xl" />
                               <span className="absolute left-[110%] top-1/2 -translate-y-1/2 whitespace-nowrap rounded bg-black text-white text-xs px-2 py-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-10">
                                 Archived Potential Violations
@@ -2089,8 +2108,7 @@ const getVisiblePages = (currentPage: number, totalPages: number, maxVisible: nu
                                   className={clsx(
                                     'w-full my-[20px] mx-auto border-collapse',
                                     'table-fixed shadow-[0_4px_6px_rgba(0, 0, 0, 0.1)]'
-                                  )}
-                                >
+                                  )}>
                                   <thead>
                                     <tr>
                                       <th>Keyword</th>
@@ -2101,20 +2119,30 @@ const getVisiblePages = (currentPage: number, totalPages: number, maxVisible: nu
                                   <tbody>
                                     {paginatedData.length === 0 ? (
                                       <tr>
-                                        <td colSpan={3} className="text-center text-white">
+                                        <td
+                                          colSpan={3}
+                                          className="text-center text-white">
                                           No entries found.
                                         </td>
                                       </tr>
                                     ) : (
-                                      paginatedData.map((entry) => (
+                                      paginatedData.map(entry => (
                                         <tr key={entry.id}>
-                                          <td className="px-4 py-2 !text-white">{entry.keyword}</td>
-                                          <td className="px-4 py-2 !text-white">{entry.created_by}</td>
+                                          <td className="px-4 py-2 !text-white">
+                                            {entry.keyword}
+                                          </td>
+                                          <td className="px-4 py-2 !text-white">
+                                            {entry.created_by}
+                                          </td>
                                           <td className="px-4 py-2 !text-white">
                                             <FaTrash
                                               className="text-white hover:text-red-500 cursor-pointer"
                                               onClick={() => {
-                                                if (confirm(`Move phrase "${entry.keyword}" to trash?`)) {
+                                                if (
+                                                  confirm(
+                                                    `Move phrase "${entry.keyword}" to trash?`
+                                                  )
+                                                ) {
                                                   handleDeletePhrase(entry.id);
                                                 }
                                               }}
@@ -2130,35 +2158,38 @@ const getVisiblePages = (currentPage: number, totalPages: number, maxVisible: nu
                                 {totalPages > 1 && (
                                   <div className="flex justify-center mt-4 gap-2">
                                     <button
-                                      onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+                                      onClick={() =>
+                                        setCurrentPage(prev => Math.max(prev - 1, 1))
+                                      }
                                       disabled={currentPage === 1}
-                                      className="px-3 py-1 text-white border border-yellow-100 rounded disabled:opacity-50 cursor-pointer hover:bg-yellow-100 hover:text-black-200"
-                                    >
+                                      className="px-3 py-1 text-white border border-yellow-100 rounded disabled:opacity-50 cursor-pointer hover:bg-yellow-100 hover:text-black-200">
                                       Prev
                                     </button>
 
-                                    {getVisiblePages(currentPage, totalPages).map((page) => (
-                                      <button
-                                        key={page}
-                                        onClick={() => setCurrentPage(page)}
-                                        className={clsx(
-                                          "px-3 py-1 cursor-pointer hover:bg-white hover:text-black-200",
-                                          currentPage === page
-                                            ? "bg-yellow-100 text-black"
-                                            : "text-white border-white"
-                                        )}
-                                      >
-                                        {page}
-                                      </button>
-                                    ))}
-
-
+                                    {getVisiblePages(currentPage, totalPages).map(
+                                      page => (
+                                        <button
+                                          key={page}
+                                          onClick={() => setCurrentPage(page)}
+                                          className={clsx(
+                                            'px-3 py-1 cursor-pointer hover:bg-white hover:text-black-200',
+                                            currentPage === page
+                                              ? 'bg-yellow-100 text-black'
+                                              : 'text-white border-white'
+                                          )}>
+                                          {page}
+                                        </button>
+                                      )
+                                    )}
 
                                     <button
-                                      onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
+                                      onClick={() =>
+                                        setCurrentPage(prev =>
+                                          Math.min(prev + 1, totalPages)
+                                        )
+                                      }
                                       disabled={currentPage === totalPages}
-                                      className="px-3 py-1 text-white border border-yellow-100 rounded disabled:opacity-50 cursor-pointer hover:bg-yellow-100 hover:text-black-200"
-                                    >
+                                      className="px-3 py-1 text-white border border-yellow-100 rounded disabled:opacity-50 cursor-pointer hover:bg-yellow-100 hover:text-black-200">
                                       Next
                                     </button>
                                   </div>
@@ -2172,8 +2203,7 @@ const getVisiblePages = (currentPage: number, totalPages: number, maxVisible: nu
                                   className={clsx(
                                     'w-full my-[20px] mx-auto border-collapse',
                                     'table-fixed shadow-[0_4px_6px_rgba(0, 0, 0, 0.1)]'
-                                  )}
-                                >
+                                  )}>
                                   <thead>
                                     <tr>
                                       <th>Keyword</th>
@@ -2185,26 +2215,45 @@ const getVisiblePages = (currentPage: number, totalPages: number, maxVisible: nu
                                   <tbody>
                                     {deletedEntries.length === 0 ? (
                                       <tr>
-                                        <td colSpan={4} className="text-center text-white">
+                                        <td
+                                          colSpan={4}
+                                          className="text-center text-white">
                                           No deleted entries found.
                                         </td>
                                       </tr>
                                     ) : (
-                                      deletedEntries.map((entry) => {
-                                        const deletedAt = new Date(entry.deleted_at as string);
+                                      deletedEntries.map(entry => {
+                                        const deletedAt = new Date(
+                                          entry.deleted_at as string
+                                        );
                                         const now = new Date();
-                                        const diffDays = 30 - Math.floor((now.getTime() - deletedAt.getTime()) / (1000 * 60 * 60 * 24));
+                                        const diffDays =
+                                          30 -
+                                          Math.floor(
+                                            (now.getTime() - deletedAt.getTime()) /
+                                              (1000 * 60 * 60 * 24)
+                                          );
 
                                         return (
                                           <tr key={entry.id}>
-                                            <td className="px-4 py-2 !text-white">{entry.keyword}</td>
-                                            <td className="px-4 py-2 !text-white">{entry.created_by}</td>
-                                            <td className="px-4 py-2 !text-white">{diffDays} days left</td>
+                                            <td className="px-4 py-2 !text-white">
+                                              {entry.keyword}
+                                            </td>
+                                            <td className="px-4 py-2 !text-white">
+                                              {entry.created_by}
+                                            </td>
+                                            <td className="px-4 py-2 !text-white">
+                                              {diffDays} days left
+                                            </td>
                                             <td className="px-4 py-2 !text-white">
                                               <FaTrash
                                                 className="text-white hover:text-red-500 cursor-pointer"
                                                 onClick={() => {
-                                                  if (confirm(`Permanently delete phrase "${entry.keyword}"?`)) {
+                                                  if (
+                                                    confirm(
+                                                      `Permanently delete phrase "${entry.keyword}"?`
+                                                    )
+                                                  ) {
                                                     handlePermanentDelete(entry.id);
                                                   }
                                                 }}
@@ -2221,33 +2270,43 @@ const getVisiblePages = (currentPage: number, totalPages: number, maxVisible: nu
                                 {totalPagesForDeleted > 1 && (
                                   <div className="flex justify-center mt-4 gap-2">
                                     <button
-                                      onClick={() => setCurrentPageDeleted((prev) => Math.max(prev - 1, 1))}
+                                      onClick={() =>
+                                        setCurrentPageDeleted(prev =>
+                                          Math.max(prev - 1, 1)
+                                        )
+                                      }
                                       disabled={currentPageDeleted === 1}
-                                      className="px-3 py-1 text-white border border-yellow-100 rounded disabled:opacity-50 cursor-pointer hover:bg-yellow-100 hover:text-black-200"
-                                    >
+                                      className="px-3 py-1 text-white border border-yellow-100 rounded disabled:opacity-50 cursor-pointer hover:bg-yellow-100 hover:text-black-200">
                                       Prev
                                     </button>
 
-                                    {getVisiblePages(currentPageDeleted, totalPagesForDeleted).map((page) => (
+                                    {getVisiblePages(
+                                      currentPageDeleted,
+                                      totalPagesForDeleted
+                                    ).map(page => (
                                       <button
                                         key={page}
                                         onClick={() => setCurrentPageDeleted(page)}
                                         className={clsx(
-                                          "px-3 py-1 cursor-pointer hover:bg-white hover:text-black-200",
+                                          'px-3 py-1 cursor-pointer hover:bg-white hover:text-black-200',
                                           currentPageDeleted === page
-                                            ? "bg-yellow-100 text-black"
-                                            : "text-white border-white"
-                                        )}
-                                      >
+                                            ? 'bg-yellow-100 text-black'
+                                            : 'text-white border-white'
+                                        )}>
                                         {page}
                                       </button>
                                     ))}
 
                                     <button
-                                      onClick={() => setCurrentPageDeleted((prev) => Math.min(prev + 1, totalPagesForDeleted))}
-                                      disabled={currentPageDeleted === totalPagesForDeleted}
-                                      className="px-3 py-1 text-white border border-yellow-100 rounded disabled:opacity-50 cursor-pointer hover:bg-yellow-100 hover:text-black-200"
-                                    >
+                                      onClick={() =>
+                                        setCurrentPageDeleted(prev =>
+                                          Math.min(prev + 1, totalPagesForDeleted)
+                                        )
+                                      }
+                                      disabled={
+                                        currentPageDeleted === totalPagesForDeleted
+                                      }
+                                      className="px-3 py-1 text-white border border-yellow-100 rounded disabled:opacity-50 cursor-pointer hover:bg-yellow-100 hover:text-black-200">
                                       Next
                                     </button>
                                   </div>
@@ -2260,15 +2319,13 @@ const getVisiblePages = (currentPage: number, totalPages: number, maxVisible: nu
                         <div className="flex justify-end">
                           <button
                             onClick={handleViewCloseModal}
-                            className="border border-white cursor-pointer py-2 px-7 hover:bg-red-100 hover:border-red-100 text-white mt-5"
-                          >
+                            className="border border-white cursor-pointer py-2 px-7 hover:bg-red-100 hover:border-red-100 text-white mt-5">
                             Cancel
                           </button>
                         </div>
                       </div>
                     </Modal>
                   )}
-
                 </div>
               </div>
             </TabPanel>
@@ -2305,7 +2362,7 @@ const getVisiblePages = (currentPage: number, totalPages: number, maxVisible: nu
                     className={`mb-4 p-4 rounded ${hasErrors ? 'bg-[#faeaea] text-red-600' : 'bg-[#e6f6e9] !text-green-100'}`}>
                     {!hasErrors ? (
                       <h6 className="!text-center">
-                       🎉 No formatting errors found! Good job! 
+                        🎉 No formatting errors found! Good job!
                       </h6>
                     ) : (
                       <div className="w-full flex justify-center flex-col">
@@ -2316,12 +2373,12 @@ const getVisiblePages = (currentPage: number, totalPages: number, maxVisible: nu
                         formatErrors.spaceBeforePunctuationErrors.length === 0 &&
                         formatErrors.titleCaseErrors.length === 0 ? (
                           <h6 className="!text-center !text-sm text-red-600">
-                           ⚠️ Missing Punctuation errors, fix manually 
+                            ⚠️ Missing Punctuation errors, fix manually
                           </h6>
                         ) : (
                           <>
                             <h6 className="!text-center !text-sm text-red-600">
-                             ⚠️ Formatting Errors found! Please fix 
+                              ⚠️ Formatting Errors found! Please fix
                             </h6>
                             <Button
                               onClick={handleFixAll}
@@ -2387,29 +2444,30 @@ const getVisiblePages = (currentPage: number, totalPages: number, maxVisible: nu
                   </Accordion>
 
                   <Accordion
-                  header={
-                    <div className="flex justify-between items-center w-full text-sm">
-                      <span>Lowercase in Heading</span>
-                      {showResults && (
-                        formatErrors.titleCaseErrors.length > 0 ? (
-                          <div className="bg-[#f5ecee] w-[40px] text-right rounded-2xl px-2">
-                            <span className="text-red-100">{formatErrors.titleCaseErrors.length}</span>
-                          </div>
-                        ) : (
-                          <div className="bg-[#e5f5ea] w-[40px] text-right rounded-2xl px-2">
-                            <span className="text-green-100">0</span>
-                          </div>
-                        )
-                      )}
-                    </div>
-                  }
-
-                    className="mb-2 text-sm dark:!text-black-200"
-                  >
+                    header={
+                      <div className="flex justify-between items-center w-full text-sm">
+                        <span>Lowercase in Heading</span>
+                        {showResults &&
+                          (formatErrors.titleCaseErrors.length > 0 ? (
+                            <div className="bg-[#f5ecee] w-[40px] text-right rounded-2xl px-2">
+                              <span className="text-red-100">
+                                {formatErrors.titleCaseErrors.length}
+                              </span>
+                            </div>
+                          ) : (
+                            <div className="bg-[#e5f5ea] w-[40px] text-right rounded-2xl px-2">
+                              <span className="text-green-100">0</span>
+                            </div>
+                          ))}
+                      </div>
+                    }
+                    className="mb-2 text-sm dark:!text-black-200">
                     {formatErrors.titleCaseErrors.length > 0 ? (
                       <ul className="text-xs space-y-1 pl-3">
                         {formatErrors.titleCaseErrors.map((err, idx) => {
-                          const highlighted = highlightTitleCaseErrorsStrict(err.sentence);
+                          const highlighted = highlightTitleCaseErrorsStrict(
+                            err.sentence
+                          );
                           const handleClick = () => {
                             if (err.heading) scrollToHeading(err.heading);
                           };
@@ -2424,9 +2482,9 @@ const getVisiblePages = (currentPage: number, totalPages: number, maxVisible: nu
                                     role="button"
                                     tabIndex={0}
                                     onKeyDown={e => {
-                                      if (e.key === 'Enter' || e.key === ' ') handleClick();
-                                    }}
-                                  >
+                                      if (e.key === 'Enter' || e.key === ' ')
+                                        handleClick();
+                                    }}>
                                     {err.heading}
                                   </div>
                                   <ul className="pl-3 mt-2 ">
@@ -2437,7 +2495,8 @@ const getVisiblePages = (currentPage: number, totalPages: number, maxVisible: nu
                                       role="button"
                                       tabIndex={0}
                                       onKeyDown={e => {
-                                        if (e.key === 'Enter' || e.key === ' ') handleClick();
+                                        if (e.key === 'Enter' || e.key === ' ')
+                                          handleClick();
                                       }}
                                     />
                                   </ul>
@@ -2459,10 +2518,11 @@ const getVisiblePages = (currentPage: number, totalPages: number, maxVisible: nu
                         })}
                       </ul>
                     ) : (
-                      <p className="text-gray-500 italic">No lowercase in heading. Rawr</p>
+                      <p className="text-gray-500 italic">
+                        No lowercase in heading. Rawr
+                      </p>
                     )}
                   </Accordion>
-
 
                   <Accordion
                     header={
