@@ -114,7 +114,7 @@ const BatchSB37Analysis = () => {
 
   const handleClickProceed = () => {
     if (!sheetName) return;
-    showToast(`Batch analysis started for ${sheetName}.`);
+    showToast(`SB37 batch analysis started for ${sheetName}.`);
     startBatch(url, sheetName, `${clientId}`);
   };
 
@@ -318,7 +318,9 @@ const BatchSB37Analysis = () => {
   return (
     <>
       <InputSection
-        disabled={isDocInfoLoading || isSheetProcessing}
+        disabled={
+          isDocInfoLoading || isSheetProcessing || isValidating || hasActiveSheets
+        }
         handleClickNext={handleClickNext}
         onInputChange={handleUrlChange}
         value={formValues.url}

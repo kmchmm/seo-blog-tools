@@ -4,7 +4,10 @@ import { Card } from '../components/common';
 import SingleSB37Analysis from '../components/aiAssistant/SingleSB37Analysis';
 import BatchSB37Analysis from '../components/aiAssistant/BatchSB37Analysis';
 import { useAuth, useSB37AnalysisContext } from '../hooks';
-import { AI_PROCESS_SHEET_API_URL } from '../services/constants';
+import {
+  AI_PROCESS_DOCUMENT_API_URL,
+  AI_PROCESS_SHEET_API_URL,
+} from '../services/constants';
 
 const AI_ASSISTANT_TYPES = [
   { title: 'SB37 Analysis - Per Document', icon: <IoDocumentTextOutline size={45} /> },
@@ -51,7 +54,33 @@ const AiAssistantPage = () => {
     return () => {
       window.removeEventListener('beforeunload', handleBeforeUnload);
     };
-  }, [loadingSheets, clientId, singleLoading]);
+  }, [loadingSheets, clientId]);
+
+  useEffect(() => {
+    if (!singleLoading || !clientId) return;
+
+    const isPageReload = () => {
+      const navEntry = performance.getEntriesByType(
+        'navigation'
+      )[0] as PerformanceNavigationTiming;
+      return navEntry?.type === 'reload';
+    };
+
+    const handleBeforeUnload = () => {
+      if (isPageReload()) {
+        navigator.sendBeacon(
+          `${AI_PROCESS_DOCUMENT_API_URL}/intent-to-reload`,
+          JSON.stringify({ clientId: `${clientId}` })
+        );
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, [clientId, singleLoading]);
 
   return (
     <div className="w-full h-full max-w-7xl mx-auto flex flex-col gap-6">
