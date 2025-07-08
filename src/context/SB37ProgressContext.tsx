@@ -1,9 +1,14 @@
-import React, { createContext, useRef, useState } from 'react';
+import React, { createContext, use, useRef, useState } from 'react';
 import usePostSB37SingleAnalysis, {
   SB37AnalysisResult,
 } from '../hooks/usePostSB37SingleAnalysis';
 import { useGetSheetNames } from '../hooks';
-import { AI_PROCESS_SHEET_API_URL } from '../services/constants';
+import {
+  AI_PROCESS_DOCUMENT_API_URL,
+  AI_PROCESS_SHEET_API_URL,
+} from '../services/constants';
+import axios, { AxiosError } from 'axios';
+import { ToastContext } from './ToastContext';
 
 export type ProgressItem = {
   row: number;
@@ -31,17 +36,28 @@ type BatchProgressContextType = {
   sheetErorMessages: Record<string, string>;
   sheetInfo: Record<string, SheetInfo>;
   sheetProgressCount: Record<string, number>;
-  startBatch: (spreadsheetUrl: string, sheetName: string) => void;
+  startBatch: (spreadsheetUrl: string, sheetName: string, clientId: string) => void;
   updateSheetInfo: (sheetName: string, updates: Partial<SheetInfo>) => void;
+  cancelTask: ({
+    clientId,
+    sheetName,
+  }: {
+    clientId: string;
+    sheetName?: string;
+    isSingleDoc?: boolean;
+  }) => void;
+  sheetCanceling: Record<string, boolean>;
 
   // single analysis fields
-  analyzeSingleDoc: (docUrl: string) => void;
+  analyzeSingleDoc: (docUrl: string, clientId: string) => void;
   analyzeMultiAssistantDoc: ({
     docUrl,
     onSuccess,
+    clientId,
   }: {
     docUrl: string;
     onSuccess: () => void;
+    clientId: string;
   }) => void;
   isCompletedSingle: boolean;
   resetSingleAnalysis: () => void;
@@ -75,12 +91,15 @@ export const Provider: React.FC<{ children: React.ReactNode }> = ({ children }) 
   const [sheetProgressCount, setSheetProgressCount] = useState<Record<string, number>>(
     {}
   );
+  const [sheetCanceling, setSheetCanceling] = useState<Record<string, boolean>>({});
 
   const [sheetInfo, setSheetInfo] = useState<Record<string, SheetInfo>>({});
   const [sheetErorMessages, setSheetErorMessages] = useState<Record<string, string>>({});
 
   const [url, setUrl] = useState('');
   const [isCompletedSingle, setIsCompletedSingle] = useState(false);
+
+  const { showToast } = use(ToastContext);
 
   const eventSourceRef = useRef<EventSource | null>(null);
   const {
@@ -110,22 +129,24 @@ export const Provider: React.FC<{ children: React.ReactNode }> = ({ children }) 
     }));
   };
 
-  const analyzeSingleDoc = (docUrl: string) => {
-    sendSingleRequest({ docUrl });
+  const analyzeSingleDoc = (docUrl: string, clientId: string) => {
+    sendSingleRequest({ docUrl, clientId });
   };
 
+  //TODO
   const analyzeMultiAssistantDoc = ({
     docUrl,
     onSuccess,
+    clientId,
   }: {
     docUrl: string;
     onSuccess: () => void;
+    clientId: string;
   }) => {
-    sendSingleRequest({ mode: 'multi-assistant', docUrl, onSuccess });
+    sendSingleRequest({ mode: 'multi-assistant', docUrl, onSuccess, clientId });
   };
 
-  //TODO: implement SSE
-  const startBatch = (spreadsheetUrl: string, sheetName: string) => {
+  const startBatch = (spreadsheetUrl: string, sheetName: string, clientId: string) => {
     setItems(prev => ({ ...prev, [sheetName]: [] }));
     setSheetProgressCount(prev => ({ ...prev, [sheetName]: 0 }));
     setSheetCompleted(prev => ({ ...prev, [sheetName]: false }));
@@ -134,7 +155,7 @@ export const Provider: React.FC<{ children: React.ReactNode }> = ({ children }) 
 
     const query = `?spreadsheetUrl=${encodeURIComponent(
       spreadsheetUrl
-    )}&sheetName=${encodeURIComponent(sheetName)}`;
+    )}&sheetName=${encodeURIComponent(sheetName)}&clientId=${clientId}`;
 
     const eventSource = new EventSource(`${AI_PROCESS_SHEET_API_URL}${query}`);
     eventSourceRef.current = eventSource;
@@ -154,6 +175,7 @@ export const Provider: React.FC<{ children: React.ReactNode }> = ({ children }) 
         setItems(prev => ({ ...prev, [sheetName]: data.results || [] }));
         setLoadingSheets(prev => ({ ...prev, [sheetName]: false }));
         setSheetCompleted(prev => ({ ...prev, [sheetName]: true }));
+        showToast(`${data.sheetName} has finished processing.`);
         eventSource.close();
       } else if (data.type === 'error') {
         setSheetErorMessages(prev => ({
@@ -238,6 +260,43 @@ export const Provider: React.FC<{ children: React.ReactNode }> = ({ children }) 
     });
   };
 
+  const cancelTask = async ({
+    clientId,
+    sheetName = '',
+    isSingleDoc = false,
+  }: {
+    clientId: string;
+    sheetName?: string;
+    isSingleDoc?: boolean;
+  }) => {
+    try {
+      const cancelUrl = isSingleDoc
+        ? `${AI_PROCESS_DOCUMENT_API_URL}/cancel`
+        : `${AI_PROCESS_SHEET_API_URL}/cancel`;
+
+      // Update canceling UI state (only for sheet context)
+      if (!isSingleDoc && sheetName) {
+        setSheetCanceling(prev => ({ ...prev, [sheetName]: true }));
+        setLoadingSheets(prev => ({ ...prev, [sheetName]: false }));
+      }
+
+      await axios.post(cancelUrl, {
+        clientId,
+        ...(sheetName ? { sheetName } : {}),
+      });
+
+      // Close any active EventSource
+      eventSourceRef.current?.close();
+    } catch (err) {
+      const errorMessage = err as AxiosError<{ error: string }>;
+      console.warn('Cancellation request failed:', errorMessage.response?.data?.error);
+    } finally {
+      if (!isSingleDoc && sheetName) {
+        setSheetCanceling(prev => ({ ...prev, [sheetName]: false }));
+      }
+    }
+  };
+
   return (
     <Context.Provider
       value={{
@@ -254,6 +313,8 @@ export const Provider: React.FC<{ children: React.ReactNode }> = ({ children }) 
         updateSheetInfo,
         setFormValues,
         formValues,
+        cancelTask,
+        sheetCanceling,
 
         // single
         url,

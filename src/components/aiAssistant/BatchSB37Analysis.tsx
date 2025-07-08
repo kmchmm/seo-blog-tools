@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useMemo } from 'react';
-import { Button, Input } from '../common';
-import { FaCircleChevronRight } from 'react-icons/fa6';
+import { use, useCallback, useEffect, useMemo, useState } from 'react';
+import { Button } from '../common';
+import { IoMdRefresh } from 'react-icons/io';
 
 import {
   useAuth,
@@ -14,12 +14,16 @@ import { SheetInfo } from '../../context/SB37ProgressContext';
 import ProgressBar from '../common/ProgressBar';
 import { getEstimatedTime } from './helpers';
 import { formatSecondsString } from '../../utils/formatter';
+import { ToastContext } from '../../context/ToastContext';
+import InputSection from './InputSection';
 
 const { VITE_SECRET_EMAIL } = import.meta.env;
 
 const BatchSB37Analysis = () => {
+  const [showInstruction, setShowInstruction] = useState(false);
+  const { showToast } = use(ToastContext);
   const { userData } = useAuth();
-
+  const { id: clientId } = userData;
   const {
     formValues,
     setFormValues,
@@ -37,10 +41,12 @@ const BatchSB37Analysis = () => {
     sheetNamesError,
     items: sheetResult,
     sheetProgressCount,
+    cancelTask,
+    sheetCanceling,
   } = useSB37AnalysisContext();
   const { sheetName, url } = formValues || {};
   const isSheetProcessing = loadingSheets[sheetName] ? loadingSheets[sheetName] : false;
-
+  const hasActiveSheets = Object.values(loadingSheets).some(Boolean);
   const {
     sendRequest: fetchValidRows,
     result: validRows,
@@ -75,8 +81,13 @@ const BatchSB37Analysis = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sheetResult[sheetName]]);
 
+  const refetchValidRows = () => {
+    fetchValidRows({ spreadsheetUrl: url, sheetName });
+  };
+
   const handleProcessAnother = () => {
     resetBatch(sheetName);
+    setShowInstruction(true);
   };
 
   const handleUrlChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -98,11 +109,13 @@ const BatchSB37Analysis = () => {
     if (validRowsError) {
       handleResetErrorMessage();
     }
+    setShowInstruction(false);
   };
 
   const handleClickProceed = () => {
     if (!sheetName) return;
-    startBatch(url, sheetName);
+    showToast(`SB37 batch analysis started for ${sheetName}.`);
+    startBatch(url, sheetName, `${clientId}`);
   };
 
   const handleSheetUpdate = useCallback(
@@ -112,6 +125,11 @@ const BatchSB37Analysis = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [sheetName]
   );
+
+  const onCancelClick = () => {
+    showToast(`Batch analysis cancelled for ${sheetName}.`);
+    cancelTask({ clientId: `${clientId}`, sheetName });
+  };
 
   useEffect(() => {
     if (validRows && !isValidating) {
@@ -130,29 +148,10 @@ const BatchSB37Analysis = () => {
 
   useEffect(() => {
     if (sheetCompleted[sheetName]) {
-      handleSheetUpdate(sheetName, {
-        sheetValidDocsCount: 0,
-        docsTotalWords: 0,
-      });
+      fetchValidRows({ spreadsheetUrl: url, sheetName });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sheetCompleted[sheetName]]);
-
-  useEffect(() => {
-    if (!isSheetProcessing) return;
-    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-      e.preventDefault();
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (e as any).returnValue =
-        'Your progress will be lost. Are you sure you want to leave?';
-    };
-
-    window.addEventListener('beforeunload', handleBeforeUnload);
-
-    return () => {
-      window.removeEventListener('beforeunload', handleBeforeUnload);
-    };
-  }, [isSheetProcessing]);
 
   const renderSheetSelector = () => (
     <div className="mx-auto max-w-xl w-full">
@@ -162,7 +161,7 @@ const BatchSB37Analysis = () => {
           value={sheetName}
           onChange={handleSheetChange}
           disabled={isDocInfoLoading || isValidating}
-          className="h-12 px-2 border rounded w-full bg-red-100">
+          className="h-12 px-2 border rounded w-full cursor-pointer">
           <option value="" disabled>
             Select a sheet
           </option>
@@ -173,6 +172,11 @@ const BatchSB37Analysis = () => {
             </option>
           ))}
         </select>
+        {sheetName && !isValidating && !isDocInfoLoading && !isSheetProcessing && (
+          <button onClick={refetchValidRows} className="cursor-pointer">
+            <IoMdRefresh size={25} />
+          </button>
+        )}
       </div>
     </div>
   );
@@ -214,32 +218,43 @@ const BatchSB37Analysis = () => {
       </div>
 
       <div className="self-center w-fit flex gap-x-2">
-        <Button
-          className="!bg-blue-200 text-gray-100 border-none"
-          onClick={handleClickProceed}
-          disabled={
-            isSheetProcessing ||
-            isDocInfoLoading ||
-            isValidating ||
-            sheetCompleted[sheetName] ||
-            Boolean(sheetNamesError) ||
-            sheetInfo[sheetName].sheetValidDocsCount === 0
-          }>
-          Proceed with Batch Analysis
-        </Button>
-        {userData.email.toLowerCase() === VITE_SECRET_EMAIL && (
+        {!isSheetProcessing ? (
+          <>
+            <Button
+              className="!bg-blue-200 text-gray-100 border-none"
+              onClick={handleClickProceed}
+              disabled={
+                isSheetProcessing ||
+                isDocInfoLoading ||
+                isValidating ||
+                sheetCompleted[sheetName] ||
+                Boolean(sheetNamesError) ||
+                sheetInfo[sheetName].sheetValidDocsCount === 0
+              }>
+              Proceed with Batch Analysis
+            </Button>
+            {userData.email.toLowerCase() === VITE_SECRET_EMAIL && (
+              <Button
+                onClick={handleClickProceed}
+                className="!bg-blue-200 text-white border-none"
+                disabled={
+                  isSheetProcessing ||
+                  isDocInfoLoading ||
+                  isValidating ||
+                  sheetCompleted[sheetName] ||
+                  Boolean(sheetNamesError) ||
+                  sheetInfo[sheetName].sheetValidDocsCount === 0
+                }>
+                Proceed with Multi-Assistant Batch Analysis
+              </Button>
+            )}
+          </>
+        ) : (
           <Button
-            onClick={handleClickProceed}
-            className="!bg-blue-200 text-white border-none"
-            disabled={
-              isSheetProcessing ||
-              isDocInfoLoading ||
-              isValidating ||
-              sheetCompleted[sheetName] ||
-              Boolean(sheetNamesError) ||
-              sheetInfo[sheetName].sheetValidDocsCount === 0
-            }>
-            Proceed with Multi-Assistant Batch Analysis
+            onClick={onCancelClick}
+            disabled={sheetCanceling[sheetName]}
+            className="!bg-red-200 text-white border-none">
+            Cancel
           </Button>
         )}
       </div>
@@ -302,28 +317,22 @@ const BatchSB37Analysis = () => {
 
   return (
     <>
-      <div className="w-full flex items-center gap-x-4 sm:flex-row flex-col">
-        <Input
-          disabled={
-            isFetchingSheetNames || isSheetProcessing || sheetCompleted[sheetName]
-          }
-          id="ai-assistant-input"
-          label="Enter the spreadsheet URL:"
-          name="ai-assistant-input"
-          onInputChange={handleUrlChange}
-          value={url}
-          customClassName="w-full flex items-center sm:flex-row flex-col"
-        />
-        <button
-          type="button"
-          disabled={
-            isFetchingSheetNames || isSheetProcessing || sheetCompleted[sheetName] || !url
-          }
-          className="cursor-pointer hover:scale-125 transform duration-300 disabled:pointer-events-none"
-          onClick={handleClickNext}>
-          <FaCircleChevronRight color="blue" size={25} />
-        </button>
-      </div>
+      <InputSection
+        disabled={
+          isDocInfoLoading || isSheetProcessing || isValidating || hasActiveSheets
+        }
+        handleClickNext={handleClickNext}
+        onInputChange={handleUrlChange}
+        value={formValues.url}
+      />
+      {showInstruction && (
+        <div className="text-center">
+          <p className="italic text-gray-600 text-sm">
+            Select another worksheet{' '}
+            {!hasActiveSheets && <span>or Enter new spreadsheet URL</span>}
+          </p>
+        </div>
+      )}
 
       {renderErrors(sheetName)}
 

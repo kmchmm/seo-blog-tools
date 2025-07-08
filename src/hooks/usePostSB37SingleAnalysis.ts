@@ -33,22 +33,23 @@ const usePostSB37SingleAnalysis = () => {
     }
   };
 
-  const sendSingleAssistantRequest = (docUrl: string) => {
+  const sendSingleAssistantRequest = (docUrl: string, clientId: string) => {
     reset();
     setLoading(true);
 
-    // Replace with your actual SSE endpoint
     const url = new URL(AI_PROCESS_DOCUMENT_API_URL);
     url.searchParams.set('docUrl', docUrl);
+    url.searchParams.set('clientId', clientId);
 
-    const eventSource = new EventSource(url.toString());
+    const eventSourceInstance = new EventSource(url.toString());
+    eventSource = eventSourceInstance;
 
-    eventSource.addEventListener('progress', event => {
+    eventSourceInstance.addEventListener('progress', event => {
       const data = JSON.parse(event.data);
       setCurrentTitle(data.title);
     });
 
-    eventSource.addEventListener('complete', event => {
+    eventSourceInstance.addEventListener('complete', event => {
       const data = JSON.parse(event.data);
       setResult({
         reviewOutput: data.reviewOutput,
@@ -57,24 +58,51 @@ const usePostSB37SingleAnalysis = () => {
         title: data.title,
       });
       setLoading(false);
-      eventSource.close();
+      eventSourceInstance.close();
     });
 
-    eventSource.addEventListener('error', event => {
-      console.error('SSE error', event);
+    eventSourceInstance.addEventListener('error', event => {
+      const messageEvent = event as MessageEvent;
+
       setLoading(false);
-      setErrorMessage('Something went wrong while sending server events.');
-      eventSource.close();
+      eventSourceInstance.close();
+
+      if (!messageEvent.data) {
+        console.warn('🔌 Connection lost or unexpected error with no message.');
+        return; // Don't show error message
+      }
+
+      try {
+        const data = JSON.parse(messageEvent.data);
+        if (data?.message === 'Aborted') {
+          return;
+        }
+
+        setErrorMessage(
+          data?.message || 'Something went wrong while sending server events. Code 1'
+        );
+      } catch (e) {
+        const error =
+          e instanceof Error
+            ? e.message
+            : 'Something went wrong while sending server events. Code 2';
+        setErrorMessage(error);
+      }
     });
   };
 
-  const sendMultiAssistantRequest = async (docUrl: string, onSuccess?: () => void) => {
+  const sendMultiAssistantRequest = async (
+    docUrl: string,
+    clientId: string,
+    onSuccess?: () => void
+  ) => {
     reset();
     setLoading(true);
 
     try {
       const response = await axios.post(AI_MULTIPLE_ASSISTANT_API_URL, {
         docUrl,
+        clientId,
       });
 
       if (response.status === 200) {
@@ -93,16 +121,18 @@ const usePostSB37SingleAnalysis = () => {
   const sendRequest = async ({
     mode = 'single',
     docUrl,
+    clientId,
     onSuccess,
   }: {
     mode?: 'multi-assistant' | 'single';
     docUrl: string;
+    clientId: string;
     onSuccess?: () => void;
   }) => {
     if (mode === 'multi-assistant') {
-      await sendMultiAssistantRequest(docUrl, onSuccess);
+      await sendMultiAssistantRequest(docUrl, clientId, onSuccess);
     } else {
-      sendSingleAssistantRequest(docUrl);
+      sendSingleAssistantRequest(docUrl, clientId);
     }
   };
 
