@@ -1,6 +1,5 @@
-import { useEffect } from 'react';
-import { Button, Input } from '../common';
-import { FaCircleChevronRight } from 'react-icons/fa6';
+import { use, useEffect } from 'react';
+import { Button } from '../common';
 import {
   useAuth,
   useGetDocumentInfo,
@@ -12,12 +11,14 @@ import DocPreview from './DocPreview';
 import { SB37AnalysisJSON } from '../../hooks/useParseJsonToText';
 import { getEstimatedTime } from './helpers';
 import { formatSecondsString } from '../../utils/formatter';
+import InputSection from './InputSection';
+import { ToastContext } from '../../context/ToastContext';
 
 const { VITE_SECRET_EMAIL } = import.meta.env;
 
 const SingleSB37Analysis = () => {
   const { userData } = useAuth();
-
+  const { id: clientId } = userData || {};
   const {
     url,
     setUrl,
@@ -30,6 +31,7 @@ const SingleSB37Analysis = () => {
     singleLoading,
     singleResult,
     currentTitleSingle,
+    cancelTask,
   } = useSB37AnalysisContext();
 
   const {
@@ -51,6 +53,8 @@ const SingleSB37Analysis = () => {
   const { title, wordCount } = docInfoResult || {};
   const { completionTime, reviewOutput, doc_url } = singleResult || {};
 
+  const { showToast } = use(ToastContext);
+
   const isBusy = singleLoading || loadingParsing || loadingDocInfo;
   const errorMessage = singleErrorMessage || errorMessageDocInfo || errorMessageParse;
 
@@ -68,7 +72,15 @@ const SingleSB37Analysis = () => {
   };
 
   const handleProceedAnalysis = () => {
-    if (url) analyzeSingleDoc(url);
+    if (url) {
+      showToast(`SB37 analysis started for ${title}.`);
+      analyzeSingleDoc(url, `${clientId}`);
+    }
+  };
+
+  const onCancelClick = () => {
+    showToast(`Analysis cancelled for ${title}.`);
+    cancelTask({ clientId: `${clientId}`, isSingleDoc: true });
   };
 
   const onSuccess = () => {
@@ -76,7 +88,8 @@ const SingleSB37Analysis = () => {
   };
 
   const handleProceedMultiAnalysis = () => {
-    if (url) analyzeMultiAssistantDoc({ docUrl: url, onSuccess });
+    if (url)
+      analyzeMultiAssistantDoc({ docUrl: url, onSuccess, clientId: `${clientId}` });
   };
 
   const renderPreview = () => {
@@ -103,43 +116,15 @@ const SingleSB37Analysis = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isCompletedSingle, reviewOutput, singleResult]);
 
-  useEffect(() => {
-    if (!singleLoading) return;
-    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-      e.preventDefault();
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (e as any).returnValue =
-        'Your progress will be lost. Are you sure you want to leave?';
-    };
-
-    window.addEventListener('beforeunload', handleBeforeUnload);
-
-    return () => {
-      window.removeEventListener('beforeunload', handleBeforeUnload);
-    };
-  }, [singleLoading]);
-
   return (
     <div className="flex flex-col gap-6">
       {/* URL Input */}
-      <div className="w-full flex items-center justify-center gap-x-4 sm:flex-row flex-col">
-        <Input
-          disabled={isBusy || isCompletedSingle}
-          id="ai-assistant-input"
-          label="Enter the document URL:"
-          name="ai-assistant-input"
-          onInputChange={e => setUrl(e.target.value)}
-          value={url}
-          customClassName="w-full flex items-center sm:flex-row flex-col"
-        />
-        <button
-          type="button"
-          disabled={isBusy || isCompletedSingle || !url}
-          className="cursor-pointer hover:scale-125 transition-transform disabled:pointer-events-none"
-          onClick={handleFetchDocInfo}>
-          <FaCircleChevronRight color="blue" size={25} className="sm:flex hidden" />
-        </button>
-      </div>
+      <InputSection
+        disabled={isBusy || isCompletedSingle}
+        handleClickNext={handleFetchDocInfo}
+        onInputChange={e => setUrl(e.target.value)}
+        value={url}
+      />
 
       {/* Error */}
       {errorMessage && (
@@ -148,9 +133,15 @@ const SingleSB37Analysis = () => {
 
       {/* Loading */}
       {isBusy && (
-        <div className="flex flex-col items-center">
+        <div className="flex flex-col items-center gap-y-2">
           <Loading />
-
+          {singleLoading && (
+            <Button
+              onClick={onCancelClick}
+              className="!bg-red-200 text-white border-none">
+              Cancel
+            </Button>
+          )}
           <div className="flex flex-col text-center">
             {!loadingDocInfo && (
               <p className="text-sm text-gray-600 mt-2 italic">
@@ -164,10 +155,12 @@ const SingleSB37Analysis = () => {
               </p>
             )}
             {singleLoading && (
-              <p className="text-sm text-gray-600 mt-2 italic">
-                Feel free to use other tools or process another sheet but{' '}
-                <strong>DO NOT</strong> refresh the page!{' '}
-              </p>
+              <>
+                <p className="text-sm text-gray-600 mt-2 italic">
+                  Feel free to use other tools or process another sheet but{' '}
+                  <strong>DO NOT</strong> refresh the page!{' '}
+                </p>
+              </>
             )}
           </div>
         </div>

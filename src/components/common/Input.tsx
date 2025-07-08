@@ -35,7 +35,7 @@ const Input = ({
         required={required}
         type="text"
         value={value}
-        className="!w-full py-2 disabled:bg-blue-200"
+        className="!w-full py-2 disabled:!bg-gray-200 disabled:!text-gray-600"
         onChange={onInputChange}
       />
       {error && <p className="text-red-600 italic mt-2">{helperText}</p>}
