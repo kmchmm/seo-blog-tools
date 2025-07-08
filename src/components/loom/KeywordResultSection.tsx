@@ -33,7 +33,7 @@ const KeywordResultSection = ({ result }: Props) => {
           <p>
             {heading.level} - {heading.text}{' '}
             <span className={heading.optimized ? 'text-green-600' : 'text-red-600'}>
-              {heading.optimized ? '✓' : '✗'}
+              {heading.optimized}
             </span>
           </p>
         </li>
@@ -128,7 +128,7 @@ const KeywordResultSection = ({ result }: Props) => {
               {otherKeyword.keywords.map(kw => (
                 <li key={kw.keyword}>
                   <p className="flex justify-between">
-                    {kw.keyword}:
+                    {kw.keyword}
                     <strong
                       className={`text-right ${kw.count > 0 ? 'text-green-500' : 'text-red-600'}`}>
                       {kw.count}

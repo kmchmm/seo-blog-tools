@@ -531,10 +531,10 @@ const removeFormatHighlights = () => {
       <h1 className="text-black-100 dark:text-white-100 text-5xl">AK Loom</h1>
       <p className="text-left italic self-start">For writers by developers</p>
 
-      <div className="dark:!bg-[#f7f8fa] dark:!text-black-200 w-full p-5">
+      <div className=" dark:!text-black-200 w-full p-5">
       <section className="w-full py-2 gap-5 flex flex-row mb-5">
         <div className="w-1/2">
-          <label>Meta Title</label>
+          <label className="dark:text-white-100">Meta Title</label>
           {title && (
             <span>
               {' '}
@@ -556,7 +556,7 @@ const removeFormatHighlights = () => {
               style={titleStyle.width}></div>
           </div>
 
-          <label>Meta Description</label>
+          <label className="dark:text-white-100">Meta Description</label>
           <span>
             {' '}
             - {(descriptionWithDate.length)} characters
@@ -578,7 +578,7 @@ const removeFormatHighlights = () => {
         </div>
 
         <div className="w-1/2 flex flex-col">
-          <label>Google Appearance Preview</label>
+          <label className="dark:text-white-100">Google Appearance Preview</label>
           <div className="border border-black/17.5 rounded-md p-4 bg-white flex-1 flex flex-col dark:text-black-200">
             <span>Arash Law</span>
             <h3 className="text-xl truncate text-blue-1000 leading-[1.2] font-medium">
@@ -625,9 +625,10 @@ const removeFormatHighlights = () => {
                 value={focusKeyword}
                 error={errorValidate}
                 helperText={helperText || 'Keyphrase is required'}
+                customClassName="dark:text-white-100"
               />
               <div className="w-1/2">
-                <label>Alternate ESQ</label>
+                <label className="dark:text-white-100">Alternate ESQ</label>
                 <input
                   type="text"
                   value={alternateEsq}
@@ -705,7 +706,7 @@ const removeFormatHighlights = () => {
             ) : (
               <div
                 className={clsx(
-                  'border border-black/17.5 rounded-md p-4 bg-white',
+                  'border border-black/17.5 rounded-xl p-4 bg-[#fcfcf4]',
                   minHeightStyle
                 )}>
                 {highlightedHtml ? (

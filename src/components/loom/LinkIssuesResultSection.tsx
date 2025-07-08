@@ -174,7 +174,7 @@ const LinkIssuesResultSection = ({ result }: Props) => {
       )}
 
       <Accordion
-        className="mt-2"
+        className="mt-2 text-sm"
         header={<div className="flex justify-between">Link & Anchor Text Issues</div>}
         badge={totalLinkIssues}
         badgeColor={totalLinkIssues > 0 ? 'red' : 'green'}>
@@ -201,7 +201,7 @@ const LinkIssuesResultSection = ({ result }: Props) => {
       </Accordion>
 
       <Accordion
-        className="mt-2"
+        className="mt-2 text-sm"
         header={<div className="flex justify-between">Internal Links</div>}
         badge={internalLinks.length}
         badgeColor={internalLinks.length > 0 ? 'green' : 'red'}>
@@ -213,7 +213,7 @@ const LinkIssuesResultSection = ({ result }: Props) => {
       </Accordion>
 
       <Accordion
-        className="mt-2"
+        className="mt-2 text-sm"
         header={<div className="flex justify-between">External Links</div>}
         badge={externalLinks.length}
         badgeColor={externalLinks.length > 0 ? 'green' : 'red'}>

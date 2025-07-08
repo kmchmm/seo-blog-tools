@@ -133,7 +133,7 @@ export const otherKeywords = [
 
   {
     category: 'Check for Personal Injury KW',
-    keywords: ['injury ESQ near me', 'personal injury law ESQ', 'best injury ESQ'],
+    keywords: ['injury ESQ near me', 'personal injury law ESQ'],
   },
   {
     category: 'Check For Car Accident KW',

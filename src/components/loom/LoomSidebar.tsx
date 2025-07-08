@@ -198,6 +198,25 @@ export const LoomSidebar: FC<LoomProps> = ({
   const [contentHighlightsActive, setContentHighlightsActive] = useState(false);
   const [keywordHighlightsActive, setKeywordHighlightsActive] = useState(false);
 
+  
+  const [showYoastDoneTooltip, setShowYoastDoneTooltip] = useState(false);
+  const [showSB37DoneTooltip, setShowSB37DoneTooltip] = useState(false);
+  const [showFormatDoneTooltip, setShowFormatDoneTooltip] = useState(false);
+  const [showContentDoneTooltip, setShowContentDoneTooltip] = useState(false);
+  const [showLinkDoneTooltip, setShowLinkDoneTooltip] = useState(false);
+
+  const [showSB37HighlightsTooltip, setShowSB37HighlightsTooltip] = useState(false);
+  const [showFormatHighlightsTooltip, setShowFormatHighlightsTooltip] = useState(false);
+  const [showContentHighlightsTooltip, setShowContentHighlightsTooltip] = useState(false);
+  const [showLinkHighlightsTooltip, setShowLinkHighlightsTooltip] = useState(false);
+  const [showKeywordHighlightsTooltip, setShowKeywordHighlightsTooltip] = useState(false);
+
+
+  const [showSB37RemoveHighlightsTooltip, setShowSB37RemoveHighlightsTooltip] = useState(false);
+  const [showFormatRemoveHighlightsTooltip, setShowFormatRemoveHighlightsTooltip] = useState(false);
+  const [showContentRemoveHighlightsTooltip, setShowContentRemoveHighlightsTooltip] = useState(false);
+  const [showLinkRemoveHighlightsTooltip, setShowLinkRemoveHighlightsTooltip] = useState(false);
+  const [showKeywordRemoveHighlightsTooltip, setshowKeywordRemoveHighlightsTooltip] = useState(false);
   // const uniqueViolationHeadings = prepareHeadingsForAccordion(violationResults);
   const uniqueDictionaryHeadings = prepareHeadingsForAccordion(
     dictionaryViolationResults
@@ -329,6 +348,9 @@ export const LoomSidebar: FC<LoomProps> = ({
         console.error('An error occured while analyzing the text:');
         console.error(error);
       });
+      
+    setShowYoastDoneTooltip(true);
+    setTimeout(() => setShowYoastDoneTooltip(false), 5000);
   };
 
   ////////////////////////////////////////////////////////
@@ -462,6 +484,8 @@ export const LoomSidebar: FC<LoomProps> = ({
         text: '⚠️ Potential violations found. Please review carefully',
       });
     }
+    setShowSB37DoneTooltip(true);
+    setTimeout(() => setShowSB37DoneTooltip(false), 5000);
   };
 
   useEffect(() => {
@@ -768,6 +792,9 @@ export const LoomSidebar: FC<LoomProps> = ({
     };
 
     worker.postMessage(paragraphs);
+
+    setShowFormatDoneTooltip(true);
+    setTimeout(() => setShowFormatDoneTooltip(false), 5000);
   }, [text]);
 
   const scrollToHeading = (headingText: string) => {
@@ -890,6 +917,9 @@ export const LoomSidebar: FC<LoomProps> = ({
   const handleHighlightFormatErrors = () => {
     onFormatHighlight(formatErrors);
     setHighlightActive(true);
+    setShowFormatHighlightsTooltip(true);
+    setTimeout(() => setShowFormatHighlightsTooltip(false), 1000);
+    
   };
 
   const highlightTitleCaseErrorsStrict = (sentence: string) => {
@@ -1029,6 +1059,8 @@ export const LoomSidebar: FC<LoomProps> = ({
 
   const checkContentIssues = () => {
     onCheckContentIssuesClick();
+    setShowContentDoneTooltip(true);
+    setTimeout(() => setShowContentDoneTooltip(false), 5000);
   };
 
   ////////////////////////////////////////////////////////
@@ -1038,6 +1070,8 @@ export const LoomSidebar: FC<LoomProps> = ({
   const handleAnalyzeLink = () => {
     onLinkIssues();
     setHasLinkChecked(true);
+    setShowLinkDoneTooltip(true);
+    setTimeout(() => setShowLinkDoneTooltip(false), 5000);
   };
 
   ////////////////////////////////////////////////////////
@@ -1084,6 +1118,8 @@ export const LoomSidebar: FC<LoomProps> = ({
     handleAnalyzeKeyword();
   };
 
+
+  
   return (
     <div className="w-[350px] min-h-[500px]">
       <Button
@@ -1246,7 +1282,7 @@ export const LoomSidebar: FC<LoomProps> = ({
                 {/* FORMATTING */}
                 <li className="border border-black/20 p-2 mt-2 rounded-md">
                   <div className="flex justify-between">
-                    <span className="font-bold">FORMATTING</span>
+                    <span className="font-bold">Formatting</span>
                     {formatHighlightActive ? (
                       <GoEye
                         title="Remove Highlights"
@@ -1661,13 +1697,17 @@ export const LoomSidebar: FC<LoomProps> = ({
             </TabList>
 
             <TabPanel id="Yoast">
-              <div className="text-center dark:!text-black">
+              <div className="text-center dark:!text-black relative">
                 <Button
                   className="w-full !bg-[#2563ea] hover:!bg-blue-1000 text-white dark:!text-white border-0 hover:shadow-none dark:hover:shadow-none rounded-none"
                   onClick={yoastSEOAnalyze}>
                   Run Yoast SEO Analysis
                 </Button>
-
+              {showYoastDoneTooltip && (
+                <div className="text-center !text-green-100 !bg-[#e5f5ea] px-12 py-3 z-10 text-sm mt-5">
+                   🎉 Done analyzing
+                </div>
+              )}
                 <h6 className={resultsHeaderStyle}>YOAST SEO ANALYSIS</h6>
                 <Accordion header="Problems" className="mb-2 text-sm">
                   {seoProblems.map((result: AssessmentResult, index: number) => (
@@ -1720,13 +1760,28 @@ export const LoomSidebar: FC<LoomProps> = ({
             </TabPanel>
 
             <TabPanel id="SB37">
-              <div className="mb-5 dark:!text-black">
+              <div className="mb-5 dark:!text-black relative">
                 <Button
                   className="w-full !bg-[#2563ea] hover:!bg-blue-1000 text-white dark:!text-white border-0 hover:shadow-none rounded-none dark:hover:shadow-none"
                   onClick={checkForViolations}>
                   Check For Potential Violations
                 </Button>
 
+              {showSB37DoneTooltip && (
+                <div className="text-center !text-green-100 !bg-[#e5f5ea] px-12 py-3 z-10 text-sm mt-5">
+                   🎉 Done analyzing
+                </div>
+              )}
+              {showSB37HighlightsTooltip && (
+                <div className="text-center !text-green-100 !bg-[#e5f5ea] px-12 py-3 z-10 text-sm mt-5">
+                   Phrases Highlighted
+                </div>
+              )}
+              {showSB37RemoveHighlightsTooltip && (
+                <div className="text-center !text-red-100 !bg-[#faeaea] px-12 py-3 z-10 text-sm mt-5">
+                    Highlights Removed
+                </div>
+              )}
                 <div className="flex mt-5 gap-2 mb-1">
                   <Button
                     className="w-full text-sm !bg-white text-black !border-black-200 border rounded-none hover:shadow-none hover:!bg-black-200 hover:text-white dark:hover:shadow-none dark:!text-black-200 dark:hover:!text-white"
@@ -1745,6 +1800,8 @@ export const LoomSidebar: FC<LoomProps> = ({
                       setActiveHighlights(updated);
                       onHighlight(updated);
                       setHighlightActive(true);
+                      setShowSB37HighlightsTooltip(true);
+                      setTimeout(() => setShowSB37HighlightsTooltip(false), 1000);
                     }}>
                     Show All Highlights
                   </Button>
@@ -1755,7 +1812,8 @@ export const LoomSidebar: FC<LoomProps> = ({
                     onClick={() => {
                       onRemoveHighlight();
                       setActiveHighlights([]);
-                      setHighlightActive(true);
+                      setHighlightActive(true);                          setShowSB37RemoveHighlightsTooltip(true);
+                      setTimeout(() => setShowSB37RemoveHighlightsTooltip(false), 1000);
                     }}>
                     Remove Highlights
                   </Button>
@@ -2331,6 +2389,7 @@ export const LoomSidebar: FC<LoomProps> = ({
             </TabPanel>
 
             <TabPanel id="Format">
+              <div className="relative">
               <Button
                 onClick={() => {
                   runFormatCheck();
@@ -2339,7 +2398,21 @@ export const LoomSidebar: FC<LoomProps> = ({
                 className="w-full !bg-[#2563ea] hover:!bg-blue-1000 text-white border-0 hover:shadow-none rounded-none dark:hover:shadow-none dark:!text-white">
                 {loading ? 'Checking...' : 'Check For Formatting Errors'}
               </Button>
-
+              {showFormatDoneTooltip && (
+                  <div className="text-center !text-green-100 !bg-[#e5f5ea] px-12 py-3 z-10 text-sm mt-5">
+                    🎉 Done analyzing
+                  </div>
+              )}
+              {showFormatHighlightsTooltip && (
+                <div className="text-center !text-green-100 !bg-[#e5f5ea] px-12 py-3 z-10 text-sm mt-5">
+                   Errors Highlighted
+                </div>
+              )}
+              {showFormatRemoveHighlightsTooltip && (
+                <div className="text-center !text-red-100 !bg-[#faeaea] px-12 py-3 z-10 text-sm mt-5">
+                    Highlights Removed
+                </div>
+              )}
               <div className="flex mt-5 gap-2 mb-2">
                 <Button
                   className="w-1/2 text-sm !bg-white text-black !border-black-200 border rounded-none hover:shadow-none hover:!bg-black-200 hover:text-white dark:hover:shadow-none dark:!text-black-200 dark:hover:!text-white"
@@ -2352,6 +2425,9 @@ export const LoomSidebar: FC<LoomProps> = ({
                   onClick={() => {
                     onRemoveFormatHighlight();
                     setFormatHighlightActive(false);
+                    setShowFormatRemoveHighlightsTooltip(true);
+                    setTimeout(() => setShowFormatRemoveHighlightsTooltip(false), 1000);
+                    
                   }}>
                   Remove Highlights
                 </Button>
@@ -2361,7 +2437,7 @@ export const LoomSidebar: FC<LoomProps> = ({
                   <div
                     className={`mb-4 p-4 rounded ${hasErrors ? 'bg-[#faeaea] text-red-600' : 'bg-[#e6f6e9] !text-green-100'}`}>
                     {!hasErrors ? (
-                      <h6 className="!text-center">
+                      <h6 className="!text-center text-sm">
                         🎉 No formatting errors found! Good job!
                       </h6>
                     ) : (
@@ -2446,7 +2522,7 @@ export const LoomSidebar: FC<LoomProps> = ({
                   <Accordion
                     header={
                       <div className="flex justify-between items-center w-full text-sm">
-                        <span>Lowercase in Heading</span>
+                        <span>Lowercase In Heading</span>
                         {showResults &&
                           (formatErrors.titleCaseErrors.length > 0 ? (
                             <div className="bg-[#f5ecee] w-[40px] text-right rounded-2xl px-2">
@@ -2553,7 +2629,7 @@ export const LoomSidebar: FC<LoomProps> = ({
                   <Accordion
                     header={
                       <div className="flex justify-between items-center w-full text-sm">
-                        <span>Space before Punctuation</span>
+                        <span>Space Before Punctuation</span>
                         {showResults &&
                           (formatErrors.spaceBeforePunctuationErrors.length > 0 ? (
                             <div className="bg-[#f5ecee] w-[40px] text-right rounded-2xl px-2">
@@ -2603,67 +2679,121 @@ export const LoomSidebar: FC<LoomProps> = ({
                   </Accordion>
                 </>
               )}
+              </div>
+
             </TabPanel>
 
             <TabPanel id="Content">
+              <div>
               <Button
                 disabled={!text || disableContentIssuesButton}
                 onClick={checkContentIssues}
                 className="w-full !bg-[#2563ea] hover:!bg-blue-1000 text-white border-0 hover:shadow-none rounded-none dark:hover:shadow-none dark:!text-white">
                 Check For Content Issues
               </Button>
-              <div className="flex mt-5 gap-2 mb-1">
-                <Button
-                  disabled={!text || !contentIssuesResult || editMode}
-                  onClick={onHighlightContent}
-                  className="w-1/2 text-sm !bg-white text-black !border-black-200 border rounded-none hover:shadow-none hover:!bg-black-200 hover:text-white dark:hover:shadow-none dark:!text-black-200 dark:hover:!text-white">
-                  Show Highlights
-                </Button>
-                <Button
-                  disabled={!text || !contentIssuesResult || editMode}
-                  onClick={onRemoveContentHighlight}
-                  className="w-1/2 text-sm !bg-[#EF4444] border-[#EF4444]  text-white border hover:!bg-red-700 hover:!border-red-700 rounded-none hover:shadow-none dark:hover:shadow-none dark:!text-white">
-                  Remove Highlights
-                </Button>
+              {showContentDoneTooltip && (
+                <div className="text-center !text-green-100 !bg-[#e5f5ea] px-12 py-3 z-10 text-sm mt-5">
+                   🎉 Done analyzing
+                </div>
+              )}
+              {showContentHighlightsTooltip && (
+                <div className="text-center !text-green-100 !bg-[#e5f5ea] px-12 py-3 z-10 text-sm mt-5">
+                   Content Highlighted
+                </div>
+              )}
+              {showContentRemoveHighlightsTooltip && (
+                <div className="text-center !text-red-100 !bg-[#faeaea] px-12 py-3 z-10 text-sm mt-5">
+                    Highlights Removed
+                </div>
+              )}
+                <div className="flex mt-5 gap-2 mb-1">
+                  <Button
+                    className="w-1/2 text-sm !bg-white text-black !border-black-200 border rounded-none hover:shadow-none hover:!bg-black-200 hover:text-white dark:hover:shadow-none dark:!text-black-200 dark:hover:!text-white"
+                    disabled={!text || !contentIssuesResult || editMode}
+                    onClick={() => {
+                      onHighlightContent();
+                      setShowContentHighlightsTooltip(true);
+                      setTimeout(() => setShowContentHighlightsTooltip(false), 1000);
+                    }}>
+                    Show Highlights
+                  </Button>
+                  <Button
+                    className="w-1/2 text-sm !bg-[#EF4444] border-[#EF4444]  text-white border hover:!bg-red-700 hover:!border-red-700 rounded-none hover:shadow-none dark:hover:shadow-none dark:!text-white"
+                    disabled={!text || !contentIssuesResult || editMode}
+                    onClick={() => {
+                      onRemoveContentHighlight();
+                      setShowContentRemoveHighlightsTooltip(true);
+                      setTimeout(() => setShowContentRemoveHighlightsTooltip(false), 1000);
+                    }}>
+                    Remove Highlights
+                  </Button>
+                </div>
+                {contentIssuesResult && (
+                  <ContentIssuesResultSection
+                    result={contentIssuesResult}
+                    errorMessage={contentIssuesErrorMessage}
+                  />
+                )}
               </div>
 
-              {contentIssuesResult && (
-                <ContentIssuesResultSection
-                  result={contentIssuesResult}
-                  errorMessage={contentIssuesErrorMessage}
-                />
-              )}
+
+
             </TabPanel>
 
             <TabPanel id="Link">
-              <Button
-                disabled={!text}
-                onClick={handleAnalyzeLink}
-                className="w-full !bg-[#2563ea] flex items-center justify-center hover:!bg-blue-1000 text-white border-0 hover:shadow-none rounded-none dark:hover:shadow-none dark:!text-white">
-                {loadingAnalyzeLink ? 'Analyzing links...' : ' Analyze Links'}
-              </Button>
-              <div className="flex mt-5 gap-2 mb-1">
+              <div>
                 <Button
-                  disabled={!linkIssuesResult}
-                  className="w-1/2 text-sm !bg-white text-black !border-black-200 border rounded-none hover:shadow-none hover:!bg-black-200 hover:text-white dark:hover:shadow-none dark:!text-black-200 dark:hover:!text-white"
-                  onClick={onLinkIssuesShowHighlightsClick}>
-                  Show Highlights
+                  disabled={!text}
+                  onClick={handleAnalyzeLink}
+                  className="w-full !bg-[#2563ea] flex items-center justify-center hover:!bg-blue-1000 text-white border-0 hover:shadow-none rounded-none dark:hover:shadow-none dark:!text-white">
+                  {loadingAnalyzeLink ? 'Analyzing links...' : ' Analyze Links'}
                 </Button>
-                <Button
-                  disabled={!linkIssuesResult}
-                  className="w-1/2 text-sm !bg-[#EF4444] border-[#EF4444]  text-white border hover:!bg-red-700 hover:!border-red-700 rounded-none hover:shadow-none dark:hover:shadow-none dark:!text-white"
-                  onClick={onLinkIssuesRemoveHighlightClick}>
-                  Remove Highlights
-                </Button>
-              </div>
+                {showLinkDoneTooltip && (
+                  <div className="text-center !text-green-100 !bg-[#e5f5ea] px-12 py-3 z-10 text-sm mt-5">
+                    🎉 Done analyzing
+                  </div>
+                )}
+                {showLinkHighlightsTooltip && (
+                  <div className="text-center !text-green-100 !bg-[#e5f5ea] px-12 py-3 z-10 text-sm mt-5">
+                    Links Highlighted
+                  </div>
+                )}
+                {showLinkRemoveHighlightsTooltip && (
+                  <div className="text-center !text-red-100 !bg-[#faeaea] px-12 py-3 z-10 text-sm mt-5">
+                      Highlights Removed
+                  </div>
+                )}
+                <div className="flex mt-5 gap-2 mb-1">
+                  <Button
+                    disabled={!linkIssuesResult}
+                    className="w-1/2 text-sm !bg-white text-black !border-black-200 border rounded-none hover:shadow-none hover:!bg-black-200 hover:text-white dark:hover:shadow-none dark:!text-black-200 dark:hover:!text-white"
+                    onClick={() => {
+                      onLinkIssuesShowHighlightsClick();
+                      setShowLinkHighlightsTooltip(true);
+                      setTimeout(() => setShowLinkHighlightsTooltip(false), 1000);
+                    }}>
+                    Show Highlights
+                  </Button>
+                  <Button
+                    disabled={!linkIssuesResult}
+                    className="w-1/2 text-sm !bg-[#EF4444] border-[#EF4444]  text-white border hover:!bg-red-700 hover:!border-red-700 rounded-none hover:shadow-none dark:hover:shadow-none dark:!text-white"
+                    onClick={()=> {
+                      onLinkIssuesRemoveHighlightClick();
+                      setShowLinkRemoveHighlightsTooltip(true);
+                      setTimeout(() => setShowLinkRemoveHighlightsTooltip(false), 1000);
+                    }}>
+                    Remove Highlights
+                  </Button>
+                </div>
 
-              {hasLinkChecked && (
-                <>
-                  {linkIssuesResult && (
-                    <LinkIssuesResultSection result={linkIssuesResult} />
-                  )}
-                </>
-              )}
+                {hasLinkChecked && (
+                  <>
+                    {linkIssuesResult && (
+                      <LinkIssuesResultSection result={linkIssuesResult} />
+                    )}
+                  </>
+                )}
+              </div>
             </TabPanel>
 
             <TabPanel id="Keyword" className="flex-1">
@@ -2673,17 +2803,36 @@ export const LoomSidebar: FC<LoomProps> = ({
                 className="w-full !bg-[#2563ea] hover:!bg-blue-1000 text-white border-0 hover:shadow-none rounded-none dark:hover:shadow-none dark:!text-white">
                 Analyze Keywords
               </Button>
+
+              {showKeywordHighlightsTooltip && (
+                  <div className="text-center !text-green-100 !bg-[#e5f5ea] px-12 py-3 z-10 text-sm mt-5">
+                    Phrases Highlighted
+                  </div>
+                )}
+                {showKeywordRemoveHighlightsTooltip && (
+                  <div className="text-center !text-red-100 !bg-[#faeaea] px-12 py-3 z-10 text-sm mt-5">
+                      Highlights Removed
+                  </div>
+                )}
               <div className="flex mt-5 gap-2 mb-1">
                 <Button
                   disabled={!keywordAnalysisResult || editMode}
                   className="w-1/2 text-sm  !bg-white  text-black !border-black-200 border rounded-none hover:shadow-none hover:!bg-black-200 hover:text-white dark:hover:shadow-none dark:!text-black-200 dark:hover:!text-white"
-                  onClick={onShowHighlightClick}>
+                  onClick={()=>{
+                    onShowHighlightClick();
+                    setShowKeywordHighlightsTooltip(true);
+                    setTimeout(() => setShowKeywordHighlightsTooltip(false), 1000);
+                  }}>
                   Show Highlights
                 </Button>
                 <Button
                   disabled={!keywordAnalysisResult || editMode}
                   className="w-1/2 text-sm !bg-[#EF4444] border-[#EF4444]  text-white border hover:!bg-red-700 hover:!border-red-700 rounded-none hover:shadow-none dark:hover:shadow-none dark:!text-white"
-                  onClick={onKeywordRemoveHighlightClick}>
+                  onClick={()=> {
+                    onKeywordRemoveHighlightClick();
+                    setshowKeywordRemoveHighlightsTooltip(true);
+                    setTimeout(() => setshowKeywordRemoveHighlightsTooltip(false), 1000);
+                  }}>
                   Remove Highlights
                 </Button>
               </div>
