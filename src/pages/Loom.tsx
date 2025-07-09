@@ -727,7 +727,7 @@ const removeFormatHighlights = () => {
           </div>
 
           <div 
-          className=" top-4 self-start max-h-screen overflow-y-auto"
+          className=" top-4 self-start max-h-screen overflow-y-auto sticky"
           style={{ scrollbarGutter: 'stable' }}
           >
             <LoomSidebar

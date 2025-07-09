@@ -274,6 +274,7 @@ export const Provider: React.FC<{ children: React.ReactNode }> = ({ children }) 
         ? `${AI_PROCESS_DOCUMENT_API_URL}`
         : `${AI_PROCESS_SHEET_API_URL}`;
 
+
       // Update canceling UI state (only for sheet context)
       if (!isSingleDoc && sheetName) {
         setSheetCanceling(prev => ({ ...prev, [sheetName]: true }));

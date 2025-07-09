@@ -198,7 +198,6 @@ export const LoomSidebar: FC<LoomProps> = ({
   const [contentHighlightsActive, setContentHighlightsActive] = useState(false);
   const [keywordHighlightsActive, setKeywordHighlightsActive] = useState(false);
 
-  
   const [showYoastDoneTooltip, setShowYoastDoneTooltip] = useState(false);
   const [showSB37DoneTooltip, setShowSB37DoneTooltip] = useState(false);
   const [showFormatDoneTooltip, setShowFormatDoneTooltip] = useState(false);
@@ -296,10 +295,26 @@ export const LoomSidebar: FC<LoomProps> = ({
 
   const hasErrors = Object.values(formatErrors).some(arr => arr.length > 0);
 
+  const [openAccordions, setOpenAccordions] = useState({
+    seoProblems: false,
+    seoGood: false,
+    readabilityProblems: false,
+    readabilityGood: false,
+    sb37ViolationsOpen: false,
+  });
   ////////////////////////////////////////////////////////
   ////////////////YOAST  TOOL/////////////////////////////
   ////////////////////////////////////////////////////////
+
   const yoastSEOAnalyze = () => {
+    setOpenAccordions({
+      seoProblems: false,
+      seoGood: false,
+      readabilityProblems: false,
+      readabilityGood: false,
+      sb37ViolationsOpen: false,
+    });
+
     const newWorker = new AnalysisWorkerWrapper(new YoastWorker());
 
     newWorker
@@ -343,6 +358,13 @@ export const LoomSidebar: FC<LoomProps> = ({
         setReadabilityAchievements(goodReadability);
         setSEOProblems(badSEO);
         setSEOAchievements(goodSEO);
+        setOpenAccordions({
+          seoProblems: true,
+          seoGood: true,
+          readabilityProblems: true,
+          readabilityGood: true,
+          sb37ViolationsOpen: false,
+        });
       })
       .catch((error: Error) => {
         console.error('An error occured while analyzing the text:');
@@ -350,7 +372,7 @@ export const LoomSidebar: FC<LoomProps> = ({
       });
       
     setShowYoastDoneTooltip(true);
-    setTimeout(() => setShowYoastDoneTooltip(false), 5000);
+    setTimeout(() => setShowYoastDoneTooltip(false), 3000);
   };
 
   ////////////////////////////////////////////////////////
@@ -384,6 +406,8 @@ export const LoomSidebar: FC<LoomProps> = ({
   //   return allMatches;
   // };
 
+
+  
   useEffect(() => {
     const handleAnchorClick = (e: MouseEvent) => {
       const target = e.target as HTMLElement;
@@ -397,19 +421,17 @@ export const LoomSidebar: FC<LoomProps> = ({
         if (el) {
           el.scrollIntoView({ behavior: 'smooth', block: 'center' });
 
-          el.classList.remove('anchor-highlight-fade'); // Reset if still fading
+          el.classList.remove('anchor-highlight-fade'); 
           el.classList.add('anchor-highlight-pulse');
 
-          // Start fading out after delay
           setTimeout(() => {
             el.classList.remove('anchor-highlight-pulse');
             el.classList.add('anchor-highlight-fade');
 
-            // Fully remove after fade completes
             setTimeout(() => {
               el.classList.remove('anchor-highlight-fade');
-            }, 1000); // match fade duration
-          }, 2500); // how long highlight stays
+            }, 1000); 
+          }, 2500); 
         }
       }
     };
@@ -469,31 +491,39 @@ export const LoomSidebar: FC<LoomProps> = ({
     return uniqueHeadings;
   }
 
-  const checkForViolations = () => {
-    const dictionaryMatches = checkForDictionaryViolations();
-    const totalMatches = dictionaryMatches.length;
+const checkForViolations = () => {
+  const dictionaryMatches = checkForDictionaryViolations();
+  const totalMatches = dictionaryMatches.length;
 
-    if (totalMatches === 0) {
-      setViolationCheckMessage({
-        type: 'success',
-        text: '🎉 No potential violations found! Good job',
-      });
-    } else {
-      setViolationCheckMessage({
-        type: 'error',
-        text: '⚠️ Potential violations found. Please review carefully',
-      });
-    }
-    setShowSB37DoneTooltip(true);
-    setTimeout(() => setShowSB37DoneTooltip(false), 5000);
-  };
+  if (totalMatches === 0) {
+    setViolationCheckMessage({
+      type: 'success',
+      text: '🎉 No potential violations found! Good job',
+    });
+  } else {
+    setViolationCheckMessage({
+      type: 'error',
+      text: '⚠️ Potential violations found. Please review carefully',
+    });
+  }
+
+  // Open the SB37 accordion
+  setOpenAccordions((prev) => ({
+    ...prev,
+    sb37ViolationsOpen: true,
+  }));
+
+  setShowSB37DoneTooltip(true);
+  setTimeout(() => setShowSB37DoneTooltip(false), 3000);
+};
+
 
   useEffect(() => {
     const fetchDictionary = async () => {
       const { data, error } = await supabase
         .from('loom_dictionary')
         .select('id, keyword, created_by')
-        .is('deleted_at', null); // ✅ Only fetch active keywords
+        .is('deleted_at', null); 
 
       if (!error && data) {
         setDictionary(data);
@@ -686,9 +716,9 @@ export const LoomSidebar: FC<LoomProps> = ({
     if (statusMessage) {
       const timer = setTimeout(() => {
         setStatusMessage(null);
-      }, 5000); // 5000ms = 5 seconds
+      }, 5000); 
 
-      return () => clearTimeout(timer); // cleanup
+      return () => clearTimeout(timer); 
     }
   }, [statusMessage]);
 
@@ -794,7 +824,7 @@ export const LoomSidebar: FC<LoomProps> = ({
     worker.postMessage(paragraphs);
 
     setShowFormatDoneTooltip(true);
-    setTimeout(() => setShowFormatDoneTooltip(false), 5000);
+    setTimeout(() => setShowFormatDoneTooltip(false), 3000);
   }, [text]);
 
   const scrollToHeading = (headingText: string) => {
@@ -1060,7 +1090,7 @@ export const LoomSidebar: FC<LoomProps> = ({
   const checkContentIssues = () => {
     onCheckContentIssuesClick();
     setShowContentDoneTooltip(true);
-    setTimeout(() => setShowContentDoneTooltip(false), 5000);
+    setTimeout(() => setShowContentDoneTooltip(false), 3000);
   };
 
   ////////////////////////////////////////////////////////
@@ -1071,7 +1101,7 @@ export const LoomSidebar: FC<LoomProps> = ({
     onLinkIssues();
     setHasLinkChecked(true);
     setShowLinkDoneTooltip(true);
-    setTimeout(() => setShowLinkDoneTooltip(false), 5000);
+    setTimeout(() => setShowLinkDoneTooltip(false), 3000);
   };
 
   ////////////////////////////////////////////////////////
@@ -1709,57 +1739,109 @@ export const LoomSidebar: FC<LoomProps> = ({
                 </div>
               )}
                 <h6 className={resultsHeaderStyle}>YOAST SEO ANALYSIS</h6>
-                <Accordion header="Problems" className="mb-2 text-sm">
-                  {seoProblems.map((result: AssessmentResult, index: number) => (
-                    <li
-                      key={`seo-problem-${index}`}
-                      className={errorListStyle}
-                      dangerouslySetInnerHTML={{
-                        __html: formatList(result.text),
-                      }}
-                    />
-                  ))}
-                </Accordion>
-                <Accordion header="Good results" className="text-sm">
-                  {seoAchievements.map((result: AssessmentResult, index: number) => (
-                    <li
-                      key={`seo-good-${index}`}
-                      className={passListStyle}
-                      dangerouslySetInnerHTML={{
-                        __html: formatList(result.text),
-                      }}
-                    />
-                  ))}
-                </Accordion>
-                <h6 className={resultsHeaderStyle}>YOAST READABILITY ANALYSIS</h6>
-                <Accordion header="Problems" className="mb-2 text-sm">
-                  {readabilityProblems.map((result: AssessmentResult, index: number) => (
-                    <li
-                      key={`readability-problem-${index}`}
-                      className={errorListStyle}
-                      dangerouslySetInnerHTML={{
-                        __html: formatList(result.text),
-                      }}
-                    />
-                  ))}
-                </Accordion>
-                <Accordion header="Good results" className="text-sm">
-                  {readabilityAchievements.map(
-                    (result: AssessmentResult, index: number) => (
+
+                <Accordion
+                  header="Problems"
+                  open={openAccordions.seoProblems}
+                    onToggle={() =>
+                      setOpenAccordions((prev) => ({
+                        ...prev,
+                        seoProblems: !prev.seoProblems,
+                      }))
+                    }
+                  className="mb-2 text-sm"
+                >
+                  <ul>
+                    {seoProblems.map((result: AssessmentResult, index: number) => (
                       <li
-                        key={`readability-problem-${index}`}
+                        key={`seo-problem-${index}`}
+                        className={errorListStyle}
+                        dangerouslySetInnerHTML={{
+                          __html: formatList(result.text),
+                        }}
+                      />
+                    ))}
+                  </ul>
+                </Accordion>
+
+                <Accordion
+                  header="Good results"
+                  open={openAccordions.seoGood}
+                    onToggle={() =>
+                      setOpenAccordions((prev) => ({
+                        ...prev,
+                        seoGood: !prev.seoGood,
+                      }))
+                    }
+                  className="text-sm"
+                >
+                  <ul>
+                    {seoAchievements.map((result: AssessmentResult, index: number) => (
+                      <li
+                        key={`seo-good-${index}`}
                         className={passListStyle}
                         dangerouslySetInnerHTML={{
                           __html: formatList(result.text),
                         }}
                       />
-                    )
-                  )}
+                    ))}
+                  </ul>
                 </Accordion>
+
+                <h6 className={resultsHeaderStyle}>YOAST READABILITY ANALYSIS</h6>
+
+                <Accordion
+                  header="Problems"
+                    open={openAccordions.readabilityProblems}
+                    onToggle={() =>
+                      setOpenAccordions((prev) => ({
+                        ...prev,
+                        readabilityProblems: !prev.readabilityProblems,
+                      }))
+                    }
+                  className="mb-2 text-sm"
+                >
+                  <ul>
+                    {readabilityProblems.map((result: AssessmentResult, index: number) => (
+                      <li
+                        key={`readability-problem-${index}`}
+                        className={errorListStyle}
+                        dangerouslySetInnerHTML={{
+                          __html: formatList(result.text),
+                        }}
+                      />
+                    ))}
+                  </ul>
+                </Accordion>
+
+                <Accordion
+                  header="Good results"
+                  open={openAccordions.readabilityGood}
+                    onToggle={() =>
+                    setOpenAccordions((prev) => ({
+                      ...prev,
+                      readabilityGood: !prev.readabilityGood,
+                    }))
+                  }
+                  className="text-sm"
+                >
+                  <ul>
+                    {readabilityAchievements.map((result: AssessmentResult, index: number) => (
+                      <li
+                        key={`readability-good-${index}`}
+                        className={passListStyle}
+                        dangerouslySetInnerHTML={{
+                          __html: formatList(result.text),
+                        }}
+                      />
+                    ))}
+                  </ul>
+                </Accordion>
+
               </div>
             </TabPanel>
 
-            <TabPanel id="SB37">
+            <TabPanel id="SB37">  
               <div className="mb-5 dark:!text-black relative">
                 <Button
                   className="w-full !bg-[#2563ea] hover:!bg-blue-1000 text-white dark:!text-white border-0 hover:shadow-none rounded-none dark:hover:shadow-none"
@@ -1812,7 +1894,8 @@ export const LoomSidebar: FC<LoomProps> = ({
                     onClick={() => {
                       onRemoveHighlight();
                       setActiveHighlights([]);
-                      setHighlightActive(true);                          setShowSB37RemoveHighlightsTooltip(true);
+                      setHighlightActive(true);                          
+                      setShowSB37RemoveHighlightsTooltip(true);
                       setTimeout(() => setShowSB37RemoveHighlightsTooltip(false), 1000);
                     }}>
                     Remove Highlights
@@ -1877,6 +1960,13 @@ export const LoomSidebar: FC<LoomProps> = ({
                 </Accordion> */}
 
                 <Accordion
+                open={openAccordions.sb37ViolationsOpen}
+                  onToggle={() =>
+                    setOpenAccordions((prev) => ({
+                      ...prev,
+                      sb37ViolationsOpen: !prev.sb37ViolationsOpen, // toggle it
+                    }))
+                  }
                   header={
                     <div className="flex justify-between items-center w-full text-sm">
                       <span className="text-sm">Potential Violations</span>

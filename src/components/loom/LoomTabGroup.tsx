@@ -1,7 +1,7 @@
-import { FC } from 'react';
-import clsx from 'clsx';
-import { AnalysisWebWorker, AnalysisWorkerWrapper, Paper } from 'yoastseo';
-import EnglishResearcher from 'yoastseo/build/languageProcessing/languages/en/Researcher';
+// import { FC } from 'react';
+// import clsx from 'clsx';
+// import { AnalysisWebWorker, AnalysisWorkerWrapper, Paper } from 'yoastseo';
+// import EnglishResearcher from 'yoastseo/build/languageProcessing/languages/en/Researcher';
 
 // import { Tabs, TabList, Tab, TabPanel } from 'react-aria-components';
 // import YoastIcon from '../../assets/icons/yoast.svg?react';

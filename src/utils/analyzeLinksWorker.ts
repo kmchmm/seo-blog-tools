@@ -49,6 +49,41 @@ export async function analyzeLinks(html: string): Promise<LinkAnalysisResult> {
     return null;
   }
 
+  function punctuationCheck(anchorText: string): boolean {
+    const punctuations = `.?!,;:'"()[]{}-`;
+    const trimmed = anchorText.trim();
+    const first = trimmed[0];
+    const last = trimmed[trimmed.length - 1];
+    return punctuations.includes(first) || punctuations.includes(last);
+  }
+
+  function surroundingPunctuationCheck(link: Element): boolean {
+    const parent = link.parentNode;
+    if (!parent) return false;
+
+    const childNodes = Array.from(parent.childNodes);
+    const linkIndex = childNodes.indexOf(link);
+    if (linkIndex === -1) return false;
+
+    const prevNode = childNodes[linkIndex - 1];
+    const nextNode = childNodes[linkIndex + 1];
+
+    const prevText = prevNode && prevNode.nodeType === Node.TEXT_NODE
+      ? prevNode.textContent?.trim()
+      : '';
+    const nextText = nextNode && nextNode.nodeType === Node.TEXT_NODE
+      ? nextNode.textContent?.trim()
+      : '';
+
+    const linkIsLastChild = linkIndex === childNodes.length - 1;
+
+    const nextHasBadPunctuation = !!(nextText && /^[.?!,;:]/.test(nextText));
+    const prevHasBadPunctuation = !!(prevText && /[.?!,;:]"?$/.test(prevText));
+
+    return (nextHasBadPunctuation || prevHasBadPunctuation) && !linkIsLastChild;
+  }
+
+
   const links = Array.from(doc.querySelectorAll('a[href]'));
 
   links.forEach(link => {
@@ -64,7 +99,6 @@ export async function analyzeLinks(html: string): Promise<LinkAnalysisResult> {
     }
 
     const entry: LinkEntry = { anchor: anchorText, url, heading };
-
     const isInternal = url.includes('arashlaw.com');
 
     if (isInternal) {
@@ -106,30 +140,27 @@ export async function analyzeLinks(html: string): Promise<LinkAnalysisResult> {
         heading,
         globalAlert: false,
       });
-      }
-      const punctuationCheck = (text: string) => {
-        const punctuations = `.?!,;:'"()[]{}-`;
-        const trimmed = text.trim();
-        const first = trimmed[0];
-        const last = trimmed[trimmed.length - 1];
+    }
 
-        console.log('First:', first, 'Last:', last);
+    if (punctuationCheck(anchorText)) {
+      issues.push({
+        issueType: 'Punctuation at beginning or end of anchor text',
+        anchor: anchorText,
+        url,
+        heading,
+        globalAlert: false,
+      });
+    }
 
-        return punctuations.includes(first) || punctuations.includes(last);
-      };
-
-      if (punctuationCheck(anchorText)) {
-        console.log('❗ Match found for:', anchorText);
-        issues.push({
-          issueType: 'Punctuation at beginning or end of anchor text',
-          anchor: anchorText,
-          url,
-          heading,
-          globalAlert: false,
-        });
-      }
-
-
+    if (surroundingPunctuationCheck(link)) {
+      issues.push({
+        issueType: 'Punctuation surrounding anchor',
+        anchor: anchorText,
+        url,
+        heading,
+        globalAlert: false,
+      });
+    }
   });
 
   seenUrls.forEach((arr, url) => {
@@ -195,6 +226,7 @@ export async function analyzeLinks(html: string): Promise<LinkAnalysisResult> {
 
   return { internalLinks, externalLinks, issues };
 }
+
 
 export function highlightLinkIssuesInHtml(
   container: CustomHTMLElement,

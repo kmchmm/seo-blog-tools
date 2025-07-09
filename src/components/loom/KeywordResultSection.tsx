@@ -21,6 +21,21 @@ const KeywordResultSection = ({ result }: Props) => {
     withoutFocus,
   } = sectionAnalysis || {};
 
+  const scrollToHeading = (headingText: string) => {
+    const allHeadings = Array.from(document.querySelectorAll('h1, h2, h3, h4, h5, h6'));
+    const target = allHeadings.find(h => h.textContent?.trim() === headingText.trim());
+
+    if (target) {
+      target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+      target.classList.add('bg-black', 'text-white', 'transition-all');
+
+      setTimeout(() => {
+        target.classList.remove('bg-black', 'text-white');
+      }, 5000);
+    }
+  };
+
   const renderHeadingResult = () => {
     if (!headings.length) {
       return <p className="text-gray-600 italic">No H2 or H3 headings found</p>;
@@ -30,16 +45,26 @@ const KeywordResultSection = ({ result }: Props) => {
       Array.isArray(headings) &&
       headings.map(heading => (
         <li key={heading.text}>
-          <p>
+          <p
+            className="cursor-pointer hover:underline"
+            onClick={() => scrollToHeading(heading.text)}
+            role="button"
+            tabIndex={0}
+            onKeyDown={e => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                scrollToHeading(heading.text);
+              }
+            }}>
             {heading.level} - {heading.text}{' '}
-            <span className={heading.optimized ? 'text-green-600' : 'text-red-600'}>
-              {heading.optimized}
-            </span>
+            {/* <span className={heading.optimized ? 'text-green-600' : 'text-red-600'}>
+              {heading.optimized.toString()}
+            </span> */}
           </p>
         </li>
       ))
     );
   };
+
 
   const renderHeadingsAlert = () => {
     if (!headings.length) return null;
@@ -101,9 +126,24 @@ const KeywordResultSection = ({ result }: Props) => {
             </p>
             <ul className="list-disc ml-5 space-y-1">
               {withoutFocus.map((heading, i) => (
-                <li key={i}>{heading}</li>
+                <li key={i}>
+                  <span
+                    className="cursor-pointer text-blue-600 hover:underline"
+                    onClick={() => scrollToHeading(heading)}
+                    role="button"
+                    tabIndex={0}
+                    onKeyDown={e => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        scrollToHeading(heading);
+                      }
+                    }}
+                  >
+                    {heading}
+                  </span>
+                </li>
               ))}
             </ul>
+
           </div>
         )}
 

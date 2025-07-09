@@ -52,7 +52,7 @@ const ContentIssuesResultSection = ({ result, errorMessage }: Props) => {
           className="underline text-sm text-blue-200 cursor-pointer"
           type="button"
           onClick={toggleHeadingDetails}>
-          {showHeadings ? 'Hide' : 'Show'} details
+          {showHeadings ? 'Hide' : 'View'} Details
         </button>
       </div>
       {showHeadings ? (
