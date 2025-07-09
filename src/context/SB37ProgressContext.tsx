@@ -271,8 +271,8 @@ export const Provider: React.FC<{ children: React.ReactNode }> = ({ children }) 
   }) => {
     try {
       const cancelUrl = isSingleDoc
-        ? `${AI_PROCESS_DOCUMENT_API_URL}/process-document/cancel`
-        : `${AI_PROCESS_SHEET_API_URL}/process-sheet/cancel`;
+        ? `${AI_PROCESS_DOCUMENT_API_URL}/cancel`
+        : `${AI_PROCESS_SHEET_API_URL}/cancel`;
 
       // Update canceling UI state (only for sheet context)
       if (!isSingleDoc && sheetName) {
