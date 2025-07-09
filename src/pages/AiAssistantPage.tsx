@@ -68,10 +68,17 @@ const AiAssistantPage = () => {
 
     const handleBeforeUnload = () => {
       if (isPageReload()) {
-        navigator.sendBeacon(
-          `${AI_PROCESS_DOCUMENT_API_URL}/intent-to-reload`,
-          JSON.stringify({ clientId: `${clientId}` })
-        );
+        const url = `${AI_PROCESS_DOCUMENT_API_URL}`;
+        const body = JSON.stringify({ clientId });
+
+        fetch(url, {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'text/plain',
+          },
+          body,
+          keepalive: true,
+        });
       }
     };
 
