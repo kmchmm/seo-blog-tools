@@ -42,18 +42,19 @@ const AiAssistantPage = () => {
 
     const handleBeforeUnload = () => {
       if (isPageReload()) {
-        navigator.sendBeacon(
-          `${AI_PROCESS_SHEET_API_URL}/intent-to-reload`,
-          JSON.stringify({ clientId: `${clientId}` })
-        );
+        fetch(`${AI_PROCESS_SHEET_API_URL}`, {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'text/plain',
+          },
+          body: JSON.stringify({ clientId }),
+          keepalive: true,
+        });
       }
     };
 
     window.addEventListener('beforeunload', handleBeforeUnload);
-
-    return () => {
-      window.removeEventListener('beforeunload', handleBeforeUnload);
-    };
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
   }, [loadingSheets, clientId]);
 
   useEffect(() => {

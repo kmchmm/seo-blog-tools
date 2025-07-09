@@ -318,6 +318,7 @@ const BatchSB37Analysis = () => {
   return (
     <>
       <InputSection
+        label="Enter the spreadsheet URL:"
         disabled={
           isDocInfoLoading || isSheetProcessing || isValidating || hasActiveSheets
         }
