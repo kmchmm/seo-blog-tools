@@ -5,15 +5,22 @@ type Props = {
   disabled: boolean;
   onInputChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   value: string;
+  label: string;
   handleClickNext: () => void;
 };
-const InputSection = ({ disabled, value, onInputChange, handleClickNext }: Props) => {
+const InputSection = ({
+  disabled,
+  value,
+  onInputChange,
+  handleClickNext,
+  label,
+}: Props) => {
   return (
     <div className="w-full flex items-center gap-x-4 sm:flex-row flex-col">
       <Input
         disabled={disabled}
         id="ai-assistant-input"
-        label="Enter the spreadsheet URL:"
+        label={label}
         name="ai-assistant-input"
         onInputChange={onInputChange}
         value={value}

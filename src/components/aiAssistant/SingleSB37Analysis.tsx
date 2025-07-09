@@ -120,6 +120,7 @@ const SingleSB37Analysis = () => {
     <div className="flex flex-col gap-6">
       {/* URL Input */}
       <InputSection
+        label="Enter the document URL:"
         disabled={isBusy || isCompletedSingle}
         handleClickNext={handleFetchDocInfo}
         onInputChange={e => setUrl(e.target.value)}
