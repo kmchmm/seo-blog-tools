@@ -33,13 +33,25 @@ const usePostSB37SingleAnalysis = () => {
     }
   };
 
-  const sendSingleAssistantRequest = (docUrl: string, clientId: string) => {
+  const sendSingleAssistantRequest = ({
+    clientId,
+    docName,
+    docUrl,
+    wordCount,
+  }: {
+    docUrl: string;
+    clientId: string;
+    docName: string;
+    wordCount: number;
+  }) => {
     reset();
     setLoading(true);
 
     const url = new URL(AI_PROCESS_DOCUMENT_API_URL);
     url.searchParams.set('docUrl', docUrl);
     url.searchParams.set('clientId', clientId);
+    url.searchParams.set('title', docName);
+    url.searchParams.set('wordCount', `${wordCount}`);
 
     const eventSourceInstance = new EventSource(url.toString());
     eventSource = eventSourceInstance;
@@ -123,16 +135,20 @@ const usePostSB37SingleAnalysis = () => {
     docUrl,
     clientId,
     onSuccess,
+    docTitle,
+    wordCount,
   }: {
     mode?: 'multi-assistant' | 'single';
     docUrl: string;
     clientId: string;
     onSuccess?: () => void;
+    docTitle: string;
+    wordCount: number;
   }) => {
     if (mode === 'multi-assistant') {
       await sendMultiAssistantRequest(docUrl, clientId, onSuccess);
     } else {
-      sendSingleAssistantRequest(docUrl, clientId);
+      sendSingleAssistantRequest({ docUrl, clientId, docName: docTitle, wordCount });
     }
   };
 

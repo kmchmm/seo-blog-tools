@@ -47,17 +47,32 @@ type BatchProgressContextType = {
     isSingleDoc?: boolean;
   }) => void;
   sheetCanceling: Record<string, boolean>;
+  batchCompletionTime: Record<string, string>;
 
   // single analysis fields
-  analyzeSingleDoc: (docUrl: string, clientId: string) => void;
+  analyzeSingleDoc: ({
+    clientId,
+    docTitle,
+    docUrl,
+    wordCount,
+  }: {
+    docUrl: string;
+    clientId: string;
+    docTitle: string;
+    wordCount: number;
+  }) => void;
   analyzeMultiAssistantDoc: ({
     docUrl,
     onSuccess,
     clientId,
+    docTitle,
+    wordCount,
   }: {
     docUrl: string;
     onSuccess: () => void;
     clientId: string;
+    docTitle: string;
+    wordCount: number;
   }) => void;
   isCompletedSingle: boolean;
   resetSingleAnalysis: () => void;
@@ -83,6 +98,9 @@ export const Context = createContext<BatchProgressContextType | undefined>(undef
 export const Provider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [formValues, setFormValues] = useState({ url: '', sheetName: '' });
   const [items, setItems] = useState<Record<string, ProgressItem[]>>({});
+  const [batchCompletionTime, setBatchCompletionTime] = useState<Record<string, string>>(
+    {}
+  );
 
   const [sheetCurrentTitle, setSheetCurrentTitle] = useState<Record<string, string>>({});
 
@@ -129,8 +147,18 @@ export const Provider: React.FC<{ children: React.ReactNode }> = ({ children }) 
     }));
   };
 
-  const analyzeSingleDoc = (docUrl: string, clientId: string) => {
-    sendSingleRequest({ docUrl, clientId });
+  const analyzeSingleDoc = ({
+    clientId,
+    docTitle,
+    docUrl,
+    wordCount,
+  }: {
+    docUrl: string;
+    clientId: string;
+    docTitle: string;
+    wordCount: number;
+  }) => {
+    sendSingleRequest({ docUrl, clientId, docTitle, wordCount });
   };
 
   //TODO
@@ -138,15 +166,27 @@ export const Provider: React.FC<{ children: React.ReactNode }> = ({ children }) 
     docUrl,
     onSuccess,
     clientId,
+    docTitle,
+    wordCount,
   }: {
     docUrl: string;
     onSuccess: () => void;
     clientId: string;
+    docTitle: string;
+    wordCount: number;
   }) => {
-    sendSingleRequest({ mode: 'multi-assistant', docUrl, onSuccess, clientId });
+    sendSingleRequest({
+      mode: 'multi-assistant',
+      docUrl,
+      onSuccess,
+      clientId,
+      docTitle,
+      wordCount,
+    });
   };
 
   const startBatch = (spreadsheetUrl: string, sheetName: string, clientId: string) => {
+    setBatchCompletionTime(prev => ({ ...prev, [sheetName]: '' }));
     setItems(prev => ({ ...prev, [sheetName]: [] }));
     setSheetProgressCount(prev => ({ ...prev, [sheetName]: 0 }));
     setSheetCompleted(prev => ({ ...prev, [sheetName]: false }));
@@ -175,6 +215,10 @@ export const Provider: React.FC<{ children: React.ReactNode }> = ({ children }) 
         setItems(prev => ({ ...prev, [sheetName]: data.results || [] }));
         setLoadingSheets(prev => ({ ...prev, [sheetName]: false }));
         setSheetCompleted(prev => ({ ...prev, [sheetName]: true }));
+        setBatchCompletionTime(prev => ({
+          ...prev,
+          [sheetName]: data.completionTime || '',
+        }));
         showToast(`${data.sheetName} has finished processing.`);
         eventSource.close();
       } else if (data.type === 'error') {
@@ -258,6 +302,11 @@ export const Provider: React.FC<{ children: React.ReactNode }> = ({ children }) 
       delete copy[sheetName];
       return copy;
     });
+    setBatchCompletionTime(prev => {
+      const copy = { ...prev };
+      delete copy[sheetName];
+      return copy;
+    });
   };
 
   const cancelTask = async ({
@@ -316,6 +365,7 @@ export const Provider: React.FC<{ children: React.ReactNode }> = ({ children }) 
         formValues,
         cancelTask,
         sheetCanceling,
+        batchCompletionTime,
 
         // single
         url,
