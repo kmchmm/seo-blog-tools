@@ -9,14 +9,14 @@ export interface FormattingError {
   sentence: string;
   paragraphIndex: number;
   heading: string;
-   errorSubType?: 'leading' | 'trailing' | string;
+  //  errorSubType?: 'leading' | 'trailing' | string;
 }
 
 export interface ErrorList {
   multipleSpaceErrors: FormattingError[];
   emDashErrors: FormattingError[];
   titleCaseErrors: FormattingError[];
-  leadingTrailingSpaceErrors: FormattingError[];
+  // leadingTrailingSpaceErrors: FormattingError[];
   spaceBeforePunctuationErrors: FormattingError[];
   missingPunctuationErrors: FormattingError[];
 }
@@ -32,7 +32,7 @@ function checkDocumentForErrorsFull(paragraphs: Paragraph[]): ErrorList {
     multipleSpaceErrors: [],
     emDashErrors: [],
     titleCaseErrors: [],
-    leadingTrailingSpaceErrors: [],
+    // leadingTrailingSpaceErrors: [],
     spaceBeforePunctuationErrors: [],
     missingPunctuationErrors: [],
   };
@@ -44,7 +44,7 @@ function checkDocumentForErrorsFull(paragraphs: Paragraph[]): ErrorList {
     errorList.multipleSpaceErrors.push(...checkMultipleSpaces(text, i, paragraphs));
     errorList.emDashErrors.push(...checkEmDashSpacing(text, i, paragraphs));
     errorList.titleCaseErrors.push(...checkHeadingTitleCase(text, heading ?? null, i)); 
-    errorList.leadingTrailingSpaceErrors.push(...checkLeadingTrailingSpaces(text, i, paragraphs));
+    // errorList.leadingTrailingSpaceErrors.push(...checkLeadingTrailingSpaces(text, i, paragraphs));
     errorList.spaceBeforePunctuationErrors.push(...checkSpaceBeforePunctuation(text, i, paragraphs));
     errorList.missingPunctuationErrors.push(...checkMissingPunctuation(text, heading ?? null, i, paragraphs));
   }
@@ -101,31 +101,31 @@ function checkHeadingTitleCase(text: string, heading: string | null, i: number) 
   return errors;
 }
 
-function checkLeadingTrailingSpaces(text: string, i: number, paragraphs: Paragraph[]) {
-  const errors: FormattingError[] = [];
-  const leadingMatch = /^\s+/.exec(text);
-  const trailingMatch = /\s+$/.exec(text);
+// function checkLeadingTrailingSpaces(text: string, i: number, paragraphs: Paragraph[]) {
+//   const errors: FormattingError[] = [];
+//   const leadingMatch = /^\s+/.exec(text);
+//   const trailingMatch = /\s+$/.exec(text);
 
-  if (leadingMatch && text.trim() !== '') {
-    errors.push({
-      paraIndex: i + 1,
-      sentence: getSurroundingSentence(text, leadingMatch.index + leadingMatch[0].length),
-      paragraphIndex: i,
-      heading: getNearestHeading(paragraphs, i),
-      errorSubType: 'leading',
-    });
-  }
-  if (trailingMatch && text.trim() !== '') {
-    errors.push({
-      paraIndex: i + 1,
-      sentence: getSurroundingSentence(text, trailingMatch.index),
-      paragraphIndex: i,
-      heading: getNearestHeading(paragraphs, i),
-      errorSubType: 'trailing',
-    });
-  }
-  return errors;
-}
+//   if (leadingMatch && text.trim() !== '') {
+//     errors.push({
+//       paraIndex: i + 1,
+//       sentence: getSurroundingSentence(text, leadingMatch.index + leadingMatch[0].length),
+//       paragraphIndex: i,
+//       heading: getNearestHeading(paragraphs, i),
+//       errorSubType: 'leading',
+//     });
+//   }
+//   if (trailingMatch && text.trim() !== '') {
+//     errors.push({
+//       paraIndex: i + 1,
+//       sentence: getSurroundingSentence(text, trailingMatch.index),
+//       paragraphIndex: i,
+//       heading: getNearestHeading(paragraphs, i),
+//       errorSubType: 'trailing',
+//     });
+//   }
+//   return errors;
+// }
 
 
 function checkMissingPunctuation(

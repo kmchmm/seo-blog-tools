@@ -83,8 +83,7 @@ interface DictionaryEntry {
   deleted_at?: string | null;
   created_at?: string;
   created?: string | null;
-
-  // add other fields if needed
+  deleted_by: string;
 }
 
 const tabHeaderStyle = clsx(
@@ -176,6 +175,7 @@ export const LoomSidebar: FC<LoomProps> = ({
       deleted_at?: string | null;
       created_at?: string;
       created?: string | null;
+      deleted_by: string;
     }[]
   >([]);
 
@@ -185,6 +185,7 @@ export const LoomSidebar: FC<LoomProps> = ({
   const [dictionaryViolationResults, setDictionaryViolationResults] = useState<
     Record<string, { heading: string; id: string }[]>
   >({});
+  const [searchMessage, setSearchMessage] = useState<string | null>(null);
   const [showResults, setShowResults] = useState(false);
 
   const [didFixAll, setDidFixAll] = useState(false);
@@ -279,7 +280,7 @@ export const LoomSidebar: FC<LoomProps> = ({
     multipleSpaceErrors: any[];
     emDashErrors: any[];
     titleCaseErrors: any[];
-    leadingTrailingSpaceErrors: any[];
+    // leadingTrailingSpaceErrors: any[];
     spaceBeforePunctuationErrors: any[];
     missingPunctuationErrors: any[];
   };
@@ -288,7 +289,7 @@ export const LoomSidebar: FC<LoomProps> = ({
     multipleSpaceErrors: [],
     emDashErrors: [],
     titleCaseErrors: [],
-    leadingTrailingSpaceErrors: [],
+    // leadingTrailingSpaceErrors: [],
     spaceBeforePunctuationErrors: [],
     missingPunctuationErrors: [],
   });
@@ -491,44 +492,44 @@ export const LoomSidebar: FC<LoomProps> = ({
     return uniqueHeadings;
   }
 
-const checkForViolations = () => {
-  const dictionaryMatches = checkForDictionaryViolations();
-  const totalMatches = dictionaryMatches.length;
+  const checkForViolations = () => {
+    const dictionaryMatches = checkForDictionaryViolations();
+    const totalMatches = dictionaryMatches.length;
 
-  if (totalMatches === 0) {
-    setViolationCheckMessage({
-      type: 'success',
-      text: '🎉 No potential violations found! Good job',
-    });
-  } else {
-    setViolationCheckMessage({
-      type: 'error',
-      text: '⚠️ Potential violations found. Please review carefully',
-    });
-  }
+    if (totalMatches === 0) {
+      setViolationCheckMessage({
+        type: 'success',
+        text: '🎉 No potential violations found! Good job',
+      });
+    } else {
+      setViolationCheckMessage({
+        type: 'error',
+        text: '⚠️ Potential violations found. Please review carefully',
+      });
+    }
 
-  // Open the SB37 accordion
-  setOpenAccordions((prev) => ({
-    ...prev,
-    sb37ViolationsOpen: true,
-  }));
+    // Open the SB37 accordion
+    setOpenAccordions((prev) => ({
+      ...prev,
+      sb37ViolationsOpen: true,
+    }));
 
-  setShowSB37DoneTooltip(true);
-  setTimeout(() => setShowSB37DoneTooltip(false), 3000);
-};
+    setShowSB37DoneTooltip(true);
+    setTimeout(() => setShowSB37DoneTooltip(false), 3000);
+  };
 
 
   useEffect(() => {
     const fetchDictionary = async () => {
       const { data, error } = await supabase
         .from('loom_dictionary')
-        .select('id, keyword, created_by')
-        .is('deleted_at', null); 
+        .select('id, keyword, created_by, deleted_by, deleted_at')
+        .is('deleted_at', null);
 
       if (!error && data) {
         setDictionary(data);
       } else {
-        console.error('Failed to load dictionary', error);
+        console.error('Failed to load deleted dictionary', error);
       }
     };
 
@@ -627,14 +628,35 @@ const checkForViolations = () => {
   const fetchDictionary = async () => {
     const { data, error } = await supabase
       .from('loom_dictionary')
-      .select('id, keyword, created_by, deleted_at');
-
+      .select('id, keyword, created_by, deleted_at, deleted_by')
+      .is('deleted_at', null); 
     if (!error) setDictionary(data || []);
   };
 
+const fetchArchivedDictionary = async () => {
+  const { data, error } = await supabase
+    .from('loom_dictionary')
+    .select('id, keyword, created_by, deleted_at, deleted_by')
+    .not('deleted_at', 'is', null);
+
+  if (!error && data) {
+    const sorted = data.sort((a, b) => {
+      const aTime = new Date(a.deleted_at ?? '').getTime();
+      const bTime = new Date(b.deleted_at ?? '').getTime();
+      return bTime - aTime;
+    });
+
+    setArchivedDictionary(sorted);
+  } else {
+    console.error('Failed to fetch archived dictionary', error);
+  }
+};
+
+
+
   useEffect(() => {
     if (isViewModalOpen) {
-      fetchDictionary();
+      fetchArchivedDictionary();
     }
   }, [isViewModalOpen]);
 
@@ -673,23 +695,27 @@ const checkForViolations = () => {
     }
   };
 
-  const handleDeletePhrase = async (id: number) => {
-    const { error } = await supabase
-      .from('loom_dictionary')
-      .update({ deleted_at: new Date().toISOString() })
-      .eq('id', id);
+const handleDeletePhrase = async (id: number) => {
+  const deletedAt = new Date().toISOString();
+  const deletedBy = userData.full_name || 'Unknown User';
 
-    if (error) {
-      console.error('Failed to delete phrase:', error.message);
-    } else {
-      setDictionary(prev =>
-        prev.map(entry =>
-          entry.id === id ? { ...entry, deleted_at: new Date().toISOString() } : entry
-        )
-      );
-      setStatusMessage('Phrase successfully archived.');
-    }
-  };
+  const { error } = await supabase
+    .from('loom_dictionary')
+    .update({ deleted_at: deletedAt, deleted_by: deletedBy })
+    .eq('id', id);
+
+  if (error) {
+    console.error('Failed to delete phrase:', error.message);
+  } else {
+    setDictionary(prev =>
+      prev.map(entry =>
+        entry.id === id ? { ...entry, deleted_at: deletedAt, deleted_by: deletedBy } : entry
+      )
+    );
+    setStatusMessage('Phrase successfully archived.');
+  }
+};
+
   useEffect(() => {
     if (currentPage > totalPages) {
       setCurrentPage(totalPages || 1);
@@ -751,37 +777,50 @@ const checkForViolations = () => {
   //   });
   // }, [archivedDictionary]);
 
-  const handleCustomSearch = () => {
-    const term = customSearchTerm.trim().toLowerCase();
-    if (!term) return;
+const handleCustomSearch = () => {
+  const term = customSearchTerm.trim().toLowerCase();
+  if (!term) return;
 
-    if (customSearchResults.some(res => res.term.toLowerCase() === term)) return;
+  if (customSearchResults.some(res => res.term.toLowerCase() === term)) return;
 
-    const regex = new RegExp(
-      `\\b${term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`,
-      'gi'
-    );
-    const matches = text.match(regex);
-    const matchCount = matches ? matches.length : 0;
+  const regex = new RegExp(
+    `\\b${term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`,
+    'gi'
+  );
+  const matches = text.match(regex);
+  const matchCount = matches ? matches.length : 0;
 
-    setCustomSearchResults(prev => [
-      ...prev,
-      {
-        id: crypto.randomUUID(), // or use any unique ID generator
-        term: customSearchTerm,
-        count: matchCount,
-      },
-    ]);
+  setCustomSearchResults(prev => [
+    ...prev,
+    {
+      id: crypto.randomUUID(),
+      term: customSearchTerm,
+      count: matchCount,
+    },
+  ]);
 
-    if (matchCount > 0) {
-      setHighlightActive(true);
-      onHighlight([customSearchTerm]);
-    } else {
-      setHighlightActive(false);
-    }
+  if (matchCount > 0) {
+    setHighlightActive(true);
+    onHighlight([customSearchTerm]);
+    setSearchMessage(''); // Clear message if found
+  } else {
+    setHighlightActive(false);
+    setSearchMessage(`No matches found for "${customSearchTerm}"`);
+  }
 
-    setCustomSearchTerm('');
-  };
+  setCustomSearchTerm('');
+};
+
+
+useEffect(() => {
+  if (!searchMessage) return;
+
+  const timer = setTimeout(() => {
+    setSearchMessage('');
+  }, 3000);
+
+  return () => clearTimeout(timer);
+}, [searchMessage]);
 
   ////////////////////////////////////////////////////////
   //////////////FORMAT QA TOOL////////////////////////////
@@ -849,7 +888,7 @@ const checkForViolations = () => {
       'multipleSpaceErrors',
       'emDashErrors',
       'titleCaseErrors',
-      'leadingTrailingSpaceErrors',
+      // 'leadingTrailingSpaceErrors',
       'spaceBeforePunctuationErrors',
       'missingPunctuationErrors',
     ].includes(key);
@@ -918,7 +957,7 @@ const checkForViolations = () => {
     const noIssuesMessages: Record<string, string> = {
       multipleSpaceErrors: 'No multiple spaces. Rawr',
       emDashErrors: 'No em dash issues. Rawr',
-      leadingTrailingSpaceErrors: 'No leading/trailing spaces. Rawr',
+      // leadingTrailingSpaceErrors: 'No leading/trailing spaces. Rawr',
       spaceBeforePunctuationErrors: 'No space before punctuation. Rawr',
       missingPunctuationErrors: 'No missing punctuation. Rawr',
     };
@@ -1347,10 +1386,10 @@ const checkForViolations = () => {
                         label: 'Lowercase in headings',
                         count: formatErrors.titleCaseErrors.length,
                       },
-                      {
-                        label: 'Leading/trailing spaces',
-                        count: formatErrors.leadingTrailingSpaceErrors.length,
-                      },
+                      // {
+                      //   label: 'Leading/trailing spaces',
+                      //   count: formatErrors.leadingTrailingSpaceErrors.length,
+                      // },
                       {
                         label: 'Space before punctuation',
                         count: formatErrors.spaceBeforePunctuationErrors.length,
@@ -1517,7 +1556,7 @@ const checkForViolations = () => {
                               <GoDotFill
                                 className={hasIssues ? 'text-red-500' : 'text-green-500'}
                               />
-                              <span className="capitalize">{key}:</span>
+                              <span className="capitalize">{key}</span>
                             </div>
                             <span>{count}</span>
                           </li>
@@ -2057,10 +2096,18 @@ const checkForViolations = () => {
                 </Accordion> */}
               </div>
 
+
+
               <div className="mb-3">
                 <h5 className="dark:!text-black !font-bold">
                   Check for additional words/phrases:
                 </h5>
+                {searchMessage && (
+                  <div className="search-message text-red-600 mt-2 bg-[#faeaea] text-center py-2 text-sm">
+                    {searchMessage}
+                  </div>
+                )}
+
                 <div className="relative mb-1">
                   <input
                     type="text"
@@ -2073,10 +2120,21 @@ const checkForViolations = () => {
                   <GoSearch className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500" />
                 </div>
 
-                {customSearchResults.some(result => result.count > 0) && (
+
+                {customSearchResults.length > 0 && (
                   <div className="mt-1 mb-2">
                     <div className="flex justify-between font-extrabold p-2 bg-gray-300 dark:!text-black-200">
-                      Search Results:
+                      <span>Search Results:</span>
+                      <span 
+                          className="text-red-200 hover:underline cursor-pointer"
+                          onClick={() => {
+                            setCustomSearchResults([]);    
+                            onRemoveHighlight();       
+                            setSearchMessage('');          
+                          }}>
+                            Clear
+                            
+                        </span>
                     </div>
                     {customSearchResults.map(({ term, count, id }, index) => (
                       <div key={index} className="py-1 border-b border-gray-200">
@@ -2084,7 +2142,8 @@ const checkForViolations = () => {
                           <a
                             href={`#${id ?? term.replace(/\s+/g, '-').toLowerCase()}`}
                             className="text-blue-600 font-bold hover:underline cursor-pointer flex justify-between hover:bg-gray-100 px-2"
-                            onClick={() => onHighlight([term])}>
+                            onClick={() => onHighlight([term])}
+                          >
                             <strong>{term}</strong> <span>{count}</span>
                           </a>
                         ) : (
@@ -2107,9 +2166,11 @@ const checkForViolations = () => {
                       : 'opacity-50 cursor-not-allowed pointer-events-none'
                   )}
                   onClick={handleCustomSearch}
-                  disabled={customSearchTerm.trim().length === 0}>
+                  disabled={customSearchTerm.trim().length === 0}
+                >
                   Search Now
                 </Button>
+
 
                 <div className="flex gap-2 mt-3">
                   <Button
@@ -2355,7 +2416,7 @@ const checkForViolations = () => {
                                   <thead>
                                     <tr>
                                       <th>Keyword</th>
-                                      <th>Added By</th>
+                                      <th>Deleted By</th>
                                       <th>Days Left</th>
                                       <th className="w-[80px]"></th>
                                     </tr>
@@ -2363,45 +2424,27 @@ const checkForViolations = () => {
                                   <tbody>
                                     {deletedEntries.length === 0 ? (
                                       <tr>
-                                        <td
-                                          colSpan={4}
-                                          className="text-center text-white">
+                                        <td colSpan={4} className="text-center text-white">
                                           No deleted entries found.
                                         </td>
                                       </tr>
                                     ) : (
                                       deletedEntries.map(entry => {
-                                        const deletedAt = new Date(
-                                          entry.deleted_at as string
-                                        );
+                                        const deletedAt = new Date(entry.deleted_at as string);
                                         const now = new Date();
                                         const diffDays =
-                                          30 -
-                                          Math.floor(
-                                            (now.getTime() - deletedAt.getTime()) /
-                                              (1000 * 60 * 60 * 24)
-                                          );
+                                          30 - Math.floor((now.getTime() - deletedAt.getTime()) / (1000 * 60 * 60 * 24));
 
                                         return (
                                           <tr key={entry.id}>
-                                            <td className="px-4 py-2 !text-white">
-                                              {entry.keyword}
-                                            </td>
-                                            <td className="px-4 py-2 !text-white">
-                                              {entry.created_by}
-                                            </td>
-                                            <td className="px-4 py-2 !text-white">
-                                              {diffDays} days left
-                                            </td>
+                                            <td className="px-4 py-2 !text-white">{entry.keyword}</td>
+                                            <td className="px-4 py-2 !text-white">{entry.deleted_by}</td> 
+                                            <td className="px-4 py-2 !text-white">{diffDays} days left</td>
                                             <td className="px-4 py-2 !text-white">
                                               <FaTrash
                                                 className="text-white hover:text-red-500 cursor-pointer"
                                                 onClick={() => {
-                                                  if (
-                                                    confirm(
-                                                      `Permanently delete phrase "${entry.keyword}"?`
-                                                    )
-                                                  ) {
+                                                  if (confirm(`Permanently delete phrase "${entry.keyword}"?`)) {
                                                     handlePermanentDelete(entry.id);
                                                   }
                                                 }}
@@ -2412,6 +2455,7 @@ const checkForViolations = () => {
                                       })
                                     )}
                                   </tbody>
+
                                 </table>
 
                                 {/* Pagination Controls for trash view */}
@@ -2535,7 +2579,7 @@ const checkForViolations = () => {
                         {formatErrors.missingPunctuationErrors.length > 0 &&
                         formatErrors.multipleSpaceErrors.length === 0 &&
                         formatErrors.emDashErrors.length === 0 &&
-                        formatErrors.leadingTrailingSpaceErrors.length === 0 &&
+                        // formatErrors.leadingTrailingSpaceErrors.length === 0 &&
                         formatErrors.spaceBeforePunctuationErrors.length === 0 &&
                         formatErrors.titleCaseErrors.length === 0 ? (
                           <h6 className="!text-center !text-sm text-red-600">
@@ -2690,7 +2734,7 @@ const checkForViolations = () => {
                     )}
                   </Accordion>
 
-                  <Accordion
+                  {/* <Accordion
                     header={
                       <div className="flex justify-between items-center w-full text-sm">
                         <span>Leading/Trailing Spaces</span>
@@ -2714,7 +2758,7 @@ const checkForViolations = () => {
                       /^\s+|\s+$/g,
                       'leadingTrailingSpaceErrors'
                     )}
-                  </Accordion>
+                  </Accordion> */}
 
                   <Accordion
                     header={

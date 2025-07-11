@@ -9,7 +9,7 @@ export interface FormatError {
 export interface ErrorList {
   multipleSpaceErrors: FormatError[];
   emDashErrors: FormatError[];
-  leadingTrailingSpaceErrors: FormatError[];
+  // leadingTrailingSpaceErrors: FormatError[];
   spaceBeforePunctuationErrors: FormatError[];
   missingPunctuationErrors: FormatError[];
   titleCaseErrors: FormatError[];

@@ -64,17 +64,34 @@ interface FormatError {
   message?: string;
   start: number;
   end: number;
-  errorSubType?: 'leading' | 'trailing';
+  // errorSubType?: 'leading' | 'trailing';
 }
 
 interface ErrorList {
   multipleSpaceErrors: FormatError[];
   emDashErrors: FormatError[];
-  leadingTrailingSpaceErrors: FormatError[];
+  // leadingTrailingSpaceErrors: FormatError[];
   spaceBeforePunctuationErrors: FormatError[];
   missingPunctuationErrors: FormatError[];
   titleCaseErrors: FormatError[];
 }
+
+type FormatHighlightOptions = {
+  errors: unknown;
+  container: HTMLElement | null;
+  setFormatErrors: (errors: ErrorList) => void;
+  highlightTextNode: (
+    textNode: Text,
+    regex: RegExp,
+    errorType: string,
+    doc: Document
+  ) => void;
+  highlightLastWordInTextNode: (
+    textNode: Text,
+    tooltip: string,
+    doc: Document
+  ) => void;
+};
 
 // const TINYMCE_API_KEY = 'nadd9qtgsipyog9sw5zwf88wjx3jqzbpsdfn55jugpzy4tnn';
 
@@ -105,7 +122,7 @@ const Loom: FC = () => {
     [description]
   );
 
-  const [, setFormatErrors] = useState<ErrorList | null>(null);
+  const [formatErrors, setFormatErrors] = useState<ErrorList | null>(null);
   // const [setFormatErrors] = useState<ErrorList | null>(null);
   // const [linkIssues, setLinkIssues] = useState<LinkIssue[] | null>(null);
 
@@ -522,6 +539,157 @@ const removeFormatHighlights = () => {
   const descriptionWithDate = `${formattedDate} - ${description}`;
 
 
+  function formatHighlight({
+    errors,
+    container,
+    setFormatErrors,
+    highlightTextNode,
+    highlightLastWordInTextNode,
+  }: FormatHighlightOptions) {
+    if (!errors || typeof errors !== 'object' || Array.isArray(errors)) {
+      console.error('Invalid formatErrors object received:', errors);
+      return;
+    }
+
+    if (!container) return;
+
+    setFormatErrors(errors as ErrorList);
+
+    const regexMap: Record<string, RegExp> = {
+      multipleSpaceErrors: /\s{2,}/g,
+      emDashErrors: /(?<! )—(?! )/g,
+      spaceBeforePunctuationErrors: /\s+([.,!?;:])/g,
+    };
+
+    const elements = Array.from(container.querySelectorAll('p, h1, h2, h3, h4, h5, h6'));
+
+    elements.forEach((el, index) => {
+      // Regex-based highlights
+      for (const [errorType, regex] of Object.entries(regexMap)) {
+        const errorList = (errors as any)[errorType] as FormatError[] | undefined;
+        if (!errorList?.length) continue;
+
+        const matches = errorList.filter(err => err.paragraphIndex === index);
+        if (!matches.length) continue;
+
+        const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+        const nodesToProcess: Text[] = [];
+
+        let node: Text | null;
+        while ((node = walker.nextNode() as Text | null)) {
+          if (
+            node.textContent?.match(regex) &&
+            !node.parentElement?.closest('mark.highlight-format')
+          ) {
+            nodesToProcess.push(node);
+          }
+        }
+
+        nodesToProcess.forEach(textNode => {
+          regex.lastIndex = 0;
+          highlightTextNode(textNode, regex, errorType, document);
+        });
+      }
+
+      // Missing punctuation
+      const miss = (errors as ErrorList).missingPunctuationErrors?.filter(e => e.paragraphIndex === index) || [];
+      if (miss.length > 0) {
+        const text = el.textContent?.trimEnd() || '';
+        if (!/[.?!]$/.test(text)) {
+          const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+          const textNodes: Text[] = [];
+
+          let node: Text | null;
+          while ((node = walker.nextNode() as Text | null)) {
+            if (!node.parentElement?.closest('mark.highlight-format')) {
+              textNodes.push(node);
+            }
+          }
+
+          for (let i = textNodes.length - 1; i >= 0; i--) {
+            const nodeText = textNodes[i].textContent?.trimEnd() || '';
+            if (nodeText.length > 0) {
+              highlightLastWordInTextNode(textNodes[i], 'Missing punctuation error', document);
+              break;
+            }
+          }
+        }
+      }
+
+      // Title case errors
+      const titleErrors = (errors as ErrorList).titleCaseErrors?.filter(e => e.paragraphIndex === index) || [];
+      if (titleErrors.length > 0) {
+        const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+        const nodesToProcess: Text[] = [];
+
+        let node: Text | null;
+        while ((node = walker.nextNode() as Text | null)) {
+          if (
+            node.textContent?.trim() &&
+            !node.parentElement?.closest('mark.highlight-format')
+          ) {
+            nodesToProcess.push(node);
+          }
+        }
+
+        nodesToProcess.forEach(node => {
+          const words = (node.textContent ?? '').split(/(\s+)/);
+          const frag = document.createDocumentFragment();
+          let changed = false;
+
+          words.forEach(word => {
+            if (
+              word.trim() &&
+              word[0] === word[0].toLowerCase() &&
+              /[a-z]/.test(word[0])
+            ) {
+              const mark = document.createElement('mark');
+              mark.className = 'highlight-format bg-red-300 text-red-700 rounded-sm px-1';
+              mark.title = 'Title case error';
+              mark.textContent = word;
+              frag.appendChild(mark);
+              changed = true;
+            } else {
+              frag.appendChild(document.createTextNode(word));
+            }
+          });
+
+          if (changed) {
+            node.parentNode?.replaceChild(frag, node);
+          }
+        });
+      }
+      // ===== Leading/Trailing Space Errors =====
+                    // const leadTrailErrors = errors.leadingTrailingSpaceErrors?.filter(e => e.paragraphIndex === index) || [];
+                    // if (leadTrailErrors.length > 0 && !el.querySelector('mark.highlight-format')) {
+                    //   const mark = document.createElement('mark');
+                    //   mark.className = 'highlight-format bg-red-300 text-red-700 rounded-sm px-1';
+                    //   mark.title = 'Leading or trailing space error';
+
+                    //   while (el.firstChild) {
+                    //     mark.appendChild(el.firstChild);
+                    //   }
+
+                    //   el.appendChild(mark);
+                    // }
+                  });
+  }
+    
+  useEffect(() => {
+    if (!formatErrors || !divRef.current) return;
+
+    requestAnimationFrame(() => {
+      formatHighlight({
+        errors: formatErrors,
+        container: divRef.current!,
+        setFormatErrors,
+        highlightTextNode,
+        highlightLastWordInTextNode,
+      });
+    });
+  }, [formatErrors, highlightedHtml, htmlString]);
+
+
   return (
     <div
       className={clsx(
@@ -706,18 +874,18 @@ const removeFormatHighlights = () => {
             ) : (
               <div
                 className={clsx(
-                  'border border-black/17.5 rounded-xl p-4 bg-[#fcfcf4]',
+                  'border-4 border-[#8e774e] rounded-xl p-4 bg-white dark:bg-[#0a1a31]',
                   minHeightStyle
                 )}>
                 {highlightedHtml ? (
                   <div
-                    className="prose dark:text-black"
+                    className="prose dark:text-white"
                     dangerouslySetInnerHTML={{ __html: addHeadingIds(highlightedHtml) }}
                     ref={divRef as React.Ref<HTMLDivElement>}
                   />
                 ) : (
                   <div
-                    className="prose dark:text-black"
+                    className="prose dark:text-white"
                     dangerouslySetInnerHTML={{ __html: addHeadingIds(htmlString) }}
                     ref={divRef as React.Ref<HTMLDivElement>}
                   />
@@ -749,139 +917,15 @@ const removeFormatHighlights = () => {
                   editorRef.current.setContent(newHtml);
                 }
               }}
-              onFormatHighlight={errors => {
-                if (!errors || typeof errors !== 'object' || Array.isArray(errors)) {
-                  console.error('Invalid formatErrors object received:', errors);
-                  return;
-                }
-
-                if (!divRef.current) return;
-
-                setFormatErrors(errors as ErrorList);
-
-                const container = divRef.current as HTMLElement;
-                const regexMap: Record<string, RegExp> = {
-                  multipleSpaceErrors: /\s{2,}/g,
-                  emDashErrors: /(?<! )—(?! )/g, // Improved to avoid overlap
-                  spaceBeforePunctuationErrors: /\s+([.,!?;:])/g,
-                };
-
-                const elements = Array.from(container.querySelectorAll('p, h1, h2, h3, h4, h5, h6'));
-
-                elements.forEach((el, index) => {
-                  // ===== Regex-based Errors =====
-                  for (const [errorType, regex] of Object.entries(regexMap)) {
-                    const errorList = (errors as any)[errorType] as FormatError[] | undefined;
-                    if (!errorList?.length) continue;
-
-                    const matches = errorList.filter(err => err.paragraphIndex === index);
-                    if (!matches.length) continue;
-
-                    const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
-                    const nodesToProcess: Text[] = [];
-
-                    let node: Text | null;
-                    while ((node = walker.nextNode() as Text | null)) {
-                      if (
-                        node.textContent?.match(regex) &&
-                        !node.parentElement?.closest('mark.highlight-format')
-                      ) {
-                        nodesToProcess.push(node);
-                      }
-                    }
-
-                    nodesToProcess.forEach(textNode => {
-                      regex.lastIndex = 0; // Reset regex state
-                      highlightTextNode(textNode, regex, errorType, document);
-                    });
-                  }
-
-                  // ===== Missing Punctuation =====
-                  const miss = errors.missingPunctuationErrors?.filter(e => e.paragraphIndex === index) || [];
-                  if (miss.length > 0) {
-                    const text = el.textContent?.trimEnd() || '';
-                    if (!/[.?!]$/.test(text)) {
-                      const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
-                      const textNodes: Text[] = [];
-
-                      let node: Text | null;
-                      while ((node = walker.nextNode() as Text | null)) {
-                        if (!node.parentElement?.closest('mark.highlight-format')) {
-                          textNodes.push(node);
-                        }
-                      }
-
-                      for (let i = textNodes.length - 1; i >= 0; i--) {
-                        const nodeText = textNodes[i].textContent?.trimEnd() || '';
-                        if (nodeText.length > 0) {
-                          highlightLastWordInTextNode(textNodes[i], 'Missing punctuation error', document);
-                          break;
-                        }
-                      }
-                    }
-                  }
-
-                  // ===== Title Case Errors =====
-                  const titleErrors = errors.titleCaseErrors?.filter(e => e.paragraphIndex === index) || [];
-                  if (titleErrors.length > 0) {
-                    const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
-                    const nodesToProcess: Text[] = [];
-
-                    let node: Text | null;
-                    while ((node = walker.nextNode() as Text | null)) {
-                      if (
-                        node.textContent?.trim() &&
-                        !node.parentElement?.closest('mark.highlight-format')
-                      ) {
-                        nodesToProcess.push(node);
-                      }
-                    }
-
-                    nodesToProcess.forEach(node => {
-                      const words = (node.textContent ?? '').split(/(\s+)/);
-                      const frag = document.createDocumentFragment();
-                      let changed = false;
-
-                      words.forEach(word => {
-                        if (
-                          word.trim() &&
-                          word[0] === word[0].toLowerCase() &&
-                          /[a-z]/.test(word[0])
-                        ) {
-                          const mark = document.createElement('mark');
-                          mark.className = 'highlight-format bg-red-300 text-red-700 rounded-sm px-1';
-                          mark.title = 'Title case error';
-                          mark.textContent = word;
-                          frag.appendChild(mark);
-                          changed = true;
-                        } else {
-                          frag.appendChild(document.createTextNode(word));
-                        }
-                      });
-
-                      if (changed) {
-                        node.parentNode?.replaceChild(frag, node);
-                      }
-                    });
-                  }
-
-                  // ===== Leading/Trailing Space Errors =====
-                  const leadTrailErrors = errors.leadingTrailingSpaceErrors?.filter(e => e.paragraphIndex === index) || [];
-                  if (leadTrailErrors.length > 0 && !el.querySelector('mark.highlight-format')) {
-                    const mark = document.createElement('mark');
-                    mark.className = 'highlight-format bg-red-300 text-red-700 rounded-sm px-1';
-                    mark.title = 'Leading or trailing space error';
-
-                    while (el.firstChild) {
-                      mark.appendChild(el.firstChild);
-                    }
-
-                    el.appendChild(mark);
-                  }
-                });
-              }}
-
-
+              onFormatHighlight={(errors) =>
+                formatHighlight({
+                  errors,
+                  container: divRef.current,
+                  setFormatErrors,
+                  highlightTextNode,
+                  highlightLastWordInTextNode,
+                })
+              }
 
               onRemoveFormatHighlight={removeFormatHighlights}
               onHighlightContent={onContentIssuesHighlight}
