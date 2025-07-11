@@ -74,7 +74,12 @@ const SingleSB37Analysis = () => {
   const handleProceedAnalysis = () => {
     if (url) {
       showToast(`SB37 analysis started for ${title}.`);
-      analyzeSingleDoc(url, `${clientId}`);
+      analyzeSingleDoc({
+        clientId: `${clientId}`,
+        docTitle: title || '',
+        docUrl: url,
+        wordCount: wordCount || 0,
+      });
     }
   };
 
@@ -89,7 +94,13 @@ const SingleSB37Analysis = () => {
 
   const handleProceedMultiAnalysis = () => {
     if (url)
-      analyzeMultiAssistantDoc({ docUrl: url, onSuccess, clientId: `${clientId}` });
+      analyzeMultiAssistantDoc({
+        docUrl: url,
+        onSuccess,
+        clientId: `${clientId}`,
+        docTitle: title || '',
+        wordCount: wordCount || 0,
+      });
   };
 
   const renderPreview = () => {
@@ -105,16 +116,17 @@ const SingleSB37Analysis = () => {
   };
 
   useEffect(() => {
-    if (reviewOutput) {
-      sendRequestParseJsonToText({
-        analysisJson: reviewOutput as SB37AnalysisJSON,
-        originalDocName: title || singleResult?.title || '',
-        originalDocUrl: url,
-        onSuccess,
-      });
-    }
+    if (!reviewOutput) return;
+
+    sendRequestParseJsonToText({
+      analysisJson: reviewOutput as SB37AnalysisJSON,
+      originalDocName: title || singleResult?.title || '',
+      originalDocUrl: url,
+      onSuccess,
+    });
+
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isCompletedSingle, reviewOutput, singleResult]);
+  }, [reviewOutput]);
 
   return (
     <div className="flex flex-col gap-6">

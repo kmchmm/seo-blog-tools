@@ -39,14 +39,16 @@ const BatchSB37Analysis = () => {
     fetchSheetNames,
     isFetchingSheetNames,
     sheetNamesError,
-    items: sheetResult,
     sheetProgressCount,
     cancelTask,
     sheetCanceling,
+    batchCompletionTime,
   } = useSB37AnalysisContext();
   const { sheetName, url } = formValues || {};
+
   const isSheetProcessing = loadingSheets[sheetName] ? loadingSheets[sheetName] : false;
   const hasActiveSheets = Object.values(loadingSheets).some(Boolean);
+
   const {
     sendRequest: fetchValidRows,
     result: validRows,
@@ -68,18 +70,12 @@ const BatchSB37Analysis = () => {
   }, [sheetInfo[sheetName]]);
 
   const completionTime = useMemo(() => {
-    if (!sheetResult[sheetName]) return;
-    const timeArray: number[] = sheetResult[sheetName]
-      .filter(x => x.status !== 'error')
-      .map(result => {
-        const time = result?.completionTime?.split(' ')[0];
-        return Number(time);
-      });
+    if (!batchCompletionTime[sheetName]) return;
+    const timeString = batchCompletionTime[sheetName].split(' ');
 
-    const totalTime = timeArray.reduce((sum, time) => sum + time, 0);
-    return totalTime;
+    return timeString[0] || 0;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sheetResult[sheetName]]);
+  }, [batchCompletionTime[sheetName]]);
 
   const refetchValidRows = () => {
     fetchValidRows({ spreadsheetUrl: url, sheetName });
@@ -96,6 +92,9 @@ const BatchSB37Analysis = () => {
 
   const handleClickNext = () => {
     if (!url) return;
+    if (validRowsError) {
+      handleResetErrorMessage();
+    }
     fetchSheetNames({ spreadsheetUrl: url });
   };
 
