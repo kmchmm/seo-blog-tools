@@ -86,7 +86,7 @@ const LinkIssuesResultSection = ({ result }: Props) => {
                         <span className="font-bold">Anchor:</span>{' '}
                         <span
                           onClick={() => scrollToLink(item.url || '')}
-                          className="hover:bg-green-100 hover:text-white p-1 rounded cursor-pointer">
+                          className="hover:text-blue-500 p-1 rounded cursor-pointer">
                           {item.anchor || '(no anchor)'}
                         </span>
                         <br />
@@ -104,13 +104,13 @@ const LinkIssuesResultSection = ({ result }: Props) => {
       return (
         <li key={issueType}>
           <strong>{formatErrorLabel(issueType)}</strong>
-          <ul className="ml-4 list-disc space-y-1">
+          <ul className="ml-4 list-decimal space-y-1">
             {details.map((detail, idx) => (
               <li key={idx}>
                 <span className="font-bold">Anchor:</span>{' '}
                 <span
                   onClick={() => scrollToLink(detail.url || '')}
-                  className="hover:bg-green-100 hover:text-white p-1 rounded cursor-pointer">
+                  className="hover:text-blue-500 p-1 rounded cursor-pointer">
                   {detail.anchor || '(no anchor)'}
                 </span>
                 <br />
@@ -153,7 +153,7 @@ const LinkIssuesResultSection = ({ result }: Props) => {
               className="text-blue-400 hover:text-blue-950 break-words whitespace-pre-wrap flex flex-col cursor-pointer">
               <span
                 onClick={() => scrollToLink(link.url || '')}
-                className="before:content-['•'] before:mr-2 font-bold text-black hover:bg-green-100 hover:text-white p-2">
+                className="before:content-['•'] before:mr-2 font-bold text-black hover:text-blue-500 p-2">
                 {link.anchor || '(no anchor)'}
               </span>
               <span className="ml-5"> {link.url}</span>
@@ -181,7 +181,7 @@ const LinkIssuesResultSection = ({ result }: Props) => {
         {missingCriticalLinks.length > 0 && (
           <div className="mb-4 text-red-600 bg-red-50 border border-red-200 rounded p-3 text-sm">
             <strong className="block mb-1">⚠️ ALERT:</strong>
-            <ul className="list-disc list-inside space-y-1">
+            <ul className="list-decimal list-inside space-y-1">
               {missingCriticalLinks.map((item, i) => (
                 <li key={i}>
                   No link to <strong>{item.label}</strong>. Please add:{' '}

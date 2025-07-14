@@ -283,6 +283,7 @@ export const LoomSidebar: FC<LoomProps> = ({
     // leadingTrailingSpaceErrors: any[];
     spaceBeforePunctuationErrors: any[];
     missingPunctuationErrors: any[];
+    consecutivePunctuationErrors: any[];
   };
 
   const [formatErrors, setFormatErrors] = useState<ErrorList>({
@@ -292,6 +293,7 @@ export const LoomSidebar: FC<LoomProps> = ({
     // leadingTrailingSpaceErrors: [],
     spaceBeforePunctuationErrors: [],
     missingPunctuationErrors: [],
+    consecutivePunctuationErrors: [],
   });
 
   const hasErrors = Object.values(formatErrors).some(arr => arr.length > 0);
@@ -891,83 +893,85 @@ useEffect(() => {
       // 'leadingTrailingSpaceErrors',
       'spaceBeforePunctuationErrors',
       'missingPunctuationErrors',
+      'consecutivePunctuationErrors',
     ].includes(key);
   }
 
-  const renderErrorList = (
-    errors: { heading?: string; sentence: string }[],
-    regex: RegExp,
-    type: string
-  ) => {
-    const handleHeaderClick = (type: string) => {
-      // Optional: highlight all sentences under this error type
-      const phrasesToHighlight: FormatError[] = isErrorKey(type)
-        ? formatErrors[type]
-        : [];
-      onHighlight(phrasesToHighlight.map((e: any) => e.sentence));
-      setHighlightActive(true);
-    };
+const renderErrorList = (
+  errors: { heading?: string; sentence: string }[],
+  regex: RegExp,
+  type: string
+) => {
+  const handleHeaderClick = (type: string) => {
+    const phrasesToHighlight: FormatError[] = isErrorKey(type)
+      ? formatErrors[type]
+      : [];
+    onHighlight(phrasesToHighlight.map((e: any) => e.sentence));
+    setHighlightActive(true);
+  };
 
-    if (errors.length > 0) {
-      return (
-        <ul className="text-xs space-y-1">
-          {errors.map((err, idx) => {
-            const highlighted = err.sentence.replace(regex, match => {
-              return `<mark class="bg-red-300 text-red-700 rounded-sm px-1">${match}</mark>`;
-            });
+  if (errors.length > 0) {
+    return (
+      <ul className="text-xs space-y-1">
+        {errors.map((err, idx) => {
+          // Highlight matches using regex (e.g., !!, ??, etc.)
+          const highlighted = err.sentence.replace(regex, match => {
+            return `<mark class="bg-red-300 text-red-700 rounded-sm px-1">${match}</mark>`;
+          });
 
-            return (
-              <li key={idx}>
-                {err.heading && err.sentence !== err.heading ? (
-                  <>
-                    <div
-                      className="font-bold cursor-pointer hover:text-blue-500 text-sm"
-                      onClick={() => {
+          return (
+            <li key={idx}>
+              {err.heading && err.sentence !== err.heading ? (
+                <>
+                  <div
+                    className="font-bold cursor-pointer hover:text-blue-500 text-sm"
+                    onClick={() => {
+                      handleHeaderClick(type);
+                      if (err.heading) scrollToHeading(err.heading);
+                    }}
+                    role="button"
+                    tabIndex={0}
+                    onKeyDown={e => {
+                      if (e.key === 'Enter' || e.key === ' ') {
                         handleHeaderClick(type);
                         if (err.heading) scrollToHeading(err.heading);
-                      }}
-                      role="button"
-                      tabIndex={0}
-                      onKeyDown={e => {
-                        if (e.key === 'Enter' || e.key === ' ') {
-                          handleHeaderClick(type);
-                          if (err.heading) scrollToHeading(err.heading);
-                        }
-                      }}>
-                      {err.heading}
-                    </div>
+                      }
+                    }}>
+                    {err.heading}
+                  </div>
 
-                    <ul className="pl-3 mt-2">
-                      <li
-                        className="list-disc"
-                        dangerouslySetInnerHTML={{ __html: highlighted }}
-                      />
-                    </ul>
-                  </>
-                ) : (
-                  <span dangerouslySetInnerHTML={{ __html: highlighted }} />
-                )}
-              </li>
-            );
-          })}
-        </ul>
-      );
-    }
-
-    const noIssuesMessages: Record<string, string> = {
-      multipleSpaceErrors: 'No multiple spaces. Rawr',
-      emDashErrors: 'No em dash issues. Rawr',
-      // leadingTrailingSpaceErrors: 'No leading/trailing spaces. Rawr',
-      spaceBeforePunctuationErrors: 'No space before punctuation. Rawr',
-      missingPunctuationErrors: 'No missing punctuation. Rawr',
-    };
-
-    return (
-      <p className="text-gray-500 italic">
-        {noIssuesMessages[type] || 'No issues found.'}
-      </p>
+                  <ul className=" mt-2 ml-10">
+                    <li
+                      className="list-disc"
+                      dangerouslySetInnerHTML={{ __html: highlighted }}
+                    />
+                  </ul>
+                </>
+              ) : (
+                <span dangerouslySetInnerHTML={{ __html: highlighted }} />
+              )}
+            </li>
+          );
+        })}
+      </ul>
     );
+  }
+
+  const noIssuesMessages: Record<string, string> = {
+    multipleSpaceErrors: 'No multiple spaces. Rawr',
+    emDashErrors: 'No em dash issues. Rawr',
+    spaceBeforePunctuationErrors: 'No space before punctuation. Rawr',
+    missingPunctuationErrors: 'No missing punctuation. Rawr',
+    consecutivePunctuationErrors: 'No consecutive punctuation. Rawr'
   };
+
+  return (
+    <p className="text-gray-500 italic">
+      {noIssuesMessages[type] || 'No issues found.'}
+    </p>
+  );
+};
+
 
   // function getAllErrorSentences(formatErrors: Record<string, { sentence: string }[]>): string[] {
   //   const allSentences: string[] = [];
@@ -1019,11 +1023,13 @@ useEffect(() => {
 
     function normalizeTextContent(text: string) {
       return text
-        .replace(/\u00A0/g, ' ') // non-breaking space to normal
-        .replace(/ {2,}/g, ' ') // multiple spaces to one
-        .replace(/\s*—\s*/g, ' — ') // spacing around em dash
-        .replace(/ ([.,;:!?])/g, '$1'); // no space before punctuation
+        .replace(/\u00A0/g, ' ')             // non-breaking space to normal
+        .replace(/ {2,}/g, ' ')              // multiple spaces to one
+        .replace(/\s*—\s*/g, ' — ')          // spacing around em dash
+        .replace(/ ([.,;:!?])/g, '$1')       // no space before punctuation
+        .replace(/([.!?,;:])\1+/g, '$1');    // reduce consecutive punctuation (!! -> !)
     }
+
 
     function fixTextNodes(element: HTMLElement | Node) {
       const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT, null);
@@ -1233,7 +1239,11 @@ useEffect(() => {
             <Summary
               totalWordCount={contentIssuesResult?.totalWordCount ?? null}
               keywordCounts={keywordAnalysisResult?.keywordCounts.focusCount ?? null}
-              keywordDensity={keywordAnalysisResult?.density.toFixed(2) ?? null}
+              keywordDensity={
+                keywordAnalysisResult?.density != null
+                  ? `${keywordAnalysisResult.density.toFixed(2)}%`
+                  : null
+              }
               alternateEsqCount={keywordAnalysisResult?.keywordCounts.altCount ?? 0}
               headingsCount={contentIssuesResult?.headings?.length ?? 0}
               internalLinksCount={linkIssuesResult?.internalLinks?.length || 0}
@@ -1395,9 +1405,14 @@ useEffect(() => {
                         count: formatErrors.spaceBeforePunctuationErrors.length,
                       },
                       {
+                        label: 'Consecutive Punctuation',
+                        count: formatErrors.consecutivePunctuationErrors.length,
+                      },
+                      {
                         label: 'Missing punctuation',
                         count: formatErrors.missingPunctuationErrors.length,
                       },
+                      
                     ].map(({ label, count }, idx) => (
                       <li key={idx} className="flex justify-between mt-2">
                         <div className="flex items-center gap-2">
@@ -1453,13 +1468,13 @@ useEffect(() => {
                     )}
                   </div>
                   <ul className="text-sm">
-                    <li className="flex justify-between mt-2">
+                    {/* <li className="flex justify-between mt-2">
                       <div className="flex items-center gap-2">
                         <GoDotFill className="!text-gray-200" />
                         <span>Total Word Count:</span>
                       </div>
                       <span>{contentIssuesResult?.totalWordCount}</span>
-                    </li>
+                    </li> */}
 
                     <li className="flex justify-between mt-2">
                       <div className="flex items-center gap-2">
@@ -1496,8 +1511,8 @@ useEffect(() => {
                         )}
                         <span>
                           {(contentIssuesResult?.sameWordStreaks?.length ?? 0) > 0
-                            ? 'Repeated sentence starts'
-                            : 'No repeated sentence starts'}
+                            ? 'Same starting word error'
+                            : 'No Same starting word error'}
                         </span>
                       </div>
                       {(contentIssuesResult?.sameWordStreaks?.length ?? 0) > 0 && (
@@ -1518,7 +1533,7 @@ useEffect(() => {
                           onLinkIssuesShowHighlightsClick();
                           setLinkHighlightsActive(false);
                         }}
-                        title="Show Highlights"
+                        title="Show Underlines"
                         className={clsx(
                           'text-gray-500 cursor-pointer transition-colors',
                           (!text || !linkIssuesResult || editMode) &&
@@ -1533,7 +1548,7 @@ useEffect(() => {
                           onLinkIssuesRemoveHighlightClick();
                           setLinkHighlightsActive(true);
                         }}
-                        title="Remove Highlights"
+                        title="Hide Underlines"
                         className={clsx(
                           'text-gray-500 cursor-pointer transition-colors',
                           (!text || !linkIssuesResult || editMode) &&
@@ -1556,7 +1571,7 @@ useEffect(() => {
                               <GoDotFill
                                 className={hasIssues ? 'text-red-500' : 'text-green-500'}
                               />
-                              <span className="capitalize">{key}</span>
+                              <span className="">{key}</span>
                             </div>
                             <span>{count}</span>
                           </li>
@@ -1606,7 +1621,7 @@ useEffect(() => {
                     {keywordAnalysisResult && !error && (
                       <>
                         {/* Focus Keyword Count */}
-                        <li className="flex justify-between mt-2">
+                        {/* <li className="flex justify-between mt-2">
                           <div className="flex items-center gap-2">
                             <GoDotFill
                               className={
@@ -1622,10 +1637,10 @@ useEffect(() => {
                             </span>
                           </div>
                           <span>{keywordAnalysisResult.keywordCounts.focusCount}</span>
-                        </li>
+                        </li> */}
 
                         {/* Alt Keyword Count */}
-                        <li className="flex justify-between mt-2">
+                        {/* <li className="flex justify-between mt-2">
                           <div className="flex items-center gap-2">
                             <GoDotFill
                               className={
@@ -1641,10 +1656,10 @@ useEffect(() => {
                             </span>
                           </div>
                           <span>{keywordAnalysisResult.keywordCounts.altCount}</span>
-                        </li>
+                        </li> */}
 
                         {/* Total Keyword Density */}
-                        <li className="flex justify-between mt-2">
+                        {/* <li className="flex justify-between mt-2">
                           <div className="flex items-center gap-2">
                             <GoDotFill
                               className={
@@ -1656,7 +1671,7 @@ useEffect(() => {
                             <span>Keyword density</span>
                           </div>
                           <span>{keywordAnalysisResult.density.toFixed(2)}%</span>
-                        </li>
+                        </li> */}
 
                         {/* H2/H3 Optimization */}
                         <li className="mt-4 flex">
@@ -1946,10 +1961,10 @@ useEffect(() => {
                 {violationCheckMessage && (
                   <div
                     className={clsx(
-                      'mt-3 p-3 rounded text-sm flex items-center gap-2 mb-5',
+                      'mt-3 p-3 rounded text-sm flex items-center gap-2 mb-5 border',
                       violationCheckMessage.type === 'success'
-                        ? 'bg-[#e6f6e9] text-green-100'
-                        : 'bg-[#faeaea] text-red-600'
+                        ? 'bg-green-50 text-green-100 border-green-100'
+                        : 'bg-red-50 text-red-600 border-red-600'
                     )}>
                     <span>{violationCheckMessage.text}</span>
                   </div>
@@ -2569,9 +2584,9 @@ useEffect(() => {
               {showResults && (
                 <>
                   <div
-                    className={`mb-4 p-4 rounded ${hasErrors ? 'bg-[#faeaea] text-red-600' : 'bg-[#e6f6e9] !text-green-100'}`}>
+                    className={`text-sm border  mb-4 p-4 rounded ${hasErrors ? 'bg-red-50 text-red-600 border-red-600' : 'bg-green-50 !text-green-100 border-green-100'}`} >
                     {!hasErrors ? (
-                      <h6 className="!text-center text-sm">
+                      <h6 className="!text-center">
                         🎉 No formatting errors found! Good job!
                       </h6>
                     ) : (
@@ -2581,7 +2596,8 @@ useEffect(() => {
                         formatErrors.emDashErrors.length === 0 &&
                         // formatErrors.leadingTrailingSpaceErrors.length === 0 &&
                         formatErrors.spaceBeforePunctuationErrors.length === 0 &&
-                        formatErrors.titleCaseErrors.length === 0 ? (
+                        formatErrors.titleCaseErrors.length === 0 &&
+                        formatErrors.consecutivePunctuationErrors.length === 0 ? (
                           <h6 className="!text-center !text-sm text-red-600">
                             ⚠️ Missing Punctuation errors, fix manually
                           </h6>
@@ -2789,6 +2805,32 @@ useEffect(() => {
                   <Accordion
                     header={
                       <div className="flex justify-between items-center w-full text-sm">
+                        <span>Consecutive Punctuation</span>
+                        {showResults &&
+                          (formatErrors.consecutivePunctuationErrors.length > 0 ? (
+                            <div className="bg-[#f5ecee] w-[40px] text-right rounded-2xl px-2">
+                              <span className="text-red-100">
+                                {formatErrors.consecutivePunctuationErrors.length}
+                              </span>
+                            </div>
+                          ) : (
+                            <div className="bg-[#e5f5ea] w-[40px] text-right rounded-2xl px-2">
+                              <span className="text-green-100">0</span>
+                            </div>
+                          ))}
+                      </div>
+                    }
+                    className="mb-2 text-sm dark:!text-black-200">
+                    {renderErrorList(
+                      formatErrors.consecutivePunctuationErrors,
+                      /([.!?,;:])\1+/g, 
+                      'consecutivePunctuationErrors'
+                    )}
+                  </Accordion>
+
+                  <Accordion
+                    header={
+                      <div className="flex justify-between items-center w-full text-sm">
                         <span>Missing Punctuation</span>
                         {showResults &&
                           (formatErrors.missingPunctuationErrors.length > 0 ? (
@@ -2811,6 +2853,7 @@ useEffect(() => {
                       'missingPunctuationErrors'
                     )}
                   </Accordion>
+                  
                 </>
               )}
               </div>

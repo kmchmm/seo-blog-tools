@@ -74,6 +74,7 @@ interface ErrorList {
   spaceBeforePunctuationErrors: FormatError[];
   missingPunctuationErrors: FormatError[];
   titleCaseErrors: FormatError[];
+  consecutivePunctuationErrors: FormatError[];
 }
 
 type FormatHighlightOptions = {
@@ -590,6 +591,36 @@ const removeFormatHighlights = () => {
           highlightTextNode(textNode, regex, errorType, document);
         });
       }
+
+    // Highlight consecutive punctuation errors
+    const consecutive = (errors as ErrorList).consecutivePunctuationErrors?.filter(e => e.paragraphIndex === index) || [];
+
+    if (consecutive.length > 0) {
+      const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+      const textNodes: Text[] = [];
+
+      let node: Text | null;
+      while ((node = walker.nextNode() as Text | null)) {
+        if (!node.parentElement?.closest('mark.highlight-format')) {
+          textNodes.push(node);
+        }
+      }
+
+      for (let i = textNodes.length - 1; i >= 0; i--) {
+        const nodeText = textNodes[i].textContent || '';
+
+        if (/([.!?,;:])\1+/.test(nodeText)) {
+          highlightTextNode(
+            textNodes[i],
+            /([.!?,;:])\1+/g, 
+            'Consecutive punctuation error',
+            document
+          );          
+          break; 
+        }
+      }
+    }
+
 
       // Missing punctuation
       const miss = (errors as ErrorList).missingPunctuationErrors?.filter(e => e.paragraphIndex === index) || [];

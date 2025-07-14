@@ -69,7 +69,7 @@ const KeywordResultSection = ({ result }: Props) => {
   const renderHeadingsAlert = () => {
     if (!headings.length) return null;
     if (percent <= 75) {
-      return <Alert type="success" message="Good results" />;
+      return <Alert type="success" message="Keyword optimization in H2 & H3 headings is 75% or below." />;
     }
     return <Alert message="Must be equal to or lower than 75%!" type="error" />;
   };
@@ -96,13 +96,13 @@ const KeywordResultSection = ({ result }: Props) => {
         badge={`${percent}%`}
         badgeColor={getHeaderBadgeColor(percent)}>
         <div className="flex flex-col gap-y-2">
+          {renderHeadingsAlert()}
           <ul className="list-disc ml-4">
-            {renderHeadingsAlert()}
             {renderHeadingResult()}
-            <p className="text-gray-600 italic">
-              {optimized} optimized of {total} headings
-            </p>
           </ul>
+           <p className="text-gray-600 italic">
+            {optimized} optimized of {total} headings
+          </p>
         </div>
       </Accordion>
 
@@ -121,7 +121,7 @@ const KeywordResultSection = ({ result }: Props) => {
 
         {withoutFocus.length > 0 && (
           <div className="mt-2">
-            <p className="text-gray-700 font-medium mb-1">
+            <p className="text-gray-700 font-extrabold mb-1">
               Sections without the focus keyphrase:
             </p>
             <ul className="list-disc ml-5 space-y-1">

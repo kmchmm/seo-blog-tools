@@ -13,6 +13,7 @@ export interface ErrorList {
   spaceBeforePunctuationErrors: FormatError[];
   missingPunctuationErrors: FormatError[];
   titleCaseErrors: FormatError[];
+  consecutivePunctuationErrors: FormatError[];
 }
 
 export interface LinkDetail {

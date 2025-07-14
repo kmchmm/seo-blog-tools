@@ -19,6 +19,7 @@ export interface ErrorList {
   // leadingTrailingSpaceErrors: FormattingError[];
   spaceBeforePunctuationErrors: FormattingError[];
   missingPunctuationErrors: FormattingError[];
+  consecutivePunctuationErrors: FormattingError[];
 }
 
 onmessage = (e) => {
@@ -35,6 +36,7 @@ function checkDocumentForErrorsFull(paragraphs: Paragraph[]): ErrorList {
     // leadingTrailingSpaceErrors: [],
     spaceBeforePunctuationErrors: [],
     missingPunctuationErrors: [],
+    consecutivePunctuationErrors: [],
   };
 
   for (let i = 0; i < paragraphs.length; i++) {
@@ -47,6 +49,7 @@ function checkDocumentForErrorsFull(paragraphs: Paragraph[]): ErrorList {
     // errorList.leadingTrailingSpaceErrors.push(...checkLeadingTrailingSpaces(text, i, paragraphs));
     errorList.spaceBeforePunctuationErrors.push(...checkSpaceBeforePunctuation(text, i, paragraphs));
     errorList.missingPunctuationErrors.push(...checkMissingPunctuation(text, heading ?? null, i, paragraphs));
+    errorList.consecutivePunctuationErrors.push(...checkConsecutivePunctuation(text, i, paragraphs)); 
   }
 
   return errorList;
@@ -184,6 +187,30 @@ function checkSpaceBeforePunctuation(text: string, i: number, paragraphs: Paragr
   }
   return errors;
 }
+
+function checkConsecutivePunctuation(text: string, i: number, paragraphs: Paragraph[]): FormattingError[] {
+  const errors: FormattingError[] = [];
+
+  // Match consecutive punctuation characters except ', ", (, )
+  const regex = /([.!?,;:])\1+/g;
+
+  let match;
+  while ((match = regex.exec(text)) !== null) {
+    // Only consider matches that do not include quotes or parentheses
+    const badPunctuation = match[0];
+    if (!/['"()]/.test(badPunctuation)) {
+      errors.push({
+        paraIndex: i + 1,
+        sentence: getSurroundingSentence(text, match.index),
+        paragraphIndex: i,
+        heading: getNearestHeading(paragraphs, i),
+      });
+    }
+  }
+
+  return errors;
+}
+
 
 // === Helpers ===
 
