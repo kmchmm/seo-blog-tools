@@ -168,8 +168,8 @@ export async function analyzeLinks(html: string): Promise<LinkAnalysisResult> {
       arr.forEach(info => {
         issues.push({
           issueType: 'Duplicate link',
-          anchor: info.anchor,
           url,
+          anchor: info.anchor,
           heading: info.heading,
           globalAlert: false,
         });
@@ -184,8 +184,8 @@ export async function analyzeLinks(html: string): Promise<LinkAnalysisResult> {
         arr.forEach(info => {
           issues.push({
             issueType: 'Identical anchor',
-            anchor: anchorText,
             url: info.url,
+            anchor: anchorText,
             heading: info.heading,
             globalAlert: false,
           });

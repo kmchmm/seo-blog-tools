@@ -827,46 +827,58 @@ useEffect(() => {
   ////////////////////////////////////////////////////////
   //////////////FORMAT QA TOOL////////////////////////////
   ////////////////////////////////////////////////////////
-  const runFormatCheck = useCallback(() => {
-    const worker = new Worker(new URL('../../utils/formatErrors.ts', import.meta.url), {
-      type: 'module',
-    });
+const runFormatCheck = useCallback(() => {
+  const worker = new Worker(new URL('../../utils/formatErrors.ts', import.meta.url), {
+    type: 'module',
+  });
 
-    const parser = new DOMParser();
-    const preprocessed = text.replace(/<br\s*\/?>/gi, '\n');
-    const doc = parser.parseFromString(preprocessed, 'text/html');
+  const parser = new DOMParser();
+  const preprocessed = text.replace(/<br\s*\/?>/gi, '\n');
+  const doc = parser.parseFromString(preprocessed, 'text/html');
 
-    let headingIndex = 0;
+  let headingIndex = 0;
 
-    const paragraphs = Array.from(
-      doc.body.querySelectorAll('p, h1, h2, h3, h4, h5, h6')
-    ).map(el => {
-      const htmlEl = el as HTMLElement;
-      const tag = htmlEl.tagName.toUpperCase();
+  const paragraphs = Array.from(
+    doc.body.querySelectorAll('p, h1, h2, h3, h4, h5, h6')
+  ).map(el => {
+    const htmlEl = el as HTMLElement;
+    const tag = htmlEl.tagName.toUpperCase();
 
-      let headingId: string | null = null;
-      if (tag.startsWith('H')) {
-        headingId = htmlEl.id || `heading-${headingIndex++}`;
-        htmlEl.id = headingId; // Ensure ID exists
-      }
+    let headingId: string | null = null;
+    if (tag.startsWith('H')) {
+      headingId = htmlEl.id || `heading-${headingIndex++}`;
+      htmlEl.id = headingId; // Ensure ID exists
+    }
 
-      return {
-        text: htmlEl.innerText || '',
-        heading: tag.startsWith('H') ? tag : null,
-        id: headingId,
-      };
-    });
-
-    worker.onmessage = e => {
-      setFormatErrors(e.data);
-      worker.terminate();
+    return {
+      text: htmlEl.innerText || '',
+      heading: tag.startsWith('H') ? tag : null,
+      id: headingId,
     };
+  });
 
-    worker.postMessage(paragraphs);
+  worker.onmessage = e => {
+    const errors = e.data;
 
+    // Set state and apply highlights using accurate results
+    setFormatErrors(errors);
+    onFormatHighlight(errors);
+    setHighlightActive(true);
+
+    // Show highlight tooltip briefly
+    setShowFormatHighlightsTooltip(true);
+    setTimeout(() => setShowFormatHighlightsTooltip(false), 1000);
+
+    // Optionally show done tooltip (delayed to not overlap visually)
     setShowFormatDoneTooltip(true);
     setTimeout(() => setShowFormatDoneTooltip(false), 3000);
-  }, [text]);
+
+    worker.terminate(); // Now safe to clean up
+  };
+
+  worker.postMessage(paragraphs);
+}, [text]);
+
 
   const scrollToHeading = (headingText: string) => {
     const allHeadings = Array.from(document.querySelectorAll('h1, h2, h3, h4, h5, h6'));
@@ -1176,7 +1188,7 @@ const renderErrorList = (
       return <Alert message="Enter keyphrase to analyze" type="info" />;
     }
     if (keywordAnalysisResult?.focusKeyphrase === keyword) {
-      return <Alert message="Done analyzing" type="success" />;
+      return <Alert message="Done analyzing. Please check the results" type="success" />;
     }
     if (!error) return <Alert message="Click 'Analyze Keywords' again" type="info" />;
   };
@@ -1234,521 +1246,538 @@ const renderErrorList = (
             Tools
           </a>
         </div>
-        {hasRunChecks && showSummary === 'summary' && (
-          <div>
-            <Summary
-              totalWordCount={contentIssuesResult?.totalWordCount ?? null}
-              keywordCounts={keywordAnalysisResult?.keywordCounts.focusCount ?? null}
-              keywordDensity={
-                keywordAnalysisResult?.density != null
-                  ? `${keywordAnalysisResult.density.toFixed(2)}%`
-                  : null
-              }
-              alternateEsqCount={keywordAnalysisResult?.keywordCounts.altCount ?? 0}
-              headingsCount={contentIssuesResult?.headings?.length ?? 0}
-              internalLinksCount={linkIssuesResult?.internalLinks?.length || 0}
-              externalLinksCount={linkIssuesResult?.externalLinks?.length || 0}
-            />
-            {/* <div className="w-full border border-b-black-200"></div> */}
-            {(contentIssuesResult?.totalWordCount ?? 0) > 0 && (
-              <ul>
-                {/* YOAST */}
-                <li className="border border-black/20 p-2 rounded-md">
-                  <div className="flex justify-between">
-                    <span className="font-bold">Yoast SEO</span>
-                    <FiEyeOff className="text-gray-200" />
-                  </div>
-                  <ul className="text-sm">
-                    <li>
-                      <h6 className="font-bold text-xs mt-2">YOAST SEO ANALYSIS</h6>
-                      <ul>
-                        <li className="flex justify-between">
-                          <span className="flex justify-between item-center gap-2">
-                            <GoDotFill className="text-red-500 mt-0.5" />
-                            <span>Problems</span>
-                          </span>
-                          <span>{seoProblems.length}</span>
-                        </li>
-                        <li className="flex justify-between">
-                          <span className="flex justify-between item-center gap-2">
-                            <GoDotFill className="text-green-500 mt-0.5" />
-                            <span>Good Results</span>
-                          </span>
-                          <span>{seoAchievements.length}</span>
-                        </li>
-                      </ul>
-                    </li>
-                    <li className="mt-2">
-                      <h6 className="font-bold text-xs mt-2 ">
-                        YOAST READABILITY ANALYSIS
-                      </h6>
-                      <ul>
-                        <li className="flex justify-between">
-                          <span className="flex justify-between item-center gap-2">
-                            <GoDotFill className="text-red-500 mt-0.5" />
-                            <span>Problems</span>
-                          </span>
-                          <span>{readabilityProblems.length}</span>
-                        </li>
-                        <li className="flex justify-between">
-                          <span className="flex justify-between item-center gap-2">
-                            <GoDotFill className="text-green-500 mt-0.5" />
-                            <span>Good Results</span>
-                          </span>
-                          <span>{readabilityAchievements.length}</span>
-                        </li>
-                      </ul>
-                    </li>
-                  </ul>
-                </li>
+        <div
+          className={clsx(
+            'transition-all duration-500 ease-in-out',
+            showSummary === 'summary'
+              ? 'max-h-[9999px] opacity-100'
+              : 'max-h-0 opacity-0 overflow-hidden'
+          )}
+        >
+          {hasRunChecks && showSummary === 'summary' && (
+            <div>
+              <Summary
+                totalWordCount={contentIssuesResult?.totalWordCount ?? null}
+                keywordCounts={keywordAnalysisResult?.keywordCounts.focusCount ?? null}
+                keywordDensity={
+                  keywordAnalysisResult?.density != null
+                    ? `${keywordAnalysisResult.density.toFixed(2)}%`
+                    : null
+                }
+                alternateEsqCount={keywordAnalysisResult?.keywordCounts.altCount ?? 0}
+                headingsCount={contentIssuesResult?.headings?.length ?? 0}
+                internalLinksCount={linkIssuesResult?.internalLinks?.length || 0}
+                externalLinksCount={linkIssuesResult?.externalLinks?.length || 0}
+              />
+              {/* <div className="w-full border border-b-black-200"></div> */}
+              {(contentIssuesResult?.totalWordCount ?? 0) > 0 && (
+                <ul>
+                  {/* YOAST */}
+                  <li className="border border-black/20 p-2 rounded-md">
+                    <div className="flex justify-between">
+                      <span className="font-bold">Yoast SEO</span>
+                      <FiEyeOff className="text-gray-200" />
+                    </div>
+                    <ul className="text-sm">
+                      <li>
+                        <h6 className="font-bold text-xs mt-2">YOAST SEO ANALYSIS</h6>
+                        <ul>
+                          <li className="flex justify-between">
+                            <span className="flex justify-between item-center gap-2">
+                              <GoDotFill className="text-red-500 mt-0.5" />
+                              <span>Problems</span>
+                            </span>
+                            <span>{seoProblems.length}</span>
+                          </li>
+                          <li className="flex justify-between">
+                            <span className="flex justify-between item-center gap-2">
+                              <GoDotFill className="text-green-500 mt-0.5" />
+                              <span>Good Results</span>
+                            </span>
+                            <span>{seoAchievements.length}</span>
+                          </li>
+                        </ul>
+                      </li>
+                      <li className="mt-2">
+                        <h6 className="font-bold text-xs mt-2 ">
+                          YOAST READABILITY ANALYSIS
+                        </h6>
+                        <ul>
+                          <li className="flex justify-between">
+                            <span className="flex justify-between item-center gap-2">
+                              <GoDotFill className="text-red-500 mt-0.5" />
+                              <span>Problems</span>
+                            </span>
+                            <span>{readabilityProblems.length}</span>
+                          </li>
+                          <li className="flex justify-between">
+                            <span className="flex justify-between item-center gap-2">
+                              <GoDotFill className="text-green-500 mt-0.5" />
+                              <span>Good Results</span>
+                            </span>
+                            <span>{readabilityAchievements.length}</span>
+                          </li>
+                        </ul>
+                      </li>
+                    </ul>
+                  </li>
 
-                {/* SB37 */}
-                <li className="border border-black/20 p-2 mt-2 rounded-md">
-                  <div className="flex justify-between">
-                    <span className="font-bold">SB37</span>
-                    {highlightActive ? (
-                      <GoEye
-                        title="Remove Highlights"
-                        className="text-gray-500 cursor-pointer"
-                        onClick={() => {
-                          onRemoveHighlight();
-                          setActiveHighlights([]);
-                          setHighlightActive(false);
-                        }}
-                      />
-                    ) : (
-                      <FiEyeOff
-                        title="Show Highlights"
-                        className="text-gray-500 cursor-pointer"
-                        onClick={() => {
-                          const updated = Array.from(
-                            new Set([
-                              ...activeHighlights,
-                              // ...violations,
-                              ...dictionaryViolations,
-                            ])
-                          );
-                          setActiveHighlights(updated);
-                          onHighlight(updated);
-                          setHighlightActive(true);
-                        }}
-                      />
-                    )}
-                  </div>
-                  <ul className="text-sm mt-2">
-                    <li className="flex items-start gap-2 mt-2">
-                      <GoDotFill
-                        className={
-                          // violations.length === 0 &&
-                          dictionaryViolations.length === 0
-                            ? 'text-yellow-200 mt-1'
-                            : 'text-yellow-200 mt-1'
-                        }
-                      />
-                      <span>
-                        {/* {violations.length === 0 && dictionaryViolations.length === 0 */}
-                        {dictionaryViolations.length === 0
-                          ? 'No potential SB37 violations found.'
-                          : `Potential SB37 violations found in ${
-                              // Object.keys(violationResults).length +
-                              Object.keys(dictionaryViolationResults).length
-                            } section(s).`}
-                      </span>
-                    </li>
-                  </ul>
-                </li>
+                  {/* SB37 */}
+                  <li className="border border-black/20 p-2 mt-2 rounded-md">
+                    <div className="flex justify-between">
+                      <span className="font-bold">SB37</span>
+                      {highlightActive ? (
+                        <GoEye
+                          title="Remove Highlights"
+                          className="text-gray-500 cursor-pointer"
+                          onClick={() => {
+                            onRemoveHighlight();
+                            setActiveHighlights([]);
+                            setHighlightActive(false);
+                          }}
+                        />
+                      ) : (
+                        <FiEyeOff
+                          title="Show Highlights"
+                          className="text-gray-500 cursor-pointer"
+                          onClick={() => {
+                            const updated = Array.from(
+                              new Set([
+                                ...activeHighlights,
+                                // ...violations,
+                                ...dictionaryViolations,
+                              ])
+                            );
+                            setActiveHighlights(updated);
+                            onHighlight(updated);
+                            setHighlightActive(true);
+                          }}
+                        />
+                      )}
+                    </div>
+                    <ul className="text-sm mt-2">
+                      <li className="flex items-start gap-2 mt-2">
+                        <GoDotFill
+                          className={
+                            // violations.length === 0 &&
+                            dictionaryViolations.length === 0
+                              ? 'text-yellow-200 mt-1'
+                              : 'text-yellow-200 mt-1'
+                          }
+                        />
+                        <span>
+                          {/* {violations.length === 0 && dictionaryViolations.length === 0 */}
+                          {dictionaryViolations.length === 0
+                            ? 'No potential SB37 violations found.'
+                            : `Potential SB37 violations found in ${
+                                // Object.keys(violationResults).length +
+                                Object.keys(dictionaryViolationResults).length
+                              } section(s).`}
+                        </span>
+                      </li>
+                    </ul>
+                  </li>
 
-                {/* FORMATTING */}
-                <li className="border border-black/20 p-2 mt-2 rounded-md">
-                  <div className="flex justify-between">
-                    <span className="font-bold">Formatting</span>
-                    {formatHighlightActive ? (
-                      <GoEye
-                        title="Remove Highlights"
-                        className="text-gray-500 cursor-pointer"
-                        onClick={() => {
-                          onRemoveFormatHighlight();
-                          setFormatHighlightActive(false);
-                        }}
-                      />
-                    ) : (
-                      <FiEyeOff
-                        title="Show Highlights"
-                        className="text-gray-500 cursor-pointer"
-                        onClick={() => {
-                          handleHighlightFormatErrors();
-                          setFormatHighlightActive(true);
-                        }}
-                      />
-                    )}
-                  </div>
-                  <ul className="text-sm">
-                    {[
-                      {
-                        label: 'Multiple spaces',
-                        count: formatErrors.multipleSpaceErrors.length,
-                      },
-                      {
-                        label: 'Em dash issues',
-                        count: formatErrors.emDashErrors.length,
-                      },
-                      {
-                        label: 'Lowercase in headings',
-                        count: formatErrors.titleCaseErrors.length,
-                      },
-                      // {
-                      //   label: 'Leading/trailing spaces',
-                      //   count: formatErrors.leadingTrailingSpaceErrors.length,
-                      // },
-                      {
-                        label: 'Space before punctuation',
-                        count: formatErrors.spaceBeforePunctuationErrors.length,
-                      },
-                      {
-                        label: 'Consecutive Punctuation',
-                        count: formatErrors.consecutivePunctuationErrors.length,
-                      },
-                      {
-                        label: 'Missing punctuation',
-                        count: formatErrors.missingPunctuationErrors.length,
-                      },
-                      
-                    ].map(({ label, count }, idx) => (
-                      <li key={idx} className="flex justify-between mt-2">
+                  {/* FORMATTING */}
+                  <li className="border border-black/20 p-2 mt-2 rounded-md">
+                    <div className="flex justify-between">
+                      <span className="font-bold">Formatting</span>
+                      {formatHighlightActive ? (
+                        <GoEye
+                          title="Remove Highlights"
+                          className="text-gray-500 cursor-pointer"
+                          onClick={() => {
+                            onRemoveFormatHighlight();
+                            setFormatHighlightActive(false);
+                          }}
+                        />
+                      ) : (
+                        <FiEyeOff
+                          title="Show Highlights"
+                          className="text-gray-500 cursor-pointer"
+                          onClick={() => {
+                            handleHighlightFormatErrors();
+                            setFormatHighlightActive(true);
+                          }}
+                        />
+                      )}
+                    </div>
+                    <ul className="text-sm">
+                      {[
+                        {
+                          label: 'Multiple spaces',
+                          count: formatErrors.multipleSpaceErrors.length,
+                        },
+                        {
+                          label: 'Em dash issues',
+                          count: formatErrors.emDashErrors.length,
+                        },
+                        {
+                          label: 'Lowercase in headings',
+                          count: formatErrors.titleCaseErrors.length,
+                        },
+                        // {
+                        //   label: 'Leading/trailing spaces',
+                        //   count: formatErrors.leadingTrailingSpaceErrors.length,
+                        // },
+                        {
+                          label: 'Space before punctuation',
+                          count: formatErrors.spaceBeforePunctuationErrors.length,
+                        },
+                        {
+                          label: 'Consecutive Punctuation',
+                          count: formatErrors.consecutivePunctuationErrors.length,
+                        },
+                        {
+                          label: 'Missing punctuation',
+                          count: formatErrors.missingPunctuationErrors.length,
+                        },
+                        
+                      ].map(({ label, count }, idx) => (
+                        <li key={idx} className="flex justify-between mt-2">
+                          <div className="flex items-center gap-2">
+                            {contentIssuesResult && (
+                              <GoDotFill
+                                className={count > 0 ? 'text-red-500' : 'text-green-500'}
+                              />
+                            )}
+                            <span>
+                              {count > 0 ? `${label} found` : `No ${label.toLowerCase()}`}
+                            </span>
+                          </div>
+                          <span>{count}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </li>
+
+                  {/* CONTENT */}
+                  <li className="border border-black/20 p-2 mt-2 rounded-md">
+                    <div className="flex justify-between">
+                      <span className="font-bold">Content</span>
+
+                      {contentHighlightsActive ? (
+                        <GoEye
+                          onClick={() => {
+                            if (!text || !contentIssuesResult || editMode) return;
+                            onRemoveContentHighlight();
+                            setContentHighlightsActive(false);
+                          }}
+                          title="Remove Highlights"
+                          className={clsx(
+                            'text-gray-500 cursor-pointer transition-colors',
+                            (!text || !contentIssuesResult || editMode) &&
+                              'opacity-50 cursor-not-allowed',
+                            'text-blue-500' // highlight when active
+                          )}
+                        />
+                      ) : (
+                        <FiEyeOff
+                          onClick={() => {
+                            if (!text || !contentIssuesResult || editMode) return;
+                            onHighlightContent();
+                            setContentHighlightsActive(true);
+                          }}
+                          title="Show Highlights"
+                          className={clsx(
+                            'text-gray-500 cursor-pointer transition-colors',
+                            (!text || !contentIssuesResult || editMode) &&
+                              'opacity-50 cursor-not-allowed'
+                          )}
+                        />
+                      )}
+                    </div>
+                    <ul className="text-sm">
+                      {/* <li className="flex justify-between mt-2">
+                        <div className="flex items-center gap-2">
+                          <GoDotFill className="!text-gray-200" />
+                          <span>Total Word Count:</span>
+                        </div>
+                        <span>{contentIssuesResult?.totalWordCount}</span>
+                      </li> */}
+
+                      <li className="flex justify-between mt-2">
                         <div className="flex items-center gap-2">
                           {contentIssuesResult && (
                             <GoDotFill
-                              className={count > 0 ? 'text-red-500' : 'text-green-500'}
+                              className={
+                                (contentIssuesResult?.over300Sections?.length ?? 0) > 0
+                                  ? 'text-gray-600'
+                                  : 'text-gray-600'
+                              }
                             />
                           )}
                           <span>
-                            {count > 0 ? `${label} found` : `No ${label.toLowerCase()}`}
+                            {(contentIssuesResult?.over300Sections?.length ?? 0) > 0
+                              ? 'Some sections have over 300 words'
+                              : 'All sections are under 300 words'}
                           </span>
                         </div>
-                        <span>{count}</span>
+                        {(contentIssuesResult?.over300Sections?.length ?? 0) > 0 && (
+                          <span>{contentIssuesResult?.over300Sections.length}</span>
+                        )}
                       </li>
-                    ))}
-                  </ul>
-                </li>
 
-                {/* CONTENT */}
-                <li className="border border-black/20 p-2 mt-2 rounded-md">
-                  <div className="flex justify-between">
-                    <span className="font-bold">Content</span>
+                      <li className="flex justify-between mt-2">
+                        <div className="flex items-center gap-2">
+                          {contentIssuesResult && (
+                            <GoDotFill
+                              className={
+                                (contentIssuesResult?.sameWordStreaks?.length ?? 0) > 0
+                                  ? 'text-[#fbc795]'
+                                  : 'text-[#fbc795]'
+                              }
+                            />
+                          )}
+                          <span>
+                            {(contentIssuesResult?.sameWordStreaks?.length ?? 0) > 0
+                              ? 'Same starting word error'
+                              : 'No Same starting word error'}
+                          </span>
+                        </div>
+                        {(contentIssuesResult?.sameWordStreaks?.length ?? 0) > 0 && (
+                          <span>{contentIssuesResult?.sameWordStreaks.length}</span>
+                        )}
+                      </li>
+                    </ul>
+                  </li>
 
-                    {contentHighlightsActive ? (
-                      <GoEye
-                        onClick={() => {
-                          if (!text || !contentIssuesResult || editMode) return;
-                          onRemoveContentHighlight();
-                          setContentHighlightsActive(false);
-                        }}
-                        title="Remove Highlights"
-                        className={clsx(
-                          'text-gray-500 cursor-pointer transition-colors',
-                          (!text || !contentIssuesResult || editMode) &&
-                            'opacity-50 cursor-not-allowed',
-                          'text-blue-500' // highlight when active
-                        )}
-                      />
-                    ) : (
-                      <FiEyeOff
-                        onClick={() => {
-                          if (!text || !contentIssuesResult || editMode) return;
-                          onHighlightContent();
-                          setContentHighlightsActive(true);
-                        }}
-                        title="Show Highlights"
-                        className={clsx(
-                          'text-gray-500 cursor-pointer transition-colors',
-                          (!text || !contentIssuesResult || editMode) &&
-                            'opacity-50 cursor-not-allowed'
-                        )}
-                      />
-                    )}
-                  </div>
-                  <ul className="text-sm">
-                    {/* <li className="flex justify-between mt-2">
-                      <div className="flex items-center gap-2">
-                        <GoDotFill className="!text-gray-200" />
-                        <span>Total Word Count:</span>
-                      </div>
-                      <span>{contentIssuesResult?.totalWordCount}</span>
-                    </li> */}
-
-                    <li className="flex justify-between mt-2">
-                      <div className="flex items-center gap-2">
-                        {contentIssuesResult && (
-                          <GoDotFill
-                            className={
-                              (contentIssuesResult?.over300Sections?.length ?? 0) > 0
-                                ? 'text-gray-600'
-                                : 'text-gray-600'
-                            }
-                          />
-                        )}
-                        <span>
-                          {(contentIssuesResult?.over300Sections?.length ?? 0) > 0
-                            ? 'Some sections have over 300 words'
-                            : 'All sections are under 300 words'}
-                        </span>
-                      </div>
-                      {(contentIssuesResult?.over300Sections?.length ?? 0) > 0 && (
-                        <span>{contentIssuesResult?.over300Sections.length}</span>
+                  {/* LINKS */}
+                  <li className="border border-black/20 p-2 mt-2 rounded-md">
+                    <div className="flex justify-between">
+                      <span className="font-bold">Links</span>
+                      {linkHighlightsActive ? (
+                        <FiEyeOff
+                          onClick={() => {
+                            if (!text || !linkIssuesResult || editMode) return;
+                            onLinkIssuesShowHighlightsClick();
+                            setLinkHighlightsActive(false);
+                          }}
+                          title="Show Underlines"
+                          className={clsx(
+                            'text-gray-500 cursor-pointer transition-colors',
+                            (!text || !linkIssuesResult || editMode) &&
+                              'opacity-50 cursor-not-allowed',
+                            'text-blue-500' // highlight when active
+                          )}
+                        />
+                      ) : (
+                        <GoEye
+                          onClick={() => {
+                            if (!text || !linkIssuesResult || editMode) return;
+                            onLinkIssuesRemoveHighlightClick();
+                            setLinkHighlightsActive(true);
+                          }}
+                          title="Hide Underlines"
+                          className={clsx(
+                            'text-gray-500 cursor-pointer transition-colors',
+                            (!text || !linkIssuesResult || editMode) &&
+                              'opacity-50 cursor-not-allowed'
+                          )}
+                        />
                       )}
-                    </li>
+                    </div>
+                    {linkIssuesResult && (
+                      <ul className="text-sm mt-2">
+                        {Object.entries(
+                          groupIssuesByType(linkIssuesResult.issues || [])
+                        ).map(([key, issues]) => {
+                          const count = issues.length;
+                          const hasIssues = count > 0;
 
-                    <li className="flex justify-between mt-2">
-                      <div className="flex items-center gap-2">
-                        {contentIssuesResult && (
-                          <GoDotFill
-                            className={
-                              (contentIssuesResult?.sameWordStreaks?.length ?? 0) > 0
-                                ? 'text-[#fbc795]'
-                                : 'text-[#fbc795]'
-                            }
-                          />
-                        )}
-                        <span>
-                          {(contentIssuesResult?.sameWordStreaks?.length ?? 0) > 0
-                            ? 'Same starting word error'
-                            : 'No Same starting word error'}
-                        </span>
-                      </div>
-                      {(contentIssuesResult?.sameWordStreaks?.length ?? 0) > 0 && (
-                        <span>{contentIssuesResult?.sameWordStreaks.length}</span>
-                      )}
-                    </li>
-                  </ul>
-                </li>
-
-                {/* LINKS */}
-                <li className="border border-black/20 p-2 mt-2 rounded-md">
-                  <div className="flex justify-between">
-                    <span className="font-bold">Links</span>
-                    {linkHighlightsActive ? (
-                      <FiEyeOff
-                        onClick={() => {
-                          if (!text || !linkIssuesResult || editMode) return;
-                          onLinkIssuesShowHighlightsClick();
-                          setLinkHighlightsActive(false);
-                        }}
-                        title="Show Underlines"
-                        className={clsx(
-                          'text-gray-500 cursor-pointer transition-colors',
-                          (!text || !linkIssuesResult || editMode) &&
-                            'opacity-50 cursor-not-allowed',
-                          'text-blue-500' // highlight when active
-                        )}
-                      />
-                    ) : (
-                      <GoEye
-                        onClick={() => {
-                          if (!text || !linkIssuesResult || editMode) return;
-                          onLinkIssuesRemoveHighlightClick();
-                          setLinkHighlightsActive(true);
-                        }}
-                        title="Hide Underlines"
-                        className={clsx(
-                          'text-gray-500 cursor-pointer transition-colors',
-                          (!text || !linkIssuesResult || editMode) &&
-                            'opacity-50 cursor-not-allowed'
-                        )}
-                      />
+                          return (
+                            <li key={key} className="flex justify-between mt-2">
+                              <div className="flex items-center gap-2">
+                                <GoDotFill
+                                  className={hasIssues ? 'text-red-500' : 'text-green-500'}
+                                />
+                                <span className="">{key}</span>
+                              </div>
+                              <span>{count}</span>
+                            </li>
+                          );
+                        })}
+                      </ul>
                     )}
-                  </div>
-                  {linkIssuesResult && (
-                    <ul className="text-sm mt-2">
-                      {Object.entries(
-                        groupIssuesByType(linkIssuesResult.issues || [])
-                      ).map(([key, issues]) => {
-                        const count = issues.length;
-                        const hasIssues = count > 0;
+                  </li>
 
-                        return (
-                          <li key={key} className="flex justify-between mt-2">
+                  {/* KEYWORDS */}
+                  <li className="border border-black/20 p-2 mt-2 rounded-md">
+                    <div className="flex justify-between">
+                      <span className="font-bold">Keywords</span>
+                      {keywordHighlightsActive ? (
+                        <FiEyeOff
+                          onClick={() => {
+                            if (!text || !keywordAnalysisResult || editMode) return;
+                            onShowHighlightClick();
+                            setKeywordHighlightsActive(false);
+                          }}
+                          title="Show Highlights"
+                          className={clsx(
+                            'text-gray-500 cursor-pointer transition-colors',
+                            (!text || !keywordAnalysisResult || editMode) &&
+                              'opacity-50 cursor-not-allowed',
+                            'text-blue-500'
+                          )}
+                        />
+                      ) : (
+                        <GoEye
+                          onClick={() => {
+                            if (!text || !keywordAnalysisResult || editMode) return;
+                            onKeywordRemoveHighlightClick();
+                            setKeywordHighlightsActive(true);
+                          }}
+                          title="Remove Highlights"
+                          className={clsx(
+                            'text-gray-500 cursor-pointer transition-colors',
+                            (!text || !keywordAnalysisResult || editMode) &&
+                              'opacity-50 cursor-not-allowed'
+                          )}
+                        />
+                      )}
+                    </div>
+
+                    <ul className="text-sm">
+                      {keywordAnalysisResult && !error && (
+                        <>
+                          {/* Focus Keyword Count */}
+                          {/* <li className="flex justify-between mt-2">
                             <div className="flex items-center gap-2">
                               <GoDotFill
-                                className={hasIssues ? 'text-red-500' : 'text-green-500'}
+                                className={
+                                  keywordAnalysisResult.keywordCounts.focusCount > 0
+                                    ? 'text-[#0ff3f5]'
+                                    : 'text-red-500'
+                                }
                               />
-                              <span className="">{key}</span>
+                              <span>
+                                {keywordAnalysisResult.keywordCounts.focusCount > 0
+                                  ? 'Focus keyword found'
+                                  : 'Focus keyword missing'}
+                              </span>
                             </div>
-                            <span>{count}</span>
+                            <span>{keywordAnalysisResult.keywordCounts.focusCount}</span>
+                          </li> */}
+
+                          {/* Alt Keyword Count */}
+                          {/* <li className="flex justify-between mt-2">
+                            <div className="flex items-center gap-2">
+                              <GoDotFill
+                                className={
+                                  keywordAnalysisResult.keywordCounts.altCount > 0
+                                    ? 'text-[#00ff00]'
+                                    : 'text-red-500'
+                                }
+                              />
+                              <span>
+                                {keywordAnalysisResult.keywordCounts.altCount > 0
+                                  ? 'Alt ESQ keyword found'
+                                  : 'Alt ESQ keyword missing'}
+                              </span>
+                            </div>
+                            <span>{keywordAnalysisResult.keywordCounts.altCount}</span>
+                          </li> */}
+
+                          {/* Total Keyword Density */}
+                          {/* <li className="flex justify-between mt-2">
+                            <div className="flex items-center gap-2">
+                              <GoDotFill
+                                className={
+                                  keywordAnalysisResult.density > 2.5
+                                    ? 'text-red-500'
+                                    : 'text-green-500'
+                                }
+                              />
+                              <span>Keyword density</span>
+                            </div>
+                            <span>{keywordAnalysisResult.density.toFixed(2)}%</span>
+                          </li> */}
+
+                          {/* H2/H3 Optimization */}
+                          <li className="mt-4 flex">
+                            <p className=" flex justify-between w-full">
+                              <span className="flex items-center gap-2">
+                                <GoDotFill
+                                  className={
+                                    keywordAnalysisResult.headingAnalysis.percent <= 75
+                                      ? 'text-green-500'
+                                      : 'text-red-500'
+                                  }
+                                />
+                                <span className="">H2 & H3 Optimization: </span>
+                              </span>
+                              <span>{keywordAnalysisResult.headingAnalysis.percent}%</span>
+                            </p>
                           </li>
-                        );
-                      })}
+
+                          {/* Section Optimization */}
+                          <li className="mt-4 flex">
+                            <p className=" flex justify-between w-full">
+                              <span className="flex items-center gap-2">
+                                <GoDotFill
+                                  className={
+                                    keywordAnalysisResult.sectionAnalysis.percent === 100
+                                      ? 'text-green-500'
+                                      : 'text-red-500'
+                                  }
+                                />
+                                <span>Per Section Optimization: </span>
+                              </span>
+                              <span>{keywordAnalysisResult.sectionAnalysis.percent}%</span>
+                            </p>
+                          </li>
+
+                          {/* Secondary Keywords */}
+                          {keywordAnalysisResult.otherKeywords.some(
+                            c => c.category === 'Secondary Keywords'
+                          ) && (
+                            <li className="mt-4">
+                              <p className="font-semibold mb-1">Other Keywords</p>
+                              {keywordAnalysisResult.otherKeywords
+                                .filter(
+                                  category => category.category === 'Secondary Keywords'
+                                )
+                                .map(category => (
+                                  <div key={category.category} className="mb-2">
+                                    <p className="underline">{category.category}</p>
+                                    <ul className="ml-4">
+                                      {category.keywords.map(kw => (
+                                        <li
+                                          key={kw.keyword}
+                                          className="flex justify-between text-sm">
+                                          <span>{kw.keyword}</span>
+                                          <span
+                                            className={
+                                              kw.count > 0
+                                                ? 'text-green-600'
+                                                : 'text-red-600'
+                                            }>
+                                            {kw.count}
+                                          </span>
+                                        </li>
+                                      ))}
+                                    </ul>
+                                  </div>
+                                ))}
+                            </li>
+                          )}
+                        </>
+                      )}
                     </ul>
-                  )}
-                </li>
-
-                {/* KEYWORDS */}
-                <li className="border border-black/20 p-2 mt-2 rounded-md">
-                  <div className="flex justify-between">
-                    <span className="font-bold">Keywords</span>
-                    {keywordHighlightsActive ? (
-                      <FiEyeOff
-                        onClick={() => {
-                          if (!text || !keywordAnalysisResult || editMode) return;
-                          onShowHighlightClick();
-                          setKeywordHighlightsActive(false);
-                        }}
-                        title="Show Highlights"
-                        className={clsx(
-                          'text-gray-500 cursor-pointer transition-colors',
-                          (!text || !keywordAnalysisResult || editMode) &&
-                            'opacity-50 cursor-not-allowed',
-                          'text-blue-500'
-                        )}
-                      />
-                    ) : (
-                      <GoEye
-                        onClick={() => {
-                          if (!text || !keywordAnalysisResult || editMode) return;
-                          onKeywordRemoveHighlightClick();
-                          setKeywordHighlightsActive(true);
-                        }}
-                        title="Remove Highlights"
-                        className={clsx(
-                          'text-gray-500 cursor-pointer transition-colors',
-                          (!text || !keywordAnalysisResult || editMode) &&
-                            'opacity-50 cursor-not-allowed'
-                        )}
-                      />
-                    )}
-                  </div>
-
-                  <ul className="text-sm">
-                    {keywordAnalysisResult && !error && (
-                      <>
-                        {/* Focus Keyword Count */}
-                        {/* <li className="flex justify-between mt-2">
-                          <div className="flex items-center gap-2">
-                            <GoDotFill
-                              className={
-                                keywordAnalysisResult.keywordCounts.focusCount > 0
-                                  ? 'text-[#0ff3f5]'
-                                  : 'text-red-500'
-                              }
-                            />
-                            <span>
-                              {keywordAnalysisResult.keywordCounts.focusCount > 0
-                                ? 'Focus keyword found'
-                                : 'Focus keyword missing'}
-                            </span>
-                          </div>
-                          <span>{keywordAnalysisResult.keywordCounts.focusCount}</span>
-                        </li> */}
-
-                        {/* Alt Keyword Count */}
-                        {/* <li className="flex justify-between mt-2">
-                          <div className="flex items-center gap-2">
-                            <GoDotFill
-                              className={
-                                keywordAnalysisResult.keywordCounts.altCount > 0
-                                  ? 'text-[#00ff00]'
-                                  : 'text-red-500'
-                              }
-                            />
-                            <span>
-                              {keywordAnalysisResult.keywordCounts.altCount > 0
-                                ? 'Alt ESQ keyword found'
-                                : 'Alt ESQ keyword missing'}
-                            </span>
-                          </div>
-                          <span>{keywordAnalysisResult.keywordCounts.altCount}</span>
-                        </li> */}
-
-                        {/* Total Keyword Density */}
-                        {/* <li className="flex justify-between mt-2">
-                          <div className="flex items-center gap-2">
-                            <GoDotFill
-                              className={
-                                keywordAnalysisResult.density > 2.5
-                                  ? 'text-red-500'
-                                  : 'text-green-500'
-                              }
-                            />
-                            <span>Keyword density</span>
-                          </div>
-                          <span>{keywordAnalysisResult.density.toFixed(2)}%</span>
-                        </li> */}
-
-                        {/* H2/H3 Optimization */}
-                        <li className="mt-4 flex">
-                          <p className=" flex justify-between w-full">
-                            <span className="flex items-center gap-2">
-                              <GoDotFill
-                                className={
-                                  keywordAnalysisResult.headingAnalysis.percent <= 75
-                                    ? 'text-green-500'
-                                    : 'text-red-500'
-                                }
-                              />
-                              <span className="">H2 & H3 Optimization: </span>
-                            </span>
-                            <span>{keywordAnalysisResult.headingAnalysis.percent}%</span>
-                          </p>
-                        </li>
-
-                        {/* Section Optimization */}
-                        <li className="mt-4 flex">
-                          <p className=" flex justify-between w-full">
-                            <span className="flex items-center gap-2">
-                              <GoDotFill
-                                className={
-                                  keywordAnalysisResult.sectionAnalysis.percent === 100
-                                    ? 'text-green-500'
-                                    : 'text-red-500'
-                                }
-                              />
-                              <span>Per Section Optimization: </span>
-                            </span>
-                            <span>{keywordAnalysisResult.sectionAnalysis.percent}%</span>
-                          </p>
-                        </li>
-
-                        {/* Secondary Keywords */}
-                        {keywordAnalysisResult.otherKeywords.some(
-                          c => c.category === 'Secondary Keywords'
-                        ) && (
-                          <li className="mt-4">
-                            <p className="font-semibold mb-1">Other Keywords</p>
-                            {keywordAnalysisResult.otherKeywords
-                              .filter(
-                                category => category.category === 'Secondary Keywords'
-                              )
-                              .map(category => (
-                                <div key={category.category} className="mb-2">
-                                  <p className="underline">{category.category}</p>
-                                  <ul className="ml-4">
-                                    {category.keywords.map(kw => (
-                                      <li
-                                        key={kw.keyword}
-                                        className="flex justify-between text-sm">
-                                        <span>{kw.keyword}</span>
-                                        <span
-                                          className={
-                                            kw.count > 0
-                                              ? 'text-green-600'
-                                              : 'text-red-600'
-                                          }>
-                                          {kw.count}
-                                        </span>
-                                      </li>
-                                    ))}
-                                  </ul>
-                                </div>
-                              ))}
-                          </li>
-                        )}
-                      </>
-                    )}
-                  </ul>
-                </li>
-              </ul>
-            )}
-          </div>
-        )}
+                  </li>
+                </ul>
+              )}
+            </div>
+          )}
+        </div>
+        <div
+          className={clsx(
+            'transition-all duration-500 ease-in-out',
+            showSummary === 'tools'
+              ? 'max-h-[9999px] opacity-100'
+              : 'max-h-0 opacity-0 overflow-hidden'
+          )}
+        >
         {showSummary === 'tools' && (
           <Tabs className={clsx('min-h-[410px]')}>
             <TabList
@@ -3015,9 +3044,11 @@ const renderErrorList = (
               </div>
 
               {hasKeywordChecked && (
-                <div>
-                  {error && <Alert message={error} type="error" />}
-                  {renderKeywordAlert()}
+                <div className="w-full">
+                  <div className="">
+                    {error && <Alert message={error} type="error" />}
+                    {renderKeywordAlert()}
+                  </div>
                   {keywordAnalysisResult && !error && (
                     <div className="">
                       <KeywordResultSection result={keywordAnalysisResult} />
@@ -3028,6 +3059,7 @@ const renderErrorList = (
             </TabPanel>
           </Tabs>
         )}
+        </div>
       </section>
     </div>
   );

@@ -22,16 +22,13 @@ export const Summary: FC<SummaryProps> = ({
 }) => {
   const Item = ({ label, value }: { label: string; value: string | number | null }) => (
     <div className="flex justify-between py-1 text-sm">
-      <span className="font-medium">{label}</span>
-      <span className="font-semibold">{value ?? '—'}</span>
+      <span className="font-extrabold">{label}</span>
+      <span className="font-extrabold">{value ?? '—'}</span>
     </div>
   );
 
   return (
-    <section
-      className={clsx(
-        'p-4'
-      )}>
+    <section className={clsx('p-4')}>
       <div className="space-y-2">
         <Item label="Word Count" value={totalWordCount} />
         <Item label="Focus Keyphrase" value={keywordCounts || '—'} />

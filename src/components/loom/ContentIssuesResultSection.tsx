@@ -33,12 +33,15 @@ const ContentIssuesResultSection = ({ result, errorMessage }: Props) => {
     ) {
       return <Alert message={error} type="error" />;
     }
-    return <Alert message="No content issues found! Good job! " type="success" />;
+    return <Alert message="🎉 No content issues found! Good job! " type="success" />;
   };
 
   return (
     <div className="space-y-3 mt-4">
-      {renderAlert()}
+      <div className="w-full flex justify-center">
+        <span className="!w-full">{renderAlert()}</span>
+        <span className="w-none"></span>
+      </div>
       <p className="flex justify-between">
         <strong>Total Word Count:</strong>
         <span className="text-blue-200 font-bold">{totalWordCount}</span>
@@ -83,10 +86,23 @@ const ContentIssuesResultSection = ({ result, errorMessage }: Props) => {
         </div>
       ) : null}
       {over300Sections && (
-        <Accordion
-          header={<div className="text-sm">Sections With Over 300 Words</div>}
-          badge={over300Sections?.length}
-          badgeColor={over300Sections?.length > 0 ? 'red' : 'green'}>
+      <Accordion
+        className="mt-2 text-sm"
+        header={
+          <div className="flex justify-between items-center w-full text-sm">
+            <span>Sections With Over 300 Words</span>
+            {over300Sections && over300Sections.length > 0 ? (
+              <div className="bg-[#f5ecee] w-[40px] text-right rounded-2xl px-2">
+                <span className="text-red-100">{over300Sections.length}</span>
+              </div>
+            ) : (
+              <div className="bg-[#e5f5ea] w-[40px] text-right rounded-2xl px-2">
+                <span className="text-green-100">0</span>
+              </div>
+            )}
+          </div>
+        }>
+
           {over300Sections.length > 0 ? (
             <div className="mt-2">
               <ul className="mx-2 space-y-3 text-sm">
@@ -114,13 +130,22 @@ const ContentIssuesResultSection = ({ result, errorMessage }: Props) => {
       )}
       {sameWordStreaks && (
         <Accordion
+          className="mt-2 text-sm"
           header={
-            <div className="text-sm">
-              Same Starting Word In {'>'}=3 Consecutive Sentences
+            <div className="flex justify-between items-center w-full text-sm">
+              <span>Same Starting Word In {'>'}=3 Consecutive Sentences</span>
+              {sameWordStreaks.length > 0 ? (
+                <div className="bg-[#f5ecee] w-[50px] text-right rounded-2xl px-2">
+                  <span className="text-red-100">{sameWordStreaks.length}</span>
+                </div>
+              ) : (
+                <div className="bg-[#e5f5ea] w-[50px] text-right rounded-2xl px-2">
+                  <span className="text-green-100">0</span>
+                </div>
+              )}
             </div>
-          }
-          badge={sameWordStreaks.length}
-          badgeColor={sameWordStreaks.length > 0 ? 'red' : 'green'}>
+          }>
+
           {sameWordStreaks.length > 0 ? (
             <div className="mt-2">
               <ul className="mx-2 space-y-3 text-sm">

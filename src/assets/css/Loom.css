@@ -132,3 +132,7 @@ mark.dictionary {
   background-color:  #ffffff;
   transition: background-color 1s ease;
 }
+
+.loom-tinymce-editor{
+  z-index: 0;
+}

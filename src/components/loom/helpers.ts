@@ -173,8 +173,13 @@ export function highlightKeywordsInDiv({
   const altWords = alternateKeyword ? normalize(alternateKeyword).split(/\s+/) : [];
 
   const keywordMap = new Map<string, string>();
-  focusWords.forEach(word => keywordMap.set(word, '#00ffff'));
-  altWords.forEach(word => keywordMap.set(word, '#00ff00'));
+  focusWords.forEach(word => keywordMap.set(word, '#00ffff')); 
+  altWords.forEach(word => {
+    if (!keywordMap.has(word)) {
+      keywordMap.set(word, '#00ff00'); 
+    }
+  });
+
 
   const allKeywords = [...new Set([...focusWords, ...altWords])];
   if (allKeywords.length === 0) return;

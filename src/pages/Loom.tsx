@@ -780,9 +780,15 @@ const removeFormatHighlights = () => {
           <label className="dark:text-white-100">Google Appearance Preview</label>
           <div className="border border-black/17.5 rounded-md p-4 bg-white flex-1 flex flex-col dark:text-black-200">
             <span>Arash Law</span>
-            <h3 className="text-xl truncate text-blue-1000 leading-[1.2] font-medium">
+            <h3
+              className={clsx(
+                'text-xl leading-[1.2] font-medium text-blue-1000',
+                titleStyle.style.includes('bg-red') ? 'truncate' : ''
+              )}
+            >
               {title}
             </h3>
+
 
             <div
               className="text-black-200/75 text-[14px] leading-[20px] mt-1 overflow-hidden"
@@ -838,7 +844,7 @@ const removeFormatHighlights = () => {
               </div>
             </div>
 
-            <div className="flex-row flex justify-end mb-2 gap-x-2 sticky top-0 bg-white z-1 p-2">
+            <div className="flex-row flex justify-end mb-2 gap-x-2 sticky top-0 bg-white p-2">
               <span
                 className={clsx(
                   'font-medium text-base py-[6px] px-[12px] cursor-pointer',
@@ -866,42 +872,45 @@ const removeFormatHighlights = () => {
             </div>
 
             {editMode ? (
-              <Editor
-                onInit={(_, editor) => (editorRef.current = editor)}
-                onEditorChange={handleEditorChange}
-                value={htmlString}
-                init={{
-                  base_url: '/frontend-v2/tinymce',
-                  height: EDITOR_MIN_HEIGHT,
-                  width: '100%',
-                  menubar: true,
-                  promotion: false,
-                  entity_encoding: 'raw',
-                  element_format: 'xhtml',
-                  extended_valid_elements: 'span[style|id|name|class]',
-                  placeholder: 'Type here...',
-                  toolbar_mode: 'floating',
-                  plugins: [
-                    'anchor',
-                    'charmap',
-                    'codesample',
-                    'emoticons',
-                    'image',
-                    'link',
-                    'media',
-                    'searchreplace',
-                    'table',
-                    'visualblocks',
-                    'wordcount',
-                  ],
-                  toolbar:
-                    'blocks fontsize | bold italic underline | link image | alignleft indent outdent | emoticons charmap | removeformat',
-                  content_style:
-                    'body { font-family:Helvetica,Arial,sans-serif; font-size:13px }',
-                }}
-                ref={divRef as React.Ref<Editor>}
-              />
+              <div className="loom-tinymce-editor">
+                <Editor
+                  onInit={(_, editor) => (editorRef.current = editor)}
+                  onEditorChange={handleEditorChange}
+                  value={htmlString}
+                  init={{
+                    base_url: '/frontend-v2/tinymce',
+                    height: EDITOR_MIN_HEIGHT,
+                    width: '100%',
+                    menubar: true,
+                    promotion: false,
+                    entity_encoding: 'raw',
+                    element_format: 'xhtml',
+                    extended_valid_elements: 'span[style|id|name|class]',
+                    placeholder: 'Type here...',
+                    toolbar_mode: 'floating',
+                    plugins: [
+                      'anchor',
+                      'charmap',
+                      'codesample',
+                      'emoticons',
+                      'image',
+                      'link',
+                      'media',
+                      'searchreplace',
+                      'table',
+                      'visualblocks',
+                      'wordcount',
+                    ],
+                    toolbar:
+                      'blocks fontsize | bold italic underline | link image | alignleft indent outdent | emoticons charmap | removeformat',
+                    content_style:
+                      'body { font-family:Helvetica,Arial,sans-serif; font-size:13px }',
+                  }}
+                  ref={divRef as React.Ref<Editor>}
+                />
 
+              </div>
+             
             ) : (
               <div
                 className={clsx(
