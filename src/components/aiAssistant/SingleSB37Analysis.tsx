@@ -19,8 +19,6 @@ import FAQModal from './FAQModal';
 import { steps } from './constants';
 import DemoVideoModal from './DemoVideoModal';
 
-const { VITE_SECRET_EMAIL } = import.meta.env;
-
 const SingleSB37Analysis = () => {
   const [showInstructionsModal, setShowInstructionsModal] = useState(false);
   const [showFAQModal, setShowFAQModal] = useState(false);
@@ -265,14 +263,13 @@ const SingleSB37Analysis = () => {
                   disabled={singleLoading || loadingParsing}>
                   Proceed with Single Analysis
                 </Button>
-                {userData.email.toLowerCase() === VITE_SECRET_EMAIL && (
-                  <Button
-                    onClick={handleProceedMultiAnalysis}
-                    className="!bg-blue-200 text-white border-none"
-                    disabled={singleLoading || loadingParsing}>
-                    Proceed with Multi-Assistant Analysis
-                  </Button>
-                )}
+
+                <Button
+                  onClick={handleProceedMultiAnalysis}
+                  className="!bg-blue-200 text-white border-none"
+                  disabled={singleLoading || loadingParsing}>
+                  Proceed with Multi-Assistant Analysis
+                </Button>
               </div>
             )}
           </div>

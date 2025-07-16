@@ -21,8 +21,6 @@ import FAQModal from './FAQModal';
 import { steps } from './constants';
 import DemoVideoModal from './DemoVideoModal';
 
-const { VITE_SECRET_EMAIL } = import.meta.env;
-
 const BatchSB37Analysis = () => {
   const [showInstructionsModal, setShowInstructionsModal] = useState(false);
   const [showFAQModal, setShowFAQModal] = useState(false);
@@ -278,21 +276,20 @@ const BatchSB37Analysis = () => {
               }>
               Proceed with Batch Analysis
             </Button>
-            {userData.email.toLowerCase() === VITE_SECRET_EMAIL && (
-              <Button
-                onClick={handleClickProceedMultiAssistant}
-                className="!bg-blue-200 text-white border-none"
-                disabled={
-                  isSheetProcessing ||
-                  isDocInfoLoading ||
-                  isValidating ||
-                  sheetCompleted[sheetName] ||
-                  Boolean(sheetNamesError) ||
-                  sheetInfo[sheetName].sheetValidDocsCount === 0
-                }>
-                Proceed with Multi-Assistant Batch Analysis
-              </Button>
-            )}
+
+            <Button
+              onClick={handleClickProceedMultiAssistant}
+              className="!bg-blue-200 text-white border-none"
+              disabled={
+                isSheetProcessing ||
+                isDocInfoLoading ||
+                isValidating ||
+                sheetCompleted[sheetName] ||
+                Boolean(sheetNamesError) ||
+                sheetInfo[sheetName].sheetValidDocsCount === 0
+              }>
+              Proceed with Multi-Assistant Batch Analysis
+            </Button>
           </>
         ) : (
           <Button
