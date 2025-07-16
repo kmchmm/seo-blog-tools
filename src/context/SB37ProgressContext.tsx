@@ -52,11 +52,13 @@ type BatchProgressContextType = {
     sheetName,
     isSingleDoc,
     isMultiAssistant,
+    mode,
   }: {
     clientId: string;
     sheetName?: string;
     isSingleDoc?: boolean;
     isMultiAssistant?: boolean;
+    mode?: BatchMode;
   }) => void;
   sheetCanceling: Record<string, boolean>;
   batchCompletionTime: Record<string, string>;
@@ -341,6 +343,7 @@ export const Provider: React.FC<{ children: React.ReactNode }> = ({ children }) 
     sheetName?: string;
     isSingleDoc?: boolean;
     isMultiAssistant?: boolean;
+    mode?: BatchMode;
   }) => {
     try {
       let cancelUrl = '';
@@ -349,7 +352,9 @@ export const Provider: React.FC<{ children: React.ReactNode }> = ({ children }) 
           ? AI_MULTIPLE_ASSISTANT_API_URL
           : AI_PROCESS_DOCUMENT_API_URL;
       } else {
-        cancelUrl = AI_PROCESS_SHEET_API_URL;
+        cancelUrl = isMultiAssistant
+          ? AI_PROCESS_SHEET_MULTIPLE_ASSISTANT_API_URL
+          : AI_PROCESS_SHEET_API_URL;
       }
 
       // Update canceling UI state (only for sheet context)
@@ -358,7 +363,7 @@ export const Provider: React.FC<{ children: React.ReactNode }> = ({ children }) 
         setLoadingSheets(prev => ({ ...prev, [sheetName]: false }));
       }
 
-      await axios.post(cancelUrl, {
+      await axios.post(`${cancelUrl}`, {
         clientId,
         ...(sheetName ? { sheetName } : {}),
       });

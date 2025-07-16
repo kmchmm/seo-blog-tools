@@ -25,6 +25,7 @@ const BatchSB37Analysis = () => {
   const [showInstructionsModal, setShowInstructionsModal] = useState(false);
   const [showFAQModal, setShowFAQModal] = useState(false);
   const [showInstruction, setShowInstruction] = useState(false);
+  const [isMultiAssistantMode, setIsMultiAssistantMode] = useState(false);
   const [showDemoVideoModal, setShowDemoVideoModal] = useState(false);
   const { showToast } = use(ToastContext);
   const { userData } = useAuth();
@@ -119,12 +120,14 @@ const BatchSB37Analysis = () => {
   const handleClickProceed = () => {
     if (!sheetName) return;
     showToast(`SB37 batch analysis started for ${sheetName}.`);
+    setIsMultiAssistantMode(false);
     startBatch(url, sheetName, `${clientId}`);
   };
 
   const handleClickProceedMultiAssistant = () => {
     if (!sheetName) return;
     showToast(`SB37 batch analysis started for ${sheetName}.`);
+    setIsMultiAssistantMode(true);
     startBatch(url, sheetName, `${clientId}`, 'chain-assistant');
   };
 
@@ -138,7 +141,11 @@ const BatchSB37Analysis = () => {
 
   const onCancelClick = () => {
     showToast(`Batch analysis cancelled for ${sheetName}.`);
-    cancelTask({ clientId: `${clientId}`, sheetName });
+    cancelTask({
+      clientId: `${clientId}`,
+      sheetName,
+      isMultiAssistant: isMultiAssistantMode,
+    });
   };
 
   const handleClickViewInstructions = () => {
