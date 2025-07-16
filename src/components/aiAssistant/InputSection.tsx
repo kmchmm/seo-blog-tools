@@ -21,7 +21,6 @@ const InputSection = ({
         disabled={disabled}
         id="ai-assistant-input"
         label={label}
-
         name="ai-assistant-input"
         onInputChange={onInputChange}
         value={value}

@@ -4,10 +4,9 @@ import {
   AI_MULTIPLE_ASSISTANT_API_URL,
   AI_PROCESS_DOCUMENT_API_URL,
 } from '../services/constants';
-import axios, { AxiosError } from 'axios';
 
 export type SB37AnalysisResult = {
-  reviewOutput: SB37AnalysisJSON;
+  reviewOutput?: SB37AnalysisJSON;
   completionTime: string;
   wordCount: number;
   title: string;
@@ -103,31 +102,77 @@ const usePostSB37SingleAnalysis = () => {
     });
   };
 
-  const sendMultiAssistantRequest = async (
-    docUrl: string,
-    clientId: string,
-    onSuccess?: () => void
-  ) => {
+  const sendMultiAssistantRequest = ({
+    clientId,
+    docName,
+    docUrl,
+    wordCount,
+    onSuccess,
+  }: {
+    docUrl: string;
+    clientId: string;
+    docName: string;
+    wordCount: number;
+    onSuccess?: () => void;
+  }) => {
     reset();
     setLoading(true);
 
-    try {
-      const response = await axios.post(AI_MULTIPLE_ASSISTANT_API_URL, {
-        docUrl,
-        clientId,
-      });
+    const url = new URL(AI_MULTIPLE_ASSISTANT_API_URL);
+    url.searchParams.set('docUrl', docUrl);
+    url.searchParams.set('clientId', clientId);
+    url.searchParams.set('title', docName);
+    url.searchParams.set('wordCount', `${wordCount}`);
 
-      if (response.status === 200) {
-        setResult(response.data);
-        if (onSuccess) onSuccess();
-      }
-    } catch (e) {
-      const error = e as AxiosError<{ error: string }>;
-      const { message } = error || {};
-      setErrorMessage(message || 'Something went wrong. Code 1');
-    } finally {
+    const eventSourceInstance = new EventSource(url.toString());
+    eventSource = eventSourceInstance;
+
+    eventSourceInstance.addEventListener('progress', event => {
+      const data = JSON.parse(event.data);
+      setCurrentTitle(data.title);
+    });
+
+    eventSourceInstance.addEventListener('complete', event => {
+      const data = JSON.parse(event.data);
+      setResult({
+        doc_url: data.doc_url,
+        completionTime: data.completionTime,
+        wordCount: data.wordCount,
+        title: data.title,
+      });
+      if (onSuccess) onSuccess();
       setLoading(false);
-    }
+      eventSourceInstance.close();
+    });
+
+    eventSourceInstance.addEventListener('error', event => {
+      const messageEvent = event as MessageEvent;
+
+      setLoading(false);
+      eventSourceInstance.close();
+
+      if (!messageEvent.data) {
+        console.warn('🔌 Connection lost or unexpected error with no message.');
+        return; // Don't show error message
+      }
+
+      try {
+        const data = JSON.parse(messageEvent.data);
+        if (data?.message === 'Aborted') {
+          return;
+        }
+
+        setErrorMessage(
+          data?.message || 'Something went wrong while sending server events. Code 1'
+        );
+      } catch (e) {
+        const error =
+          e instanceof Error
+            ? e.message
+            : 'Something went wrong while sending server events. Code 2';
+        setErrorMessage(error);
+      }
+    });
   };
 
   const sendRequest = async ({
@@ -146,7 +191,13 @@ const usePostSB37SingleAnalysis = () => {
     wordCount: number;
   }) => {
     if (mode === 'multi-assistant') {
-      await sendMultiAssistantRequest(docUrl, clientId, onSuccess);
+      sendMultiAssistantRequest({
+        docUrl,
+        clientId,
+        docName: docTitle,
+        wordCount,
+        onSuccess,
+      });
     } else {
       sendSingleAssistantRequest({ docUrl, clientId, docName: docTitle, wordCount });
     }
