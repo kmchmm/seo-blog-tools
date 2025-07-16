@@ -6,6 +6,8 @@ import { useGetSheetNames } from '../hooks';
 import {
   AI_PROCESS_DOCUMENT_API_URL,
   AI_PROCESS_SHEET_API_URL,
+  AI_MULTIPLE_ASSISTANT_API_URL,
+  AI_PROCESS_SHEET_MULTIPLE_ASSISTANT_API_URL,
 } from '../services/constants';
 import axios, { AxiosError } from 'axios';
 import { ToastContext } from './ToastContext';
@@ -24,6 +26,8 @@ export type SheetInfo = {
   docsTotalWords: number;
 };
 
+type BatchMode = 'single' | 'chain-assistant';
+
 type BatchProgressContextType = {
   // batch fields
   formValues: { url: string; sheetName: string };
@@ -36,15 +40,23 @@ type BatchProgressContextType = {
   sheetErorMessages: Record<string, string>;
   sheetInfo: Record<string, SheetInfo>;
   sheetProgressCount: Record<string, number>;
-  startBatch: (spreadsheetUrl: string, sheetName: string, clientId: string) => void;
+  startBatch: (
+    spreadsheetUrl: string,
+    sheetName: string,
+    clientId: string,
+    mode?: BatchMode
+  ) => void;
   updateSheetInfo: (sheetName: string, updates: Partial<SheetInfo>) => void;
   cancelTask: ({
     clientId,
     sheetName,
+    isSingleDoc,
+    isMultiAssistant,
   }: {
     clientId: string;
     sheetName?: string;
     isSingleDoc?: boolean;
+    isMultiAssistant?: boolean;
   }) => void;
   sheetCanceling: Record<string, boolean>;
   batchCompletionTime: Record<string, string>;
@@ -161,7 +173,6 @@ export const Provider: React.FC<{ children: React.ReactNode }> = ({ children }) 
     sendSingleRequest({ docUrl, clientId, docTitle, wordCount });
   };
 
-  //TODO
   const analyzeMultiAssistantDoc = ({
     docUrl,
     onSuccess,
@@ -185,7 +196,12 @@ export const Provider: React.FC<{ children: React.ReactNode }> = ({ children }) 
     });
   };
 
-  const startBatch = (spreadsheetUrl: string, sheetName: string, clientId: string) => {
+  const startBatch = (
+    spreadsheetUrl: string,
+    sheetName: string,
+    clientId: string,
+    mode: BatchMode = 'single'
+  ) => {
     setBatchCompletionTime(prev => ({ ...prev, [sheetName]: '' }));
     setItems(prev => ({ ...prev, [sheetName]: [] }));
     setSheetProgressCount(prev => ({ ...prev, [sheetName]: 0 }));
@@ -193,11 +209,17 @@ export const Provider: React.FC<{ children: React.ReactNode }> = ({ children }) 
     setLoadingSheets(prev => ({ ...prev, [sheetName]: true }));
     setSheetErorMessages(prev => ({ ...prev, [sheetName]: '' }));
 
+    // Dynamic API selection
+    const API_URL =
+      mode === 'chain-assistant'
+        ? AI_PROCESS_SHEET_MULTIPLE_ASSISTANT_API_URL
+        : AI_PROCESS_SHEET_API_URL;
+
     const query = `?spreadsheetUrl=${encodeURIComponent(
       spreadsheetUrl
     )}&sheetName=${encodeURIComponent(sheetName)}&clientId=${clientId}`;
 
-    const eventSource = new EventSource(`${AI_PROCESS_SHEET_API_URL}${query}`);
+    const eventSource = new EventSource(`${API_URL}${query}`);
     eventSourceRef.current = eventSource;
 
     eventSource.onmessage = e => {
@@ -313,16 +335,22 @@ export const Provider: React.FC<{ children: React.ReactNode }> = ({ children }) 
     clientId,
     sheetName = '',
     isSingleDoc = false,
+    isMultiAssistant = false,
   }: {
     clientId: string;
     sheetName?: string;
     isSingleDoc?: boolean;
+    isMultiAssistant?: boolean;
   }) => {
     try {
-      const cancelUrl = isSingleDoc
-        ? `${AI_PROCESS_DOCUMENT_API_URL}`
-        : `${AI_PROCESS_SHEET_API_URL}`;
-
+      let cancelUrl = '';
+      if (isSingleDoc) {
+        cancelUrl = isMultiAssistant
+          ? AI_MULTIPLE_ASSISTANT_API_URL
+          : AI_PROCESS_DOCUMENT_API_URL;
+      } else {
+        cancelUrl = AI_PROCESS_SHEET_API_URL;
+      }
 
       // Update canceling UI state (only for sheet context)
       if (!isSingleDoc && sheetName) {

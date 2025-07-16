@@ -1,4 +1,4 @@
-import { use, useCallback, useEffect, useMemo, useState } from 'react';
+import React, { use, useCallback, useEffect, useMemo, useState } from 'react';
 import { Button } from '../common';
 import { IoMdRefresh } from 'react-icons/io';
 
@@ -16,11 +16,18 @@ import { getEstimatedTime } from './helpers';
 import { formatSecondsString } from '../../utils/formatter';
 import { ToastContext } from '../../context/ToastContext';
 import InputSection from './InputSection';
+import InstructionsModal from './InstructionsModal';
+import FAQModal from './FAQModal';
+import { steps } from './constants';
+import DemoVideoModal from './DemoVideoModal';
 
 const { VITE_SECRET_EMAIL } = import.meta.env;
 
 const BatchSB37Analysis = () => {
+  const [showInstructionsModal, setShowInstructionsModal] = useState(false);
+  const [showFAQModal, setShowFAQModal] = useState(false);
   const [showInstruction, setShowInstruction] = useState(false);
+  const [showDemoVideoModal, setShowDemoVideoModal] = useState(false);
   const { showToast } = use(ToastContext);
   const { userData } = useAuth();
   const { id: clientId } = userData;
@@ -117,6 +124,12 @@ const BatchSB37Analysis = () => {
     startBatch(url, sheetName, `${clientId}`);
   };
 
+  const handleClickProceedMultiAssistant = () => {
+    if (!sheetName) return;
+    showToast(`SB37 batch analysis started for ${sheetName}.`);
+    startBatch(url, sheetName, `${clientId}`, 'chain-assistant');
+  };
+
   const handleSheetUpdate = useCallback(
     (sheetName: string, updates: Partial<SheetInfo>) => {
       updateSheetInfo(sheetName, updates);
@@ -128,6 +141,22 @@ const BatchSB37Analysis = () => {
   const onCancelClick = () => {
     showToast(`Batch analysis cancelled for ${sheetName}.`);
     cancelTask({ clientId: `${clientId}`, sheetName });
+  };
+
+  const handleClickViewInstructions = () => {
+    setShowInstructionsModal(true);
+  };
+
+  const handleCloseViewInstructions = () => {
+    setShowInstructionsModal(false);
+  };
+
+  const handleClickFAQ = () => {
+    setShowFAQModal(true);
+  };
+
+  const handleCloseFAQ = () => {
+    setShowFAQModal(false);
   };
 
   useEffect(() => {
@@ -151,6 +180,23 @@ const BatchSB37Analysis = () => {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sheetCompleted[sheetName]]);
+
+  const renderInstructionModalContent = () => (
+    <ul className="list-decimal p-6">
+      {steps.batchAnalysis.map(step => (
+        <li className="mb-2" key={step.id}>
+          {step.step}
+          {step.listItem && (
+            <ul className="list-disc max-w-md mx-auto ml-6 mt-2">
+              {step.listItem.map((li, idx) => (
+                <li key={`${step.id}-subitem-${idx}`}>{li}</li>
+              ))}
+            </ul>
+          )}
+        </li>
+      ))}
+    </ul>
+  );
 
   const renderSheetSelector = () => (
     <div className="mx-auto max-w-xl w-full">
@@ -234,7 +280,7 @@ const BatchSB37Analysis = () => {
             </Button>
             {userData.email.toLowerCase() === VITE_SECRET_EMAIL && (
               <Button
-                onClick={handleClickProceed}
+                onClick={handleClickProceedMultiAssistant}
                 className="!bg-blue-200 text-white border-none"
                 disabled={
                   isSheetProcessing ||
@@ -359,6 +405,34 @@ const BatchSB37Analysis = () => {
 
       {isSheetProcessing && !sheetCompleted[sheetName] && renderProgress()}
       {sheetCompleted[sheetName] && !loadingSheets[sheetName] && renderCompletion()}
+      <div className="flex justify-start gap-x-4 mt-6">
+        <button
+          className="underline cursor-pointer hover:text-blue-400"
+          onClick={handleClickViewInstructions}>
+          View Instructions
+        </button>
+        <button
+          className="underline cursor-pointer hover:text-blue-400"
+          onClick={handleClickFAQ}>
+          FAQ
+        </button>
+        <button
+          className="underline cursor-pointer hover:text-blue-400"
+          onClick={() => setShowDemoVideoModal(true)}>
+          Watch Demo Video
+        </button>
+      </div>
+      <InstructionsModal
+        title="Steps for Batch Analysis"
+        onClose={handleCloseViewInstructions}
+        open={showInstructionsModal}
+        renderContent={renderInstructionModalContent}
+      />
+      <FAQModal onClose={handleCloseFAQ} open={showFAQModal} />
+      <DemoVideoModal
+        open={showDemoVideoModal}
+        onClose={() => setShowDemoVideoModal(false)}
+      />
     </>
   );
 };

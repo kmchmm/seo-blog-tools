@@ -1,4 +1,4 @@
-import { use, useEffect } from 'react';
+import { use, useEffect, useState } from 'react';
 import { Button } from '../common';
 import {
   useAuth,
@@ -14,9 +14,18 @@ import { formatSecondsString } from '../../utils/formatter';
 import InputSection from './InputSection';
 import { ToastContext } from '../../context/ToastContext';
 
+import InstructionsModal from './InstructionsModal';
+import FAQModal from './FAQModal';
+import { steps } from './constants';
+import DemoVideoModal from './DemoVideoModal';
+
 const { VITE_SECRET_EMAIL } = import.meta.env;
 
 const SingleSB37Analysis = () => {
+  const [showInstructionsModal, setShowInstructionsModal] = useState(false);
+  const [showFAQModal, setShowFAQModal] = useState(false);
+  const [isMultiAssistantMode, setIsMultiAssistantMode] = useState(false);
+  const [showDemoVideoModal, setShowDemoVideoModal] = useState(false);
   const { userData } = useAuth();
   const { id: clientId } = userData || {};
   const {
@@ -74,6 +83,7 @@ const SingleSB37Analysis = () => {
   const handleProceedAnalysis = () => {
     if (url) {
       showToast(`SB37 analysis started for ${title}.`);
+      setIsMultiAssistantMode(false);
       analyzeSingleDoc({
         clientId: `${clientId}`,
         docTitle: title || '',
@@ -85,7 +95,11 @@ const SingleSB37Analysis = () => {
 
   const onCancelClick = () => {
     showToast(`Analysis cancelled for ${title}.`);
-    cancelTask({ clientId: `${clientId}`, isSingleDoc: true });
+    cancelTask({
+      clientId: `${clientId}`,
+      isSingleDoc: true,
+      isMultiAssistant: isMultiAssistantMode,
+    });
   };
 
   const onSuccess = () => {
@@ -93,7 +107,8 @@ const SingleSB37Analysis = () => {
   };
 
   const handleProceedMultiAnalysis = () => {
-    if (url)
+    if (url) {
+      setIsMultiAssistantMode(true);
       analyzeMultiAssistantDoc({
         docUrl: url,
         onSuccess,
@@ -101,6 +116,23 @@ const SingleSB37Analysis = () => {
         docTitle: title || '',
         wordCount: wordCount || 0,
       });
+    }
+  };
+
+  const handleClickViewInstructions = () => {
+    setShowInstructionsModal(true);
+  };
+
+  const handleCloseViewInstructions = () => {
+    setShowInstructionsModal(false);
+  };
+
+  const handleClickFAQ = () => {
+    setShowFAQModal(true);
+  };
+
+  const handleCloseFAQ = () => {
+    setShowFAQModal(false);
   };
 
   const renderPreview = () => {
@@ -162,7 +194,7 @@ const SingleSB37Analysis = () => {
                   'Preparing document...'
                 ) : (
                   <>
-                    Processing <strong>{currentTitleSingle}</strong>... Please wait.
+                    <strong>{currentTitleSingle}</strong>
                   </>
                 )}
               </p>
@@ -246,6 +278,49 @@ const SingleSB37Analysis = () => {
           </div>
         </div>
       )}
+      <div className="flex justify-start gap-x-4">
+        <button
+          className="underline cursor-pointer hover:text-blue-400"
+          onClick={handleClickViewInstructions}>
+          View Instructions
+        </button>
+        <button
+          className="underline cursor-pointer hover:text-blue-400"
+          onClick={handleClickFAQ}>
+          FAQ
+        </button>
+        <button
+          className="underline cursor-pointer hover:text-blue-400"
+          onClick={() => setShowDemoVideoModal(true)}>
+          Watch Demo Video
+        </button>
+      </div>
+      <InstructionsModal
+        title="Steps for Single Analysis"
+        onClose={handleCloseViewInstructions}
+        open={showInstructionsModal}
+        renderContent={() => (
+          <ul className="list-decimal p-6">
+            {steps.singleAnalysis.map(step => (
+              <li className="mb-2" key={step.id}>
+                {step.step}
+                {step.listItem && (
+                  <ul className="list-disc max-w-md mx-auto ml-6 mt-2">
+                    {step.listItem.map((li, idx) => (
+                      <li key={`${step.id}-subitem-${idx}`}>{li}</li>
+                    ))}
+                  </ul>
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
+      />
+      <FAQModal onClose={handleCloseFAQ} open={showFAQModal} />
+      <DemoVideoModal
+        open={showDemoVideoModal}
+        onClose={() => setShowDemoVideoModal(false)}
+      />
     </div>
   );
 };
