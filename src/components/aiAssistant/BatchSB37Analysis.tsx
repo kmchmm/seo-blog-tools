@@ -409,22 +409,27 @@ const BatchSB37Analysis = () => {
 
       {isSheetProcessing && !sheetCompleted[sheetName] && renderProgress()}
       {sheetCompleted[sheetName] && !loadingSheets[sheetName] && renderCompletion()}
-      <div className="flex justify-start gap-x-4 mt-6">
-        <button
-          className="underline cursor-pointer hover:text-blue-400"
-          onClick={handleClickViewInstructions}>
-          View Instructions
-        </button>
-        <button
-          className="underline cursor-pointer hover:text-blue-400"
-          onClick={handleClickFAQ}>
-          FAQ
-        </button>
-        <button
-          className="underline cursor-pointer hover:text-blue-400"
-          onClick={() => setShowDemoVideoModal(true)}>
-          Watch Demo Video
-        </button>
+      <div className="flex sm:justify-between justify-center items-center gap-x-4 -mb-4 sm:text-base text-sm mt-6">
+        <div className="flex  sm:justify-start justify-center gap-x-4">
+          <button
+            className="underline cursor-pointer hover:text-blue-400"
+            onClick={handleClickViewInstructions}>
+            View Instructions
+          </button>
+          <button
+            className="underline cursor-pointer hover:text-blue-400"
+            onClick={handleClickFAQ}>
+            FAQ
+          </button>
+          <button
+            className="underline cursor-pointer hover:text-blue-400"
+            onClick={() => setShowDemoVideoModal(true)}>
+            Watch Demo Video
+          </button>
+        </div>
+        <div className="">
+          <p>Beta v1.0.0</p>
+        </div>
       </div>
       <InstructionsModal
         title="Steps for Batch Analysis"

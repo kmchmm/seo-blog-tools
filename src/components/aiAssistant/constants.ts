@@ -29,9 +29,8 @@ export const steps = {
       id: 2,
       step: 'Paste your document URL into BINI.',
     },
-    { id: 3, step: 'Paste the sheet’s URL into BINI and select the correct tab.' },
     {
-      id: 4,
+      id: 3,
       step: 'Run the tool. BINI will:',
       listItem: [
         'Display results directly in the tool window.',
