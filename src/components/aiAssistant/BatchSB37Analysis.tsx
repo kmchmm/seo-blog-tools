@@ -21,12 +21,11 @@ import FAQModal from './FAQModal';
 import { steps } from './constants';
 import DemoVideoModal from './DemoVideoModal';
 
-const { VITE_SECRET_EMAIL } = import.meta.env;
-
 const BatchSB37Analysis = () => {
   const [showInstructionsModal, setShowInstructionsModal] = useState(false);
   const [showFAQModal, setShowFAQModal] = useState(false);
   const [showInstruction, setShowInstruction] = useState(false);
+  const [isMultiAssistantMode, setIsMultiAssistantMode] = useState(false);
   const [showDemoVideoModal, setShowDemoVideoModal] = useState(false);
   const { showToast } = use(ToastContext);
   const { userData } = useAuth();
@@ -121,12 +120,14 @@ const BatchSB37Analysis = () => {
   const handleClickProceed = () => {
     if (!sheetName) return;
     showToast(`SB37 batch analysis started for ${sheetName}.`);
+    setIsMultiAssistantMode(false);
     startBatch(url, sheetName, `${clientId}`);
   };
 
   const handleClickProceedMultiAssistant = () => {
     if (!sheetName) return;
     showToast(`SB37 batch analysis started for ${sheetName}.`);
+    setIsMultiAssistantMode(true);
     startBatch(url, sheetName, `${clientId}`, 'chain-assistant');
   };
 
@@ -140,7 +141,11 @@ const BatchSB37Analysis = () => {
 
   const onCancelClick = () => {
     showToast(`Batch analysis cancelled for ${sheetName}.`);
-    cancelTask({ clientId: `${clientId}`, sheetName });
+    cancelTask({
+      clientId: `${clientId}`,
+      sheetName,
+      isMultiAssistant: isMultiAssistantMode,
+    });
   };
 
   const handleClickViewInstructions = () => {
@@ -278,21 +283,20 @@ const BatchSB37Analysis = () => {
               }>
               Proceed with Batch Analysis
             </Button>
-            {userData.email.toLowerCase() === VITE_SECRET_EMAIL && (
-              <Button
-                onClick={handleClickProceedMultiAssistant}
-                className="!bg-blue-200 text-white border-none"
-                disabled={
-                  isSheetProcessing ||
-                  isDocInfoLoading ||
-                  isValidating ||
-                  sheetCompleted[sheetName] ||
-                  Boolean(sheetNamesError) ||
-                  sheetInfo[sheetName].sheetValidDocsCount === 0
-                }>
-                Proceed with Multi-Assistant Batch Analysis
-              </Button>
-            )}
+
+            <Button
+              onClick={handleClickProceedMultiAssistant}
+              className="!bg-blue-200 text-white border-none"
+              disabled={
+                isSheetProcessing ||
+                isDocInfoLoading ||
+                isValidating ||
+                sheetCompleted[sheetName] ||
+                Boolean(sheetNamesError) ||
+                sheetInfo[sheetName].sheetValidDocsCount === 0
+              }>
+              Proceed with Multi-Assistant Batch Analysis
+            </Button>
           </>
         ) : (
           <Button
@@ -405,22 +409,27 @@ const BatchSB37Analysis = () => {
 
       {isSheetProcessing && !sheetCompleted[sheetName] && renderProgress()}
       {sheetCompleted[sheetName] && !loadingSheets[sheetName] && renderCompletion()}
-      <div className="flex justify-start gap-x-4 mt-6">
-        <button
-          className="underline cursor-pointer hover:text-blue-400"
-          onClick={handleClickViewInstructions}>
-          View Instructions
-        </button>
-        <button
-          className="underline cursor-pointer hover:text-blue-400"
-          onClick={handleClickFAQ}>
-          FAQ
-        </button>
-        <button
-          className="underline cursor-pointer hover:text-blue-400"
-          onClick={() => setShowDemoVideoModal(true)}>
-          Watch Demo Video
-        </button>
+      <div className="flex sm:justify-between justify-center items-center gap-x-4 -mb-4 sm:text-base text-sm mt-6">
+        <div className="flex  sm:justify-start justify-center gap-x-4">
+          <button
+            className="underline cursor-pointer hover:text-blue-400"
+            onClick={handleClickViewInstructions}>
+            View Instructions
+          </button>
+          <button
+            className="underline cursor-pointer hover:text-blue-400"
+            onClick={handleClickFAQ}>
+            FAQ
+          </button>
+          <button
+            className="underline cursor-pointer hover:text-blue-400"
+            onClick={() => setShowDemoVideoModal(true)}>
+            Watch Demo Video
+          </button>
+        </div>
+        <div className="">
+          <p>Beta v1.0.0</p>
+        </div>
       </div>
       <InstructionsModal
         title="Steps for Batch Analysis"

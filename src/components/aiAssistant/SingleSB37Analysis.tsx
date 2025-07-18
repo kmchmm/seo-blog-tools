@@ -19,8 +19,6 @@ import FAQModal from './FAQModal';
 import { steps } from './constants';
 import DemoVideoModal from './DemoVideoModal';
 
-const { VITE_SECRET_EMAIL } = import.meta.env;
-
 const SingleSB37Analysis = () => {
   const [showInstructionsModal, setShowInstructionsModal] = useState(false);
   const [showFAQModal, setShowFAQModal] = useState(false);
@@ -265,35 +263,39 @@ const SingleSB37Analysis = () => {
                   disabled={singleLoading || loadingParsing}>
                   Proceed with Single Analysis
                 </Button>
-                {userData.email.toLowerCase() === VITE_SECRET_EMAIL && (
-                  <Button
-                    onClick={handleProceedMultiAnalysis}
-                    className="!bg-blue-200 text-white border-none"
-                    disabled={singleLoading || loadingParsing}>
-                    Proceed with Multi-Assistant Analysis
-                  </Button>
-                )}
+
+                <Button
+                  onClick={handleProceedMultiAnalysis}
+                  className="!bg-blue-200 text-white border-none"
+                  disabled={singleLoading || loadingParsing}>
+                  Proceed with Multi-Assistant Analysis
+                </Button>
               </div>
             )}
           </div>
         </div>
       )}
-      <div className="flex justify-start gap-x-4">
-        <button
-          className="underline cursor-pointer hover:text-blue-400"
-          onClick={handleClickViewInstructions}>
-          View Instructions
-        </button>
-        <button
-          className="underline cursor-pointer hover:text-blue-400"
-          onClick={handleClickFAQ}>
-          FAQ
-        </button>
-        <button
-          className="underline cursor-pointer hover:text-blue-400"
-          onClick={() => setShowDemoVideoModal(true)}>
-          Watch Demo Video
-        </button>
+      <div className="flex sm:justify-between justify-center items-center gap-x-4 -mb-4 sm:text-base text-sm">
+        <div className="flex  sm:justify-start justify-center gap-x-4">
+          <button
+            className="underline cursor-pointer hover:text-blue-400"
+            onClick={handleClickViewInstructions}>
+            View Instructions
+          </button>
+          <button
+            className="underline cursor-pointer hover:text-blue-400"
+            onClick={handleClickFAQ}>
+            FAQ
+          </button>
+          <button
+            className="underline cursor-pointer hover:text-blue-400"
+            onClick={() => setShowDemoVideoModal(true)}>
+            Watch Demo Video
+          </button>
+        </div>
+        <div className="">
+          <p>Beta v1.0.0</p>
+        </div>
       </div>
       <InstructionsModal
         title="Steps for Single Analysis"
