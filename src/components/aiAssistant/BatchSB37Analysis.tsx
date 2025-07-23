@@ -20,6 +20,7 @@ import InstructionsModal from './InstructionsModal';
 import FAQModal from './FAQModal';
 import { steps } from './constants';
 import DemoVideoModal from './DemoVideoModal';
+import VersionSection from './VersionSection';
 
 const BatchSB37Analysis = () => {
   const [showInstructionsModal, setShowInstructionsModal] = useState(false);
@@ -427,9 +428,7 @@ const BatchSB37Analysis = () => {
             Watch Demo Video
           </button>
         </div>
-        <div className="">
-          <p>Beta v1.0.0</p>
-        </div>
+        <VersionSection />
       </div>
       <InstructionsModal
         title="Steps for Batch Analysis"
