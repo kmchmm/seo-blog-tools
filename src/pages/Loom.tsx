@@ -170,6 +170,35 @@ const Loom: FC = () => {
       handleShowLinkIssuesHighlightToggle(true);
     }
   };
+// 1. Apply content issue highlights (same word streaks, over-300s)
+useEffect(() => {
+  if (!divRef.current || !contentIssuesResult) return;
+
+  requestAnimationFrame(() => {
+    highlightContentIssuesDiv({
+      container: divRef.current!,
+      over300Sections: contentIssuesResult.over300Sections,
+      sameWordStreaks: contentIssuesResult.sameWordStreaks,
+      editMode,
+    });
+  });
+}, [contentIssuesResult, editMode]);
+
+// 2. Apply format error highlights (spacing, punctuation, title case)
+useEffect(() => {
+  if (!divRef.current || !formatErrors) return;
+
+  requestAnimationFrame(() => {
+    formatHighlight({
+      errors: formatErrors,
+      container: divRef.current!,
+      setFormatErrors,
+      highlightTextNode,
+      highlightLastWordInTextNode,
+    });
+  });
+}, [formatErrors]);
+
 
   const handleKeywordAnalyze = () => {
     setEditMode(false);
@@ -268,79 +297,6 @@ const Loom: FC = () => {
   //   return doc.body.innerHTML;
   // };
 
-  function highlightTextNode(
-    node: Text,
-    regex: RegExp,
-    errorType: string,
-    doc: Document
-  ) {
-    const parent = node.parentNode;
-    if (!parent) return;
-
-    const text = node.textContent || '';
-    let lastIndex = 0;
-    const frag = doc.createDocumentFragment();
-
-    let match;
-    while ((match = regex.exec(text)) !== null) {
-      const before = text.slice(lastIndex, match.index);
-      if (before.length > 0) {
-        frag.appendChild(doc.createTextNode(before));
-      }
-
-      const mark = doc.createElement('mark');
-      mark.className = 'highlight-format bg-red-300 text-red-700 rounded-sm px-1';
-      mark.title = errorType;
-      mark.textContent = match[0];
-      frag.appendChild(mark);
-
-      lastIndex = match.index + match[0].length;
-
-      if (match.index === regex.lastIndex) regex.lastIndex++;
-    }
-
-    const after = text.slice(lastIndex);
-    if (after.length > 0) {
-      frag.appendChild(doc.createTextNode(after));
-    }
-
-    parent.replaceChild(frag, node);
-  }
-
-
-  function highlightLastWordInTextNode(node: Text, errorType: string, doc: Document) {
-    const parent = node.parentNode;
-    if (!parent) return;
-
-    const text = node.textContent || '';
-    const trimmedText = text.trimEnd();
-    const lastWordMatch = trimmedText.match(/(\S+)$/);
-    if (!lastWordMatch) return;
-
-    const lastWord = lastWordMatch[1];
-    const lastWordIndex = text.lastIndexOf(lastWord);
-    if (lastWordIndex === -1) return;
-
-    const frag = doc.createDocumentFragment();
-
-    const before = text.slice(0, lastWordIndex);
-    if (before.length > 0) {
-      frag.appendChild(doc.createTextNode(before));
-    }
-
-    const mark = doc.createElement('mark');
-    mark.className = 'highlight-format bg-red-300 text-red-700 rounded-sm px-1';
-    mark.title = errorType;
-    mark.textContent = lastWord;
-    frag.appendChild(mark);
-
-    const after = text.slice(lastWordIndex + lastWord.length);
-    if (after.length > 0) {
-      frag.appendChild(doc.createTextNode(after));
-    }
-
-    parent.replaceChild(frag, node);
-  }
 
 
   // function highlightAllErrorsInHTML(html: string, formatErrors: ErrorList): string {
@@ -461,6 +417,7 @@ const Loom: FC = () => {
   // }, [htmlString]);
 
   const highlightPhrases = (phrases: string[]) => {
+    setEditMode(false);
     if (!divRef.current || !phrases.length) return;
 
     const container = divRef.current as HTMLElement;
@@ -539,6 +496,78 @@ const removeFormatHighlights = () => {
 
   const descriptionWithDate = `${formattedDate} - ${description}`;
 
+  function highlightTextNode(
+    node: Text,
+    regex: RegExp,
+    errorType: string,
+    doc: Document
+  ) {
+    const parent = node.parentNode;
+    if (!parent) return;
+
+    const text = node.textContent || '';
+    let lastIndex = 0;
+    const frag = doc.createDocumentFragment();
+
+    let match;
+    while ((match = regex.exec(text)) !== null) {
+      const before = text.slice(lastIndex, match.index);
+      if (before.length > 0) {
+        frag.appendChild(doc.createTextNode(before));
+      }
+
+      const mark = doc.createElement('mark');
+      mark.className = 'highlight-format bg-red-300 text-red-700 rounded-sm px-1';
+      mark.title = errorType;
+      mark.textContent = match[0];
+      frag.appendChild(mark);
+
+      lastIndex = match.index + match[0].length;
+
+      if (match.index === regex.lastIndex) regex.lastIndex++;
+    }
+
+    const after = text.slice(lastIndex);
+    if (after.length > 0) {
+      frag.appendChild(doc.createTextNode(after));
+    }
+
+    parent.replaceChild(frag, node);
+  }
+
+  function highlightLastWordInTextNode(node: Text, errorType: string, doc: Document) {
+    const parent = node.parentNode;
+    if (!parent) return;
+
+    const text = node.textContent || '';
+    const trimmedText = text.trimEnd();
+    const lastWordMatch = trimmedText.match(/(\S+)$/);
+    if (!lastWordMatch) return;
+
+    const lastWord = lastWordMatch[1];
+    const lastWordIndex = text.lastIndexOf(lastWord);
+    if (lastWordIndex === -1) return;
+
+    const frag = doc.createDocumentFragment();
+
+    const before = text.slice(0, lastWordIndex);
+    if (before.length > 0) {
+      frag.appendChild(doc.createTextNode(before));
+    }
+
+    const mark = doc.createElement('mark');
+    mark.className = 'highlight-format bg-red-300 text-red-700 rounded-sm px-1';
+    mark.title = errorType;
+    mark.textContent = lastWord;
+    frag.appendChild(mark);
+
+    const after = text.slice(lastWordIndex + lastWord.length);
+    if (after.length > 0) {
+      frag.appendChild(doc.createTextNode(after));
+    }
+
+    parent.replaceChild(frag, node);
+  }
 
   function formatHighlight({
     errors,
@@ -551,7 +580,7 @@ const removeFormatHighlights = () => {
       console.error('Invalid formatErrors object received:', errors);
       return;
     }
-
+    setEditMode(false);
     if (!container) return;
 
     setFormatErrors(errors as ErrorList);

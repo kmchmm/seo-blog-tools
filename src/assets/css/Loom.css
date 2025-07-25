@@ -1,3 +1,5 @@
+
+
 .prose h1 {
   font-size: 2.25rem; 
   font-weight: 900;
@@ -125,7 +127,6 @@ mark.dictionary {
   color: #ffffff;
   transition: background-color 1s ease;
   position: relative;
-  z-index: 10;
 }
 
 .anchor-highlight-fade {

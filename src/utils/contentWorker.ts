@@ -251,39 +251,40 @@ export function highlightContentIssuesDiv({
     }
   };
 
-  const highlightSameWordSentences = (el: Element) => {
-    // Walk text nodes only
-    const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT, null);
-    const textNodes: Text[] = [];
-    let node = walker.nextNode();
-    while (node) {
-      textNodes.push(node as Text);
-      node = walker.nextNode();
-    }
+const highlightSameWordSentences = (el: Element) => {
+  const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT, null);
+  const textNodes: Text[] = [];
+  let node = walker.nextNode();
+  while (node) {
+    textNodes.push(node as Text);
+    node = walker.nextNode();
+  }
 
-    textNodes.forEach(textNode => {
-      let content = textNode.nodeValue || '';
+  textNodes.forEach(textNode => {
+    let content = textNode.nodeValue || '';
 
-      sameWordStreaks.forEach(streak => {
-        streak.sentences.forEach(sentence => {
-          const escaped = sentence.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-          const regex = new RegExp(escaped, 'g');
+    sameWordStreaks.forEach(streak => {
+      streak.sentences.forEach(sentence => {
+        const escaped = sentence.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const regex = new RegExp(escaped, 'g');
 
-          content = content.replace(
-            regex,
-            match => `<mark class="highlight-sameword bg-[#f9cb9c]">${match}</mark>`
-          );
-        });
+        // Add a title attribute to the <mark> for tooltip
+        content = content.replace(
+          regex,
+          match =>
+            `<mark class="highlight-sameword bg-[#f9cb9c]" title="Repeated starting word in consecutive sentences">${match}</mark>`
+        );
       });
-
-      if (content !== textNode.nodeValue) {
-        // Replace with safe HTML
-        const span = document.createElement('span');
-        span.innerHTML = content;
-        textNode.parentNode?.replaceChild(span, textNode);
-      }
     });
-  };
+
+    if (content !== textNode.nodeValue) {
+      const span = document.createElement('span');
+      span.innerHTML = content;
+      textNode.parentNode?.replaceChild(span, textNode);
+    }
+  });
+};
+
 
   elements.forEach(el => {
     if (/^H[1-6]$/.test(el.tagName)) {

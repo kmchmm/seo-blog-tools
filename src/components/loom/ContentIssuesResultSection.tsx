@@ -23,17 +23,24 @@ const ContentIssuesResultSection = ({ result, errorMessage }: Props) => {
     const el = document.getElementById(headingId);
     if (el) {
       el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+      el.classList.add('transition-colors', 'duration-1000');
+      el.classList.add('bg-black-200', 'text-white');
+
+      setTimeout(() => {
+        el.classList.remove('bg-black-200', 'text-white');
+      }, 5000);
     }
   };
 
   const renderAlert = () => {
     if (
-      (over300Sections && over300Sections?.length > 0) ||
-      (sameWordStreaks && sameWordStreaks?.length > 0)
+      (over300Sections && over300Sections.length > 0) ||
+      (sameWordStreaks && sameWordStreaks.length > 0)
     ) {
       return <Alert message={error} type="error" />;
     }
-    return <Alert message="🎉 No content issues found! Good job! " type="success" />;
+    return <Alert message="🎉 No content issues found! Good job!" type="success" />;
   };
 
   return (
@@ -42,10 +49,12 @@ const ContentIssuesResultSection = ({ result, errorMessage }: Props) => {
         <span className="!w-full">{renderAlert()}</span>
         <span className="w-none"></span>
       </div>
+
       <p className="flex justify-between">
         <strong>Total Word Count:</strong>
         <span className="text-blue-200 font-bold">{totalWordCount}</span>
       </p>
+
       <div>
         <p className="flex justify-between">
           <strong>Total Headings:</strong>
@@ -54,62 +63,70 @@ const ContentIssuesResultSection = ({ result, errorMessage }: Props) => {
         <button
           className="underline text-sm text-blue-200 cursor-pointer"
           type="button"
-          onClick={toggleHeadingDetails}>
+          onClick={toggleHeadingDetails}
+        >
           {showHeadings ? 'Hide' : 'View'} Details
         </button>
       </div>
-      {showHeadings ? (
-        <div>
-          <div className="flex justify-between items-start text-base font-semibold pb-2">
+
+      {showHeadings && (
+        <div className="space-y-4 mt-2 text-sm">
+          <div className="flex justify-between items-start font-semibold pb-2">
             <p>Heading</p>
             <p>Word Count</p>
           </div>
-          <ul className="list-disc ml-4 space-y-1">
+
+          <ul className="space-y-2 ml-2">
             {headings?.map((heading, i) => {
               const headingId = `heading-${i}`;
-
               return (
-                <li key={heading.text} className="text-sm">
-                  <div className="flex w-full justify-between items-start">
-                    <button
-                      type="button"
-                      className="w-3/4 text-left text-blue-600 hover:underline cursor-pointer"
-                      onClick={() => onHeaderItemClick(headingId)}>
-                      {heading.text}
-                    </button>
-                    <p className="w-1/4 text-right">{heading.wordCount}</p>
-                  </div>
+                <li key={heading.text} className="flex justify-between items-start">
+                  <button
+                    type="button"
+                    onClick={() => onHeaderItemClick(headingId)}
+                    className="text-left text-blue-600 hover:underline cursor-pointer w-3/4"
+                  >
+                    {heading.level.toUpperCase()} - {heading.text}
+                  </button>
+                  <span
+                    className={`w-1/4 text-right font-medium ${
+                      (heading.wordCount ?? 0) > 300 ? 'text-red-500' : ''
+                    }`}
+                  >
+                    {heading.wordCount}
+                  </span>
                 </li>
               );
             })}
           </ul>
         </div>
-      ) : null}
-      {over300Sections && (
-      <Accordion
-        className="mt-2 text-sm"
-        header={
-          <div className="flex justify-between items-center w-full text-sm">
-            <span>Sections With Over 300 Words</span>
-            {over300Sections && over300Sections.length > 0 ? (
-              <div className="bg-[#f5ecee] w-[40px] text-right rounded-2xl px-2">
-                <span className="text-red-100">{over300Sections.length}</span>
-              </div>
-            ) : (
-              <div className="bg-[#e5f5ea] w-[40px] text-right rounded-2xl px-2">
-                <span className="text-green-100">0</span>
-              </div>
-            )}
-          </div>
-        }>
+      )}
 
+      {over300Sections && (
+        <Accordion
+          className="mt-2 text-sm"
+          header={
+            <div className="flex justify-between items-center w-full text-sm">
+              <span>Sections With Over 300 Words</span>
+              {over300Sections.length > 0 ? (
+                <div className="bg-[#f5ecee] w-[40px] text-right rounded-2xl px-2">
+                  <span className="text-red-100">{over300Sections.length}</span>
+                </div>
+              ) : (
+                <div className="bg-[#e5f5ea] w-[40px] text-right rounded-2xl px-2">
+                  <span className="text-green-100">0</span>
+                </div>
+              )}
+            </div>
+          }
+        >
           {over300Sections.length > 0 ? (
-            <div className="mt-2">
+            <div className="mt-2 space-y-3 text-sm">
               <ul className="mx-2 space-y-3 text-sm">
                 {over300Sections.map(section => (
                   <li key={section.text}>
                     <p className="font-bold">
-                      {section.level} - {section.text}
+                      {section.level.toUpperCase()} - {section.text}
                     </p>
                     <div className="flex items-center">
                       <PiDotOutlineFill />
@@ -128,6 +145,7 @@ const ContentIssuesResultSection = ({ result, errorMessage }: Props) => {
           )}
         </Accordion>
       )}
+
       {sameWordStreaks && (
         <Accordion
           className="mt-2 text-sm"
@@ -144,8 +162,8 @@ const ContentIssuesResultSection = ({ result, errorMessage }: Props) => {
                 </div>
               )}
             </div>
-          }>
-
+          }
+        >
           {sameWordStreaks.length > 0 ? (
             <div className="mt-2">
               <ul className="mx-2 space-y-3 text-sm">

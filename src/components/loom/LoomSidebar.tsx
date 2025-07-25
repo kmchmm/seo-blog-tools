@@ -40,7 +40,7 @@ import { Button, Alert } from '../common';
 import ContentIssuesResultSection from './ContentIssuesResultSection.js';
 import LinkIssuesResultSection from './LinkIssuesResultSection.js';
 import { LinkAnalysisResult } from '../../utils/analyzeLinksWorker.js';
-import { groupIssuesByType } from '../../utils/analyzeLinksWorker';
+// import { groupIssuesByType } from '../../utils/analyzeLinksWorker';
 import '../../assets/css/Loom.css';
 
 // import { Paper, AnalysisWorkerWrapper } from 'yoastseo';
@@ -143,6 +143,7 @@ export const LoomSidebar: FC<LoomProps> = ({
   const { userData } = useContext(UserContext);
   const [hasRunChecks, setHasRunChecks] = useState(false);
   const [showSummary, setShowSummary] = useState<'summary' | 'tools'>('tools');
+  const [selectedTab, setSelectedTab] = useState<string>('Yoast');
   const [readabilityProblems, setReadabilityProblems] = useState<AssessmentResult[]>([]);
   const [readabilityAchievements, setReadabilityAchievements] = useState<
     AssessmentResult[]
@@ -227,6 +228,7 @@ export const LoomSidebar: FC<LoomProps> = ({
 
   const [currentPage, setCurrentPage] = useState(1); // for active list
   const [currentPageDeleted, setCurrentPageDeleted] = useState(1); // for deleted list
+  const [dictionarySearchTerm, setDictionarySearchTerm] = useState('');
 
   // Filter and sort active entries (latest added first)
   const filteredDictionary = dictionary
@@ -494,31 +496,43 @@ export const LoomSidebar: FC<LoomProps> = ({
     return uniqueHeadings;
   }
 
-  const checkForViolations = () => {
-    const dictionaryMatches = checkForDictionaryViolations();
-    const totalMatches = dictionaryMatches.length;
+const checkForViolations = () => {
+  const dictionaryMatches = checkForDictionaryViolations();
+  const totalMatches = dictionaryMatches.length;
 
-    if (totalMatches === 0) {
-      setViolationCheckMessage({
-        type: 'success',
-        text: '🎉 No potential violations found! Good job',
-      });
-    } else {
-      setViolationCheckMessage({
-        type: 'error',
-        text: '⚠️ Potential violations found. Please review carefully',
-      });
-    }
+  if (totalMatches === 0) {
+    setViolationCheckMessage({
+      type: 'success',
+      text: '🎉 No potential violations found! Good job',
+    });
+  } else {
+    setViolationCheckMessage({
+      type: 'error',
+      text: '⚠️ Potential violations found. Please review carefully',
+    });
 
-    // Open the SB37 accordion
-    setOpenAccordions((prev) => ({
-      ...prev,
-      sb37ViolationsOpen: true,
-    }));
+    const updated = Array.from(
+      new Set([
+        ...activeHighlights,
+        ...dictionaryMatches,
+      ])
+    );
+    setActiveHighlights(updated);
+    onHighlight(updated);
+    setHighlightActive(true);
+    setShowSB37HighlightsTooltip(true);
+    setTimeout(() => setShowSB37HighlightsTooltip(false), 1000);
+  }
 
-    setShowSB37DoneTooltip(true);
-    setTimeout(() => setShowSB37DoneTooltip(false), 3000);
-  };
+  // Open the SB37 accordion
+  setOpenAccordions((prev) => ({
+    ...prev,
+    sb37ViolationsOpen: true,
+  }));
+
+  setShowSB37DoneTooltip(true);
+  setTimeout(() => setShowSB37DoneTooltip(false), 3000);
+};
 
 
   useEffect(() => {
@@ -887,7 +901,7 @@ const runFormatCheck = useCallback(() => {
     if (target) {
       target.scrollIntoView({ behavior: 'smooth', block: 'center' });
 
-      target.classList.add('bg-black', 'text-white', 'transition-all');
+      target.classList.add('bg-black', 'text-white', 'transition-all', 'z-50');
 
       setTimeout(() => {
         target.classList.remove('bg-black', 'text-white');
@@ -1205,8 +1219,38 @@ const renderErrorList = (
     handleAnalyzeKeyword();
   };
 
+  const handleYoastClick = () => {
+    setSelectedTab('Yoast');
+    setShowSummary('tools');
+  };
+    const handleSB37Click = () => {
+    setSelectedTab('SB37');
+    setShowSummary('tools');
+  };
+    const handleFormatClick = () => {
+    setSelectedTab('Format');
+    setShowSummary('tools');
+  };
+    const handleContentClick = () => {
+    setSelectedTab('Content');
+    setShowSummary('tools');
+  };
+    const handleLinkClick = () => {
+    setSelectedTab('Link');
+    setShowSummary('tools');
+  };
+  const handleKeywordClick = () => {
+    setSelectedTab('Keyword');
+    setShowSummary('tools');
+  };
 
-  
+  function hasIssue(type: string) {
+  return (
+    linkIssuesResult?.issues?.some(issue => issue.issueType === type) ?? false
+  );
+}
+
+
   return (
     <div className="w-[350px] min-h-[500px]">
       <Button
@@ -1275,7 +1319,7 @@ const renderErrorList = (
                   {/* YOAST */}
                   <li className="border border-black/20 p-2 rounded-md">
                     <div className="flex justify-between">
-                      <span className="font-bold">Yoast SEO</span>
+                      <span className="font-bold cursor-pointer hover:text-blue-500" onClick={handleYoastClick}>Yoast SEO</span>
                       <FiEyeOff className="text-gray-200" />
                     </div>
                     <ul className="text-sm">
@@ -1325,7 +1369,7 @@ const renderErrorList = (
                   {/* SB37 */}
                   <li className="border border-black/20 p-2 mt-2 rounded-md">
                     <div className="flex justify-between">
-                      <span className="font-bold">SB37</span>
+                      <span className="font-bold cursor-pointer hover:text-blue-500" onClick={handleSB37Click}>SB37</span>
                       {highlightActive ? (
                         <GoEye
                           title="Remove Highlights"
@@ -1381,7 +1425,7 @@ const renderErrorList = (
                   {/* FORMATTING */}
                   <li className="border border-black/20 p-2 mt-2 rounded-md">
                     <div className="flex justify-between">
-                      <span className="font-bold">Formatting</span>
+                      <span className="font-bold cursor-pointer hover:text-blue-500" onClick={handleFormatClick}>Formatting</span>
                       {formatHighlightActive ? (
                         <GoEye
                           title="Remove Highlights"
@@ -1454,7 +1498,7 @@ const renderErrorList = (
                   {/* CONTENT */}
                   <li className="border border-black/20 p-2 mt-2 rounded-md">
                     <div className="flex justify-between">
-                      <span className="font-bold">Content</span>
+                      <span className="font-bold cursor-pointer hover:text-blue-500" onClick={handleContentClick}>Content</span>
 
                       {contentHighlightsActive ? (
                         <GoEye
@@ -1545,7 +1589,9 @@ const renderErrorList = (
                   {/* LINKS */}
                   <li className="border border-black/20 p-2 mt-2 rounded-md">
                     <div className="flex justify-between">
-                      <span className="font-bold">Links</span>
+                      <span className="font-bold cursor-pointer hover:text-blue-500" onClick={handleLinkClick}>
+                        Links
+                      </span>
                       {linkHighlightsActive ? (
                         <FiEyeOff
                           onClick={() => {
@@ -1556,9 +1602,8 @@ const renderErrorList = (
                           title="Show Underlines"
                           className={clsx(
                             'text-gray-500 cursor-pointer transition-colors',
-                            (!text || !linkIssuesResult || editMode) &&
-                              'opacity-50 cursor-not-allowed',
-                            'text-blue-500' // highlight when active
+                            (!text || !linkIssuesResult || editMode) && 'opacity-50 cursor-not-allowed',
+                            'text-blue-500'
                           )}
                         />
                       ) : (
@@ -1571,40 +1616,198 @@ const renderErrorList = (
                           title="Hide Underlines"
                           className={clsx(
                             'text-gray-500 cursor-pointer transition-colors',
-                            (!text || !linkIssuesResult || editMode) &&
-                              'opacity-50 cursor-not-allowed'
+                            (!text || !linkIssuesResult || editMode) && 'opacity-50 cursor-not-allowed'
                           )}
                         />
                       )}
                     </div>
-                    {linkIssuesResult && (
-                      <ul className="text-sm mt-2">
-                        {Object.entries(
-                          groupIssuesByType(linkIssuesResult.issues || [])
-                        ).map(([key, issues]) => {
-                          const count = issues.length;
-                          const hasIssues = count > 0;
 
-                          return (
-                            <li key={key} className="flex justify-between mt-2">
-                              <div className="flex items-center gap-2">
-                                <GoDotFill
-                                  className={hasIssues ? 'text-red-500' : 'text-green-500'}
-                                />
-                                <span className="">{key}</span>
-                              </div>
-                              <span>{count}</span>
-                            </li>
-                          );
-                        })}
-                      </ul>
+                    {linkIssuesResult && (
+                      <div className="text-sm mt-2">
+                        {/* GOOD RESULTS */}
+                        <div className="mb-4">
+                          <ul>
+                            {!hasIssue('No link to Car Accident PA') && (
+                              <li className="flex justify-between mt-2">
+                                <div className="flex items-center gap-2">
+                                  <GoDotFill className="text-green-500" />
+                                  <span>With link to car accident PA</span>
+                                </div>
+                              </li>
+                            )}
+                            {!hasIssue('Missing trailing slash') && (
+                              <li className="flex justify-between mt-2">
+                                <div className="flex items-center gap-2">
+                                  <GoDotFill className="text-green-500" />
+                                  <span>No missing trailing slash in internal link</span>
+                                </div>
+                              </li>
+                            )}
+                            {!hasIssue('Invalid link') && (
+                              <li className="flex justify-between mt-2">
+                                <div className="flex items-center gap-2">
+                                  <GoDotFill className="text-green-500" />
+                                  <span>No invalid link</span>
+                                </div>
+                              </li>
+                            )}
+                            {!hasIssue('Duplicate link') && (
+                              <li className="flex justify-between mt-2">
+                                <div className="flex items-center gap-2">
+                                  <GoDotFill className="text-green-500" />
+                                  <span>No duplicate link</span>
+                                </div>
+                              </li>
+                            )}
+                            {!hasIssue('Identical anchor') && (
+                              <li className="flex justify-between mt-2">
+                                <div className="flex items-center gap-2">
+                                  <GoDotFill className="text-green-500" />
+                                  <span>No identical anchor texts</span>
+                                </div>
+                              </li>
+                            )}
+                            {!hasIssue('Space at beginning or end of anchor text') && (
+                              <li className="flex justify-between mt-2">
+                                <div className="flex items-center gap-2">
+                                  <GoDotFill className="text-green-500" />
+                                  <span>No unnecessary space in anchor text</span>
+                                </div>
+                              </li>
+                            )}
+                            {!hasIssue('Punctuation at beginning or end of anchor text') && (
+                              <li className="flex justify-between mt-2">
+                                <div className="flex items-center gap-2">
+                                  <GoDotFill className="text-green-500" />
+                                  <span>No punctuation at beginning or end of anchor</span>
+                                </div>
+                              </li>
+                            )}
+                            {/* {!hasIssue('Punctuation surrounding anchor') && (
+                              <li className="flex justify-between mt-2">
+                                <div className="flex items-center gap-2">
+                                  <GoDotFill className="text-green-500" />
+                                  <span>No punctuation surrounding anchor</span>
+                                </div>
+                              </li>
+                            )} */}
+                            {!hasIssue('No internal links') && (
+                              <li className="flex justify-between mt-2">
+                                <div className="flex items-center gap-2">
+                                  <GoDotFill className="text-green-500" />
+                                  <span>Has internal links</span>
+                                </div>
+                              </li>
+                            )}
+                            {!hasIssue('No external links') && (
+                              <li className="flex justify-between mt-2">
+                                <div className="flex items-center gap-2">
+                                  <GoDotFill className="text-green-500" />
+                                  <span>Has external links</span>
+                                </div>
+                              </li>
+                            )}
+                          </ul>
+                        </div>
+
+                        {/* BAD RESULTS */}
+                        <div>
+                          <ul>
+                            {hasIssue('No link to Car Accident PA') && (
+                              <li className="flex justify-between mt-2">
+                                <div className="flex items-center gap-2">
+                                  <GoDotFill className="text-red-500" />
+                                  <span>No link to car accident PA</span>
+                                </div>
+                              </li>
+                            )}
+                            {hasIssue('No internal links') && (
+                              <li className="flex justify-between mt-2">
+                                <div className="flex items-center gap-2">
+                                  <GoDotFill className="text-red-500" />
+                                  <span>No internal links</span>
+                                </div>
+                              </li>
+                            )}
+                            {hasIssue('No external links') && (
+                              <li className="flex justify-between mt-2">
+                                <div className="flex items-center gap-2">
+                                  <GoDotFill className="text-red-500" />
+                                  <span>No external links</span>
+                                </div>
+                              </li>
+                            )}
+                            {hasIssue('Missing trailing slash') && (
+                              <li className="flex justify-between mt-2">
+                                <div className="flex items-center gap-2">
+                                  <GoDotFill className="text-red-500" />
+                                  <span>Missing trailing slash in internal link</span>
+                                </div>
+                              </li>
+                            )}
+                            {hasIssue('Invalid link') && (
+                              <li className="flex justify-between mt-2">
+                                <div className="flex items-center gap-2">
+                                  <GoDotFill className="text-red-500" />
+                                  <span>Invalid link</span>
+                                </div>
+                              </li>
+                            )}
+                            {hasIssue('Duplicate link') && (
+                              <li className="flex justify-between mt-2">
+                                <div className="flex items-center gap-2">
+                                  <GoDotFill className="text-red-500" />
+                                  <span>Duplicate link</span>
+                                </div>
+                              </li>
+                            )}
+                            {hasIssue('Identical anchor') && (
+                              <li className="flex justify-between mt-2">
+                                <div className="flex items-center gap-2">
+                                  <GoDotFill className="text-red-500" />
+                                  <span>Identical anchor texts</span>
+                                </div>
+                              </li>
+                            )}
+                            {hasIssue('Space at beginning or end of anchor text') && (
+                              <li className="flex justify-between mt-2">
+                                <div className="flex items-center gap-2">
+                                  <GoDotFill className="text-red-500" />
+                                  <span>Unnecessary space in anchor text</span>
+                                </div>
+                              </li>
+                            )}
+                            {hasIssue('Punctuation at beginning or end of anchor text') && (
+                              <li className="flex justify-between mt-2">
+                                <div className="flex items-center gap-2">
+                                  <GoDotFill className="text-red-500" />
+                                  <span>Punctuation at start/end of anchor text</span>
+                                </div>
+                              </li>
+                            )}
+                            {/* {hasIssue('Punctuation surrounding anchor') && (
+                              <li className="flex justify-between mt-2">
+                                <div className="flex items-center gap-2">
+                                  <GoDotFill className="text-red-500" />
+                                  <span>Punctuation around anchor tag</span>
+                                </div>
+                              </li>
+                            )} */}
+                          </ul>
+                        </div>
+                      </div>
                     )}
                   </li>
 
                   {/* KEYWORDS */}
                   <li className="border border-black/20 p-2 mt-2 rounded-md">
-                    <div className="flex justify-between">
-                      <span className="font-bold">Keywords</span>
+                    <div className="flex justify-between items-center">
+                      <span
+                        className="font-bold cursor-pointer hover:text-blue-500"
+                        onClick={handleKeywordClick}
+                      >
+                        Keywords
+                      </span>
                       {keywordHighlightsActive ? (
                         <FiEyeOff
                           onClick={() => {
@@ -1637,134 +1840,99 @@ const renderErrorList = (
                       )}
                     </div>
 
-                    <ul className="text-sm">
-                      {keywordAnalysisResult && !error && (
-                        <>
-                          {/* Focus Keyword Count */}
-                          {/* <li className="flex justify-between mt-2">
-                            <div className="flex items-center gap-2">
-                              <GoDotFill
-                                className={
-                                  keywordAnalysisResult.keywordCounts.focusCount > 0
-                                    ? 'text-[#0ff3f5]'
-                                    : 'text-red-500'
-                                }
-                              />
-                              <span>
-                                {keywordAnalysisResult.keywordCounts.focusCount > 0
-                                  ? 'Focus keyword found'
-                                  : 'Focus keyword missing'}
-                              </span>
-                            </div>
-                            <span>{keywordAnalysisResult.keywordCounts.focusCount}</span>
-                          </li> */}
+                    {keywordAnalysisResult && !error && (
+                      <div className="text-sm mt-2">
+                        <div className="mb-4">
+                          <ul>
+                            {keywordAnalysisResult.headingAnalysis.percent <= 75 && (
+                              <li className="flex justify-between mt-2">
+                                <div className="flex items-center gap-2">
+                                  <GoDotFill className="text-green-500" />
+                                  <span>H2 & H3 optimization is 75% or below.</span>
+                                </div>
+                              </li>
+                            )}
+                            {keywordAnalysisResult.sectionAnalysis.percent === 100 && (
+                              <li className="flex justify-between mt-2">
+                                <div className="flex items-center gap-2">
+                                  <GoDotFill className="text-green-500" />
+                                  <span>Focus keyphrase appears in every section.</span>
+                                </div>
+                              </li>
+                            )}
+                            {/* Uncomment if you use introduction logic */}
+                            {/* {(keywordAnalysisResult.headingAnalysis.optimized > 0 &&
+                              keywordAnalysisResult.sectionAnalysis.percent === 100) && (
+                              <li className="flex justify-between mt-2">
+                                <div className="flex items-center gap-2">
+                                  <GoDotFill className="text-green-500" />
+                                  <span>
+                                    Exact match keyphrase is optimized in headings and the introduction.
+                                  </span>
+                                </div>
+                              </li>
+                            )} */}
+                            {keywordAnalysisResult.otherKeywords.every(category =>
+                              category.keywords.every(kw => kw.count > 0)
+                            ) && (
+                              <li className="flex justify-between mt-2">
+                                <div className="flex items-center gap-2">
+                                  <GoDotFill className="text-green-500" />
+                                  <span>Required secondary and category keywords are complete.</span>
+                                </div>
+                              </li>
+                            )}
+                          </ul>
+                        </div>
 
-                          {/* Alt Keyword Count */}
-                          {/* <li className="flex justify-between mt-2">
-                            <div className="flex items-center gap-2">
-                              <GoDotFill
-                                className={
-                                  keywordAnalysisResult.keywordCounts.altCount > 0
-                                    ? 'text-[#00ff00]'
-                                    : 'text-red-500'
-                                }
-                              />
-                              <span>
-                                {keywordAnalysisResult.keywordCounts.altCount > 0
-                                  ? 'Alt ESQ keyword found'
-                                  : 'Alt ESQ keyword missing'}
-                              </span>
-                            </div>
-                            <span>{keywordAnalysisResult.keywordCounts.altCount}</span>
-                          </li> */}
-
-                          {/* Total Keyword Density */}
-                          {/* <li className="flex justify-between mt-2">
-                            <div className="flex items-center gap-2">
-                              <GoDotFill
-                                className={
-                                  keywordAnalysisResult.density > 2.5
-                                    ? 'text-red-500'
-                                    : 'text-green-500'
-                                }
-                              />
-                              <span>Keyword density</span>
-                            </div>
-                            <span>{keywordAnalysisResult.density.toFixed(2)}%</span>
-                          </li> */}
-
-                          {/* H2/H3 Optimization */}
-                          <li className="mt-4 flex">
-                            <p className=" flex justify-between w-full">
-                              <span className="flex items-center gap-2">
-                                <GoDotFill
-                                  className={
-                                    keywordAnalysisResult.headingAnalysis.percent <= 75
-                                      ? 'text-green-500'
-                                      : 'text-red-500'
-                                  }
-                                />
-                                <span className="">H2 & H3 Optimization: </span>
-                              </span>
-                              <span>{keywordAnalysisResult.headingAnalysis.percent}%</span>
-                            </p>
-                          </li>
-
-                          {/* Section Optimization */}
-                          <li className="mt-4 flex">
-                            <p className=" flex justify-between w-full">
-                              <span className="flex items-center gap-2">
-                                <GoDotFill
-                                  className={
-                                    keywordAnalysisResult.sectionAnalysis.percent === 100
-                                      ? 'text-green-500'
-                                      : 'text-red-500'
-                                  }
-                                />
-                                <span>Per Section Optimization: </span>
-                              </span>
-                              <span>{keywordAnalysisResult.sectionAnalysis.percent}%</span>
-                            </p>
-                          </li>
-
-                          {/* Secondary Keywords */}
-                          {keywordAnalysisResult.otherKeywords.some(
-                            c => c.category === 'Secondary Keywords'
-                          ) && (
-                            <li className="mt-4">
-                              <p className="font-semibold mb-1">Other Keywords</p>
-                              {keywordAnalysisResult.otherKeywords
-                                .filter(
-                                  category => category.category === 'Secondary Keywords'
-                                )
-                                .map(category => (
-                                  <div key={category.category} className="mb-2">
-                                    <p className="underline">{category.category}</p>
-                                    <ul className="ml-4">
-                                      {category.keywords.map(kw => (
-                                        <li
-                                          key={kw.keyword}
-                                          className="flex justify-between text-sm">
-                                          <span>{kw.keyword}</span>
-                                          <span
-                                            className={
-                                              kw.count > 0
-                                                ? 'text-green-600'
-                                                : 'text-red-600'
-                                            }>
-                                            {kw.count}
-                                          </span>
-                                        </li>
-                                      ))}
-                                    </ul>
-                                  </div>
-                                ))}
-                            </li>
-                          )}
-                        </>
-                      )}
-                    </ul>
+                        <div>
+                          <ul>
+                            {keywordAnalysisResult.headingAnalysis.percent > 75 && (
+                              <li className="flex justify-between mt-2">
+                                <div className="flex items-center gap-2">
+                                  <GoDotFill className="text-red-500" />
+                                  <span>H2 & H3 optimization is over 75%.</span>
+                                </div>
+                              </li>
+                            )}
+                            {keywordAnalysisResult.sectionAnalysis.percent < 100 && (
+                              <li className="flex justify-between mt-2">
+                                <div className="flex items-center gap-2">
+                                  <GoDotFill className="text-red-500" />
+                                  <span>
+                                    Focus keyphrase appears in only {keywordAnalysisResult.sectionAnalysis.percent}% of all sections.
+                                  </span>
+                                </div>
+                              </li>
+                            )}
+                            {/* Uncomment if you use introduction logic */}
+                            {/* {(keywordAnalysisResult.headingAnalysis.optimized === 0 ||
+                              keywordAnalysisResult.sectionAnalysis.percent < 100) && (
+                              <li className="flex justify-between mt-2">
+                                <div className="flex items-center gap-2">
+                                  <GoDotFill className="text-red-500" />
+                                  <span>
+                                    Exact match keyphrase is not optimized in headings and/or introduction.
+                                  </span>
+                                </div>
+                              </li>
+                            )} */}
+                            {keywordAnalysisResult.otherKeywords.some(category =>
+                              category.keywords.some(kw => kw.count === 0)
+                            ) && (
+                              <li className="flex justify-between mt-2">
+                                <div className="flex items-center gap-2">
+                                  <GoDotFill className="text-red-500" />
+                                  <span>Required secondary and category keywords are not complete.</span>
+                                </div>
+                              </li>
+                            )}
+                          </ul>
+                        </div>
+                      </div>
+                    )}
                   </li>
+                  
                 </ul>
               )}
             </div>
@@ -1779,7 +1947,9 @@ const renderErrorList = (
           )}
         >
         {showSummary === 'tools' && (
-          <Tabs className={clsx('min-h-[410px]')}>
+          <Tabs className={clsx('min-h-[410px]')}
+            selectedKey={selectedTab}
+            onSelectionChange={(key) => setSelectedTab(String(key))}>
             <TabList
               aria-label="Error List"
               className="flex gap-1 mb-5 dark:!text-black-200">
@@ -1999,49 +2169,6 @@ const renderErrorList = (
                   </div>
                 )}
 
-                {/* <Accordion
-                  header={
-                    <div className="flex justify-between items-center w-full text-sm">
-                      <span className="text-sm">Potential Violations</span>
-                      {hasCheckedViolations &&
-                        (violations.length > 0 ? (
-                          <div className="bg-[#f5ecee] w-[40px] text-right rounded-2xl px-2">
-                            <span className="text-red-100">{violations.length}</span>
-                          </div>
-                        ) : (
-                          <div className="bg-[#e5f5ea] w-[40px] text-right rounded-2xl px-2">
-                            <span className="text-green-100">0</span>
-                          </div>
-                        ))}
-                    </div>
-                  }
-                  className="border mb-2">
-                  {violations.length === 0 ? (
-                    <div className="flex justify-between">
-                      <span>No potential SB37 violations found!</span>
-                    </div>
-                  ) : (
-                    <div className="space-y-2">
-                      <div className="flex justify-between">
-                        <span>Potential SB37 violations found in:</span>
-                      </div>
-                      <ul className="list-disc pl-4 space-y-2">
-                        {uniqueViolationHeadings.map(({ id, heading }) => (
-                          <li key={id ?? heading}>
-                            <a href={`#${id}`} className="text-black font-bold hover:underline">
-                              {heading}
-                            </a>
-                          </li>
-                        ))}
-
-                      </ul>
-                      <div className="text-sm text-gray-500 italic">
-                        {`Matched ${violations.length} total phrase occurrences across ${Object.keys(violationResults).length} unique phrases.`}
-                      </div>
-                    </div>
-                  )}
-                </Accordion> */}
-
                 <Accordion
                 open={openAccordions.sb37ViolationsOpen}
                   onToggle={() =>
@@ -2079,15 +2206,23 @@ const renderErrorList = (
                         <span>Potential SB37 violations found in:</span>
                       </div>
                       <ul className="list-disc pl-4 space-y-2">
-                        {uniqueDictionaryHeadings.map(({ id, heading }) => (
-                          <li key={id ?? heading}>
-                            <a
-                              href={`#${id}`}
-                              className="text-black font-bold hover:underline">
-                              {heading}
-                            </a>
-                          </li>
-                        ))}
+                        {[...uniqueDictionaryHeadings]
+                          .sort((a, b) => {
+                            const aEl = document.getElementById(a.id);
+                            const bEl = document.getElementById(b.id);
+                            const aTop = aEl ? aEl.offsetTop : Infinity;
+                            const bTop = bEl ? bEl.offsetTop : Infinity;
+                            return aTop - bTop;
+                          })
+                          .map(({ id, heading }) => (
+                            <li key={id ?? heading}>
+                              <a
+                                href={`#${id}`}
+                                className="text-black font-bold hover:underline">
+                                {heading}
+                              </a>
+                            </li>
+                          ))}
                       </ul>
                       <div className="text-sm text-gray-500 italic">
                         {`Matched ${dictionaryViolations.length} total phrase occurrences across ${Object.keys(dictionaryViolationResults).length} unique phrases.`}
@@ -2096,48 +2231,6 @@ const renderErrorList = (
                   )}
                 </Accordion>
 
-                {/* <Accordion
-                  header={
-                    <div className="flex justify-between items-center w-full text-sm">
-                      <span className="text-sm">Potential Violations (Dictionary)</span>
-                      {dictionaryViolations.length > 0 ? (
-                        <div className="bg-[#f5ecee] w-[40px] text-right rounded-2xl px-2">
-                          <span className="text-red-100">
-                            {dictionaryViolations.length}
-                          </span>
-                        </div>
-                      ) : (
-                        <div className="bg-[#e5f5ea] w-[40px] text-right rounded-2xl px-2">
-                          <span className="text-green-100">0</span>
-                        </div>
-                      )}
-                    </div>
-                  }
-                  className="border mb-2">
-                  {dictionaryViolations.length === 0 ? (
-                    <div className="flex justify-between">
-                      <span>No dictionary violations found!</span>
-                    </div>
-                  ) : (
-                    <div className="space-y-2">
-                      <div className="flex justify-between">
-                        <span>Potential dictionary violations found in:</span>
-                      </div>
-                      <ul className="list-disc pl-4 space-y-2">
-                        {uniqueDictionaryHeadings.map(({ id, heading }) => (
-                          <li key={id ?? heading}>
-                            <a href={`#${id}`} className="text-black font-bold hover:underline">
-                              {heading}
-                            </a>
-                          </li>
-                        ))}
-                      </ul>
-                      <div className="text-sm text-gray-500 italic">
-                        {`Matched ${dictionaryViolations.length} total phrase occurrences across ${Object.keys(dictionaryViolationResults).length} unique dictionary phrases.`}
-                      </div>
-                    </div>
-                  )}
-                </Accordion> */}
               </div>
 
 
@@ -2283,119 +2376,109 @@ const renderErrorList = (
                       </div>
                     </Modal>
                   )}
-                  <Button
-                    onClick={handleViewOpenModal}
-                    className="w-full !bg-[#6B7280] hover:!bg-black-200 text-white border-0 rounded-none  hover:shadow-none dark:!text-white dark:hover:shadow-none  dark:hover:!text-white">
-                    View Dictionary
-                  </Button>
-                  {isViewModalOpen && (
-                    <Modal
-                      isOpen={isViewModalOpen}
-                      onClose={() => setIsViewModalOpen(false)}
-                      width="1200px"
-                      height="auto"
-                      backgroundColor="#0a1a31"
-                      showCloseButton={false}>
-                      <div className="w-full h-full">
-                        <div className="flex justify-between items-center">
-                          <h2 className="!text-left text-white text-2xl font-extrabold w-full">
-                            {activeView === 'default'
-                              ? 'Added Potential Violations'
-                              : 'Deleted Potential Violations'}
-                          </h2>
+                <Button
+                  onClick={handleViewOpenModal}
+                  className="w-full !bg-[#6B7280] hover:!bg-black-200 text-white border-0 rounded-none hover:shadow-none dark:!text-white dark:hover:shadow-none dark:hover:!text-white">
+                  View Dictionary
+                </Button>
 
-                          <div className="relative w-full">
-                            <input
-                              type="text"
-                              placeholder="Search for Keyword"
-                              className="!w-full"
-                            />
+                {isViewModalOpen && (
+                  <Modal
+                    isOpen={isViewModalOpen}
+                    onClose={() => setIsViewModalOpen(false)}
+                    width="1200px"
+                    height="auto"
+                    backgroundColor="#0a1a31"
+                    showCloseButton={false}>
+                    <div className="w-full h-full">
+                      <div className="flex justify-between items-center">
+                        <h2 className="!text-left text-white text-2xl font-extrabold w-full">
+                          {activeView === 'default'
+                            ? 'Added Potential Violations'
+                            : 'Deleted Potential Violations'}
+                        </h2>
 
-                            <GoSearch className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500" />
+                        <div className="relative w-full">
+                          <input
+                            type="text"
+                            placeholder="Search for Keyword"
+                            className="!w-full"
+                            value={dictionarySearchTerm}
+                            onChange={(e) => setDictionarySearchTerm(e.target.value.toLowerCase())}
+                          />
+                          <GoSearch className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500" />
+                        </div>
+                      </div>
+
+                      {statusMessage && (
+                        <div className="mt-2 text-sm text-green-400 font-semibold">
+                          {statusMessage}
+                        </div>
+                      )}
+
+                      <div className="flex justify-between items-baseline">
+                        <div className="w-[50px] flex flex-col gap-5 items-center">
+                          {/* View Potential Violations */}
+                          <div
+                            onClick={() => setActiveView('default')}
+                            className={clsx(
+                              'group relative p-2 rounded-md cursor-pointer transition-all duration-200',
+                              activeView === 'default'
+                                ? 'bg-blue-500 text-white'
+                                : 'bg-transparent hover:bg-white text-white/60 hover:text-black-200'
+                            )}>
+                            <FaBars className="text-2xl" />
+                            <span className="absolute left-[110%] top-1/2 -translate-y-1/2 whitespace-nowrap rounded bg-black text-white text-xs px-2 py-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-10">
+                              View Potential Violations
+                            </span>
+                          </div>
+
+                          {/* Trash */}
+                          <div
+                            onClick={() => setActiveView('trash')}
+                            className={clsx(
+                              'group relative p-2 rounded-md cursor-pointer transition-all duration-200',
+                              activeView === 'trash'
+                                ? 'bg-blue-500 text-white'
+                                : 'bg-transparent hover:bg-white text-white/60 hover:text-black-200'
+                            )}>
+                            <FaTrash className="text-2xl" />
+                            <span className="absolute left-[110%] top-1/2 -translate-y-1/2 whitespace-nowrap rounded bg-black text-white text-xs px-2 py-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-10">
+                              Archived Potential Violations
+                            </span>
                           </div>
                         </div>
 
-                        {statusMessage && (
-                          <div className="mt-2 text-sm text-green-400 font-semibold">
-                            {statusMessage}
-                          </div>
-                        )}
-
-                        <div className="flex justify-between items-baseline">
-                          <div className="w-[50px] flex flex-col gap-5 items-center">
-                            {/* View Potential Violations */}
-                            <div
-                              onClick={() => setActiveView('default')}
-                              className={clsx(
-                                'group relative p-2 rounded-md cursor-pointer transition-all duration-200',
-                                activeView === 'default'
-                                  ? 'bg-blue-500 text-white'
-                                  : 'bg-transparent hover:bg-white text-white/60 hover:text-black-200'
-                              )}>
-                              <FaBars className="text-2xl" />
-                              <span className="absolute left-[110%] top-1/2 -translate-y-1/2 whitespace-nowrap rounded bg-black text-white text-xs px-2 py-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-10">
-                                View Potential Violations
-                              </span>
-                            </div>
-
-                            {/* Trash */}
-                            <div
-                              onClick={() => setActiveView('trash')}
-                              className={clsx(
-                                'group relative p-2 rounded-md cursor-pointer transition-all duration-200',
-                                activeView === 'trash'
-                                  ? 'bg-blue-500 text-white'
-                                  : 'bg-transparent hover:bg-white text-white/60 hover:text-black-200'
-                              )}>
-                              <FaTrash className="text-2xl" />
-                              <span className="absolute left-[110%] top-1/2 -translate-y-1/2 whitespace-nowrap rounded bg-black text-white text-xs px-2 py-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-10">
-                                Archived Potential Violations
-                              </span>
-                            </div>
-                          </div>
-
-                          <div className="flex-1 px-5">
-                            {activeView === 'default' && (
-                              <>
-                                <table
-                                  className={clsx(
-                                    'w-full my-[20px] mx-auto border-collapse',
-                                    'table-fixed shadow-[0_4px_6px_rgba(0, 0, 0, 0.1)]'
-                                  )}>
-                                  <thead>
+                        <div className="flex-1 px-5">
+                          {activeView === 'default' && (
+                            <>
+                              <table className={clsx('w-full my-[20px] mx-auto border-collapse', 'table-fixed shadow-[0_4px_6px_rgba(0, 0, 0, 0.1)]')}>
+                                <thead>
+                                  <tr>
+                                    <th>Keyword</th>
+                                    <th>Added By</th>
+                                    <th className="w-[80px]"></th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {paginatedData.filter(entry => entry.keyword.toLowerCase().includes(dictionarySearchTerm)).length === 0 ? (
                                     <tr>
-                                      <th>Keyword</th>
-                                      <th>Added By</th>
-                                      <th className="w-[80px]"></th>
+                                      <td colSpan={3} className="text-center text-white">
+                                        No entries found.
+                                      </td>
                                     </tr>
-                                  </thead>
-                                  <tbody>
-                                    {paginatedData.length === 0 ? (
-                                      <tr>
-                                        <td
-                                          colSpan={3}
-                                          className="text-center text-white">
-                                          No entries found.
-                                        </td>
-                                      </tr>
-                                    ) : (
-                                      paginatedData.map(entry => (
+                                  ) : (
+                                    paginatedData
+                                      .filter(entry => entry.keyword.toLowerCase().includes(dictionarySearchTerm))
+                                      .map(entry => (
                                         <tr key={entry.id}>
-                                          <td className="px-4 py-2 !text-white">
-                                            {entry.keyword}
-                                          </td>
-                                          <td className="px-4 py-2 !text-white">
-                                            {entry.created_by}
-                                          </td>
+                                          <td className="px-4 py-2 !text-white">{entry.keyword}</td>
+                                          <td className="px-4 py-2 !text-white">{entry.created_by}</td>
                                           <td className="px-4 py-2 !text-white">
                                             <FaTrash
                                               className="text-white hover:text-red-500 cursor-pointer"
                                               onClick={() => {
-                                                if (
-                                                  confirm(
-                                                    `Move phrase "${entry.keyword}" to trash?`
-                                                  )
-                                                ) {
+                                                if (confirm(`Move phrase "${entry.keyword}" to trash?`)) {
                                                   handleDeletePhrase(entry.id);
                                                 }
                                               }}
@@ -2403,86 +2486,70 @@ const renderErrorList = (
                                           </td>
                                         </tr>
                                       ))
-                                    )}
-                                  </tbody>
-                                </table>
+                                  )}
+                                </tbody>
+                              </table>
 
-                                {/* Pagination Controls for default view */}
-                                {totalPages > 1 && (
-                                  <div className="flex justify-center mt-4 gap-2">
+                              {totalPages > 1 && (
+                                <div className="flex justify-center mt-4 gap-2">
+                                  <button
+                                    onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                                    disabled={currentPage === 1}
+                                    className="px-3 py-1 text-white border border-yellow-100 rounded disabled:opacity-50 cursor-pointer hover:bg-yellow-100 hover:text-black-200">
+                                    Prev
+                                  </button>
+                                  {getVisiblePages(currentPage, totalPages).map(page => (
                                     <button
-                                      onClick={() =>
-                                        setCurrentPage(prev => Math.max(prev - 1, 1))
-                                      }
-                                      disabled={currentPage === 1}
-                                      className="px-3 py-1 text-white border border-yellow-100 rounded disabled:opacity-50 cursor-pointer hover:bg-yellow-100 hover:text-black-200">
-                                      Prev
+                                      key={page}
+                                      onClick={() => setCurrentPage(page)}
+                                      className={clsx(
+                                        'px-3 py-1 cursor-pointer hover:bg-white hover:text-black-200',
+                                        currentPage === page ? 'bg-yellow-100 text-black' : 'text-white border-white'
+                                      )}>
+                                      {page}
                                     </button>
+                                  ))}
+                                  <button
+                                    onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                                    disabled={currentPage === totalPages}
+                                    className="px-3 py-1 text-white border border-yellow-100 rounded disabled:opacity-50 cursor-pointer hover:bg-yellow-100 hover:text-black-200">
+                                    Next
+                                  </button>
+                                </div>
+                              )}
+                            </>
+                          )}
 
-                                    {getVisiblePages(currentPage, totalPages).map(
-                                      page => (
-                                        <button
-                                          key={page}
-                                          onClick={() => setCurrentPage(page)}
-                                          className={clsx(
-                                            'px-3 py-1 cursor-pointer hover:bg-white hover:text-black-200',
-                                            currentPage === page
-                                              ? 'bg-yellow-100 text-black'
-                                              : 'text-white border-white'
-                                          )}>
-                                          {page}
-                                        </button>
-                                      )
-                                    )}
-
-                                    <button
-                                      onClick={() =>
-                                        setCurrentPage(prev =>
-                                          Math.min(prev + 1, totalPages)
-                                        )
-                                      }
-                                      disabled={currentPage === totalPages}
-                                      className="px-3 py-1 text-white border border-yellow-100 rounded disabled:opacity-50 cursor-pointer hover:bg-yellow-100 hover:text-black-200">
-                                      Next
-                                    </button>
-                                  </div>
-                                )}
-                              </>
-                            )}
-
-                            {activeView === 'trash' && (
-                              <>
-                                <table
-                                  className={clsx(
-                                    'w-full my-[20px] mx-auto border-collapse',
-                                    'table-fixed shadow-[0_4px_6px_rgba(0, 0, 0, 0.1)]'
-                                  )}>
-                                  <thead>
+                          {activeView === 'trash' && (
+                            <>
+                              <table className={clsx('w-full my-[20px] mx-auto border-collapse', 'table-fixed shadow-[0_4px_6px_rgba(0, 0, 0, 0.1)]')}>
+                                <thead>
+                                  <tr>
+                                    <th>Keyword</th>
+                                    <th>Deleted By</th>
+                                    <th>Days Left</th>
+                                    <th className="w-[80px]"></th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {deletedEntries.filter(entry => entry.keyword.toLowerCase().includes(dictionarySearchTerm)).length === 0 ? (
                                     <tr>
-                                      <th>Keyword</th>
-                                      <th>Deleted By</th>
-                                      <th>Days Left</th>
-                                      <th className="w-[80px]"></th>
+                                      <td colSpan={4} className="text-center text-white">
+                                        No deleted entries found.
+                                      </td>
                                     </tr>
-                                  </thead>
-                                  <tbody>
-                                    {deletedEntries.length === 0 ? (
-                                      <tr>
-                                        <td colSpan={4} className="text-center text-white">
-                                          No deleted entries found.
-                                        </td>
-                                      </tr>
-                                    ) : (
-                                      deletedEntries.map(entry => {
+                                  ) : (
+                                    deletedEntries
+                                      .filter(entry => entry.keyword.toLowerCase().includes(dictionarySearchTerm))
+                                      .map(entry => {
                                         const deletedAt = new Date(entry.deleted_at as string);
                                         const now = new Date();
-                                        const diffDays =
-                                          30 - Math.floor((now.getTime() - deletedAt.getTime()) / (1000 * 60 * 60 * 24));
+                                        const diffDays = 30 - Math.floor((now.getTime() - deletedAt.getTime()) / (1000 * 60 * 60 * 24));
 
                                         return (
                                           <tr key={entry.id}>
                                             <td className="px-4 py-2 !text-white">{entry.keyword}</td>
-                                            <td className="px-4 py-2 !text-white">{entry.deleted_by}</td> 
+                                            <td className="px-4 py-2 !text-white">{entry.deleted_by}</td>
                                             <td className="px-4 py-2 !text-white">{diffDays} days left</td>
                                             <td className="px-4 py-2 !text-white">
                                               <FaTrash
@@ -2497,71 +2564,53 @@ const renderErrorList = (
                                           </tr>
                                         );
                                       })
-                                    )}
-                                  </tbody>
+                                  )}
+                                </tbody>
+                              </table>
 
-                                </table>
-
-                                {/* Pagination Controls for trash view */}
-                                {totalPagesForDeleted > 1 && (
-                                  <div className="flex justify-center mt-4 gap-2">
+                              {totalPagesForDeleted > 1 && (
+                                <div className="flex justify-center mt-4 gap-2">
+                                  <button
+                                    onClick={() => setCurrentPageDeleted(prev => Math.max(prev - 1, 1))}
+                                    disabled={currentPageDeleted === 1}
+                                    className="px-3 py-1 text-white border border-yellow-100 rounded disabled:opacity-50 cursor-pointer hover:bg-yellow-100 hover:text-black-200">
+                                    Prev
+                                  </button>
+                                  {getVisiblePages(currentPageDeleted, totalPagesForDeleted).map(page => (
                                     <button
-                                      onClick={() =>
-                                        setCurrentPageDeleted(prev =>
-                                          Math.max(prev - 1, 1)
-                                        )
-                                      }
-                                      disabled={currentPageDeleted === 1}
-                                      className="px-3 py-1 text-white border border-yellow-100 rounded disabled:opacity-50 cursor-pointer hover:bg-yellow-100 hover:text-black-200">
-                                      Prev
+                                      key={page}
+                                      onClick={() => setCurrentPageDeleted(page)}
+                                      className={clsx(
+                                        'px-3 py-1 cursor-pointer hover:bg-white hover:text-black-200',
+                                        currentPageDeleted === page ? 'bg-yellow-100 text-black' : 'text-white border-white'
+                                      )}>
+                                      {page}
                                     </button>
-
-                                    {getVisiblePages(
-                                      currentPageDeleted,
-                                      totalPagesForDeleted
-                                    ).map(page => (
-                                      <button
-                                        key={page}
-                                        onClick={() => setCurrentPageDeleted(page)}
-                                        className={clsx(
-                                          'px-3 py-1 cursor-pointer hover:bg-white hover:text-black-200',
-                                          currentPageDeleted === page
-                                            ? 'bg-yellow-100 text-black'
-                                            : 'text-white border-white'
-                                        )}>
-                                        {page}
-                                      </button>
-                                    ))}
-
-                                    <button
-                                      onClick={() =>
-                                        setCurrentPageDeleted(prev =>
-                                          Math.min(prev + 1, totalPagesForDeleted)
-                                        )
-                                      }
-                                      disabled={
-                                        currentPageDeleted === totalPagesForDeleted
-                                      }
-                                      className="px-3 py-1 text-white border border-yellow-100 rounded disabled:opacity-50 cursor-pointer hover:bg-yellow-100 hover:text-black-200">
-                                      Next
-                                    </button>
-                                  </div>
-                                )}
-                              </>
-                            )}
-                          </div>
-                        </div>
-
-                        <div className="flex justify-end">
-                          <button
-                            onClick={handleViewCloseModal}
-                            className="border border-white cursor-pointer py-2 px-7 hover:bg-red-100 hover:border-red-100 text-white mt-5">
-                            Cancel
-                          </button>
+                                  ))}
+                                  <button
+                                    onClick={() => setCurrentPageDeleted(prev => Math.min(prev + 1, totalPagesForDeleted))}
+                                    disabled={currentPageDeleted === totalPagesForDeleted}
+                                    className="px-3 py-1 text-white border border-yellow-100 rounded disabled:opacity-50 cursor-pointer hover:bg-yellow-100 hover:text-black-200">
+                                    Next
+                                  </button>
+                                </div>
+                              )}
+                            </>
+                          )}
                         </div>
                       </div>
-                    </Modal>
-                  )}
+
+                      <div className="flex justify-end">
+                        <button
+                          onClick={handleViewCloseModal}
+                          className="border border-white cursor-pointer py-2 px-7 hover:bg-red-100 hover:border-red-100 text-white mt-5">
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  </Modal>
+                )}
+
                 </div>
               </div>
             </TabPanel>

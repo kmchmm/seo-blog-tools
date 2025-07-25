@@ -55,16 +55,12 @@ const KeywordResultSection = ({ result }: Props) => {
                 scrollToHeading(heading.text);
               }
             }}>
-            {heading.level} - {heading.text}{' '}
-            {/* <span className={heading.optimized ? 'text-green-600' : 'text-red-600'}>
-              {heading.optimized.toString()}
-            </span> */}
+            {heading.level} - {heading.text}
           </p>
         </li>
       ))
     );
   };
-
 
   const renderHeadingsAlert = () => {
     if (!headings.length) return null;
@@ -100,7 +96,7 @@ const KeywordResultSection = ({ result }: Props) => {
           <ul className="list-disc ml-4">
             {renderHeadingResult()}
           </ul>
-           <p className="text-gray-600 italic">
+          <p className="text-gray-600 italic">
             {optimized} optimized of {total} headings
           </p>
         </div>
@@ -125,25 +121,32 @@ const KeywordResultSection = ({ result }: Props) => {
               Sections without the focus keyphrase:
             </p>
             <ul className="list-disc ml-5 space-y-1">
-              {withoutFocus.map((heading, i) => (
-                <li key={i}>
-                  <span
-                    className="cursor-pointer text-blue-600 hover:underline"
-                    onClick={() => scrollToHeading(heading)}
-                    role="button"
-                    tabIndex={0}
-                    onKeyDown={e => {
-                      if (e.key === 'Enter' || e.key === ' ') {
-                        scrollToHeading(heading);
-                      }
-                    }}
-                  >
-                    {heading}
-                  </span>
-                </li>
-              ))}
-            </ul>
+              {withoutFocus.map((headingText, i) => {
+                const allHeadings = Array.from(document.querySelectorAll('h1, h2, h3, h4, h5, h6'));
+                const matchedDomHeading = allHeadings.find(
+                  el => el.textContent?.trim().toLowerCase() === headingText.trim().toLowerCase()
+                );
+                const label = matchedDomHeading ? `${matchedDomHeading.tagName.toUpperCase()} - ` : '';
 
+                return (
+                  <li key={i}>
+                    <span
+                      className="cursor-pointer text-blue-600 hover:underline"
+                      onClick={() => scrollToHeading(headingText)}
+                      role="button"
+                      tabIndex={0}
+                      onKeyDown={e => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          scrollToHeading(headingText);
+                        }
+                      }}
+                    >
+                      {label}{headingText}
+                    </span>
+                  </li>
+                );
+              })}
+            </ul>
           </div>
         )}
 
@@ -151,6 +154,7 @@ const KeywordResultSection = ({ result }: Props) => {
           {optimizedSections} optimized of {totalSections} sections
         </p>
       </Accordion>
+
       <p>
         <strong>Other Keywords</strong>
       </p>

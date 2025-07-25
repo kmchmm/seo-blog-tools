@@ -242,6 +242,12 @@ const Sidebar: FC = () => {
                 <span>BINI</span>
               </Link>
             </RaketMenuItem>
+            <RaketMenuItem>
+              <Link tabIndex={isSidebarOpen ? 0 : -1} to={TOOL_ROUTES.BLOG_ANALYSIS}>
+                <Loom />
+                <span>Blog Optimization</span>
+              </Link>
+            </RaketMenuItem>
           </ul>
         </li>
         <li>
