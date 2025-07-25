@@ -12,15 +12,6 @@ import {
 import axios, { AxiosError } from 'axios';
 import { ToastContext } from './ToastContext';
 
-export type ProgressItem = {
-  row: number;
-  title: string;
-  docUrl: string;
-  status: string;
-  error?: string;
-  completionTime?: string;
-};
-
 export type SheetInfo = {
   sheetValidDocsCount: number;
   docsTotalWords: number;
@@ -31,7 +22,7 @@ type BatchMode = 'single' | 'chain-assistant';
 type BatchProgressContextType = {
   // batch fields
   formValues: { url: string; sheetName: string };
-  items: Record<string, ProgressItem[]>;
+  batchResult: Record<string, string>;
   loadingSheets: Record<string, boolean>;
   resetBatch: (sheetName: string) => void;
   setFormValues: ({ url, sheetName }: { url: string; sheetName: string }) => void;
@@ -111,7 +102,7 @@ export const Context = createContext<BatchProgressContextType | undefined>(undef
 
 export const Provider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [formValues, setFormValues] = useState({ url: '', sheetName: '' });
-  const [items, setItems] = useState<Record<string, ProgressItem[]>>({});
+  const [batchResult, setBatchResult] = useState<Record<string, string>>({});
   const [batchCompletionTime, setBatchCompletionTime] = useState<Record<string, string>>(
     {}
   );
@@ -205,13 +196,12 @@ export const Provider: React.FC<{ children: React.ReactNode }> = ({ children }) 
     mode: BatchMode = 'single'
   ) => {
     setBatchCompletionTime(prev => ({ ...prev, [sheetName]: '' }));
-    setItems(prev => ({ ...prev, [sheetName]: [] }));
+    setBatchResult(prev => ({ ...prev, [sheetName]: '' }));
     setSheetProgressCount(prev => ({ ...prev, [sheetName]: 0 }));
     setSheetCompleted(prev => ({ ...prev, [sheetName]: false }));
     setLoadingSheets(prev => ({ ...prev, [sheetName]: true }));
     setSheetErorMessages(prev => ({ ...prev, [sheetName]: '' }));
 
-    // Dynamic API selection
     const API_URL =
       mode === 'chain-assistant'
         ? AI_PROCESS_SHEET_MULTIPLE_ASSISTANT_API_URL
@@ -224,72 +214,145 @@ export const Provider: React.FC<{ children: React.ReactNode }> = ({ children }) 
     const eventSource = new EventSource(`${API_URL}${query}`);
     eventSourceRef.current = eventSource;
 
-    eventSource.onmessage = e => {
+    eventSource.addEventListener('progress', e => {
       const data = JSON.parse(e.data);
-      if (data.status === 'processing' && data.title) {
-        setSheetCurrentTitle(prev => ({ ...prev, [sheetName]: data.title }));
-      }
 
-      if (data.type === 'progress' && data.status === 'success') {
-        setSheetProgressCount(prev => ({
-          ...prev,
-          [sheetName]: (prev[sheetName] || 0) + 1,
-        }));
-      } else if (data.type === 'complete') {
-        setItems(prev => ({ ...prev, [sheetName]: data.results || [] }));
-        setLoadingSheets(prev => ({ ...prev, [sheetName]: false }));
-        setSheetCompleted(prev => ({ ...prev, [sheetName]: true }));
-        setBatchCompletionTime(prev => ({
-          ...prev,
-          [sheetName]: data.completionTime || '',
-        }));
-        showToast(`${data.sheetName} has finished processing.`);
-        eventSource.close();
-      } else if (data.type === 'error') {
-        setSheetErorMessages(prev => ({
-          ...prev,
-          [sheetName]: data.message || 'Batch failed.',
-        }));
+      switch (data.stage) {
+        case 'scanning':
+          // Initial scanning phase
+          break;
+
+        case 'processing':
+          // Update current document being processed
+          if (data.title) {
+            setSheetCurrentTitle(prev => ({ ...prev, [sheetName]: data.title }));
+          }
+          break;
+
+        case 'complete':
+          // Increment progress count when a document is completed
+          if (data.status === 'success' && data.resultDocUrl) {
+            setSheetProgressCount(prev => ({
+              ...prev,
+              [sheetName]: (prev[sheetName] || 0) + 1,
+            }));
+          }
+          break;
+
+        case 'error':
+          // Handle individual document errors
+          if (data.rowNumber) {
+            console.warn(`Document error for row ${data.rowNumber}:`, data.message);
+          }
+          break;
+
+        case 'final':
+          // Handle final batch completion
+          if (data.status === 'success') {
+            setBatchResult(prev => ({
+              ...prev,
+              [sheetName]: data.spreadsheetUrl || spreadsheetUrl,
+            }));
+            setLoadingSheets(prev => ({ ...prev, [sheetName]: false }));
+            setSheetCompleted(prev => ({ ...prev, [sheetName]: true }));
+            setBatchCompletionTime(prev => ({
+              ...prev,
+              [sheetName]: data.completionTime || '',
+            }));
+            showToast(
+              `${sheetName} has finished processing. ${data.processed} documents processed.`
+            );
+            eventSource.close();
+          }
+          break;
+
+        default:
+          // Legacy handling for older event formats
+          if (data.status === 'success' && !data.stage) {
+            setBatchResult(prev => ({
+              ...prev,
+              [sheetName]: data.spreadsheetUrl || spreadsheetUrl,
+            }));
+            setLoadingSheets(prev => ({ ...prev, [sheetName]: false }));
+            setSheetCompleted(prev => ({ ...prev, [sheetName]: true }));
+            setBatchCompletionTime(prev => ({
+              ...prev,
+              [sheetName]: data.completionTime || '',
+            }));
+            showToast(`${sheetName} has finished processing.`);
+            eventSource.close();
+          }
+      }
+    });
+
+    // Handle error events - this catches actual EventSource errors, not data errors
+    eventSource.onerror = e => {
+      console.error('EventSource error:', e);
+
+      // Only show error if the connection wasn't intentionally closed
+      if (eventSource.readyState === EventSource.CLOSED) {
+        // Check if we have completion state first
+        const hasCompleted = sheetCompleted[sheetName];
+        if (!hasCompleted) {
+          setSheetErorMessages(prev => ({
+            ...prev,
+            [sheetName]: 'Connection lost unexpectedly.',
+          }));
+          setLoadingSheets(prev => ({ ...prev, [sheetName]: false }));
+          setSheetProgressCount(prev => {
+            const copy = { ...prev };
+            delete copy[sheetName];
+            return copy;
+          });
+        }
+      }
+      eventSource.close();
+    };
+
+    // Handle server-sent error events
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    eventSource.addEventListener('error', (e: any) => {
+      try {
+        const data = e.data ? JSON.parse(e.data) : {};
+        if (data.message === 'Aborted') {
+          setSheetErorMessages(prev => ({
+            ...prev,
+            [sheetName]: 'Processing was cancelled.',
+          }));
+        } else {
+          setSheetErorMessages(prev => ({
+            ...prev,
+            [sheetName]: data.message || 'Processing error occurred.',
+          }));
+        }
+
         setLoadingSheets(prev => ({ ...prev, [sheetName]: false }));
         setSheetProgressCount(prev => {
           const copy = { ...prev };
           delete copy[sheetName];
           return copy;
         });
-
         setSheetCompleted(prev => {
           const copy = { ...prev };
           delete copy[sheetName];
           return copy;
         });
+      } catch (err) {
+        console.error('Error parsing error event:', err);
+        setSheetErorMessages(prev => ({
+          ...prev,
+          [sheetName]: 'Processing error occurred.',
+        }));
+        setLoadingSheets(prev => ({ ...prev, [sheetName]: false }));
+      } finally {
         eventSource.close();
       }
-    };
-
-    eventSource.onerror = () => {
-      setSheetErorMessages(prev => ({
-        ...prev,
-        [sheetName]: 'Connection error or server closed unexpectedly.',
-      }));
-      setLoadingSheets(prev => ({ ...prev, [sheetName]: false }));
-      setSheetProgressCount(prev => {
-        const copy = { ...prev };
-        delete copy[sheetName];
-        return copy;
-      });
-
-      setSheetCompleted(prev => {
-        const copy = { ...prev };
-        delete copy[sheetName];
-        return copy;
-      });
-      eventSource.close();
-    };
+    });
   };
 
   const resetBatch = (sheetName: string) => {
     eventSourceRef.current?.close();
-    setItems(prev => {
+    setBatchResult(prev => {
       const updated = { ...prev };
       delete updated[sheetName];
       return updated;
@@ -384,7 +447,7 @@ export const Provider: React.FC<{ children: React.ReactNode }> = ({ children }) 
     <Context.Provider
       value={{
         // batch
-        items,
+        batchResult,
         sheetCurrentTitle,
         loadingSheets,
         sheetCompleted,

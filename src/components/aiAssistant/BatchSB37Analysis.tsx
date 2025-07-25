@@ -28,6 +28,7 @@ const BatchSB37Analysis = () => {
   const [showInstruction, setShowInstruction] = useState(false);
   const [isMultiAssistantMode, setIsMultiAssistantMode] = useState(false);
   const [showDemoVideoModal, setShowDemoVideoModal] = useState(false);
+
   const { showToast } = use(ToastContext);
   const { userData } = useAuth();
   const { id: clientId } = userData;
@@ -147,6 +148,7 @@ const BatchSB37Analysis = () => {
       sheetName,
       isMultiAssistant: isMultiAssistantMode,
     });
+    refetchValidRows();
   };
 
   const handleClickViewInstructions = () => {
@@ -163,6 +165,14 @@ const BatchSB37Analysis = () => {
 
   const handleCloseFAQ = () => {
     setShowFAQModal(false);
+  };
+
+  const handleClickDemoVideo = () => {
+    setShowDemoVideoModal(true);
+  };
+
+  const handleCloseDemoVideo = () => {
+    setShowDemoVideoModal(false);
   };
 
   useEffect(() => {
@@ -329,7 +339,7 @@ const BatchSB37Analysis = () => {
           </p>
           <div className="flex items-center gap-x-2">
             <p>
-              Currently processing:{' '}
+              Processing multiple documents...{' '}
               <span className="font-semibold">{sheetCurrentTitle[sheetName]}</span>
             </p>
             <Loading size="sm" />
@@ -424,7 +434,7 @@ const BatchSB37Analysis = () => {
           </button>
           <button
             className="underline cursor-pointer hover:text-blue-400"
-            onClick={() => setShowDemoVideoModal(true)}>
+            onClick={handleClickDemoVideo}>
             Watch Demo Video
           </button>
         </div>
@@ -437,10 +447,7 @@ const BatchSB37Analysis = () => {
         renderContent={renderInstructionModalContent}
       />
       <FAQModal onClose={handleCloseFAQ} open={showFAQModal} />
-      <DemoVideoModal
-        open={showDemoVideoModal}
-        onClose={() => setShowDemoVideoModal(false)}
-      />
+      <DemoVideoModal open={showDemoVideoModal} onClose={handleCloseDemoVideo} />
     </>
   );
 };

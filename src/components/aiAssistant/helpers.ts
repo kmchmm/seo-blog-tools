@@ -1,3 +1,5 @@
+import { WORD_PER_SEC } from './constants';
+
 export const getInputLabel = (activeCard: string) => {
   if (activeCard === 'SB37 Analysis - Per Document') {
     return 'Enter the document URL:';
@@ -7,8 +9,6 @@ export const getInputLabel = (activeCard: string) => {
   }
   return '';
 };
-
-const WORD_PER_SEC = 42;
 
 export const getEstimatedTime = (wordCount: number) => {
   const totalSeconds = wordCount / WORD_PER_SEC;
