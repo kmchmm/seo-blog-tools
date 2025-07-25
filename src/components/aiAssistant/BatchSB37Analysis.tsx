@@ -39,7 +39,6 @@ const BatchSB37Analysis = () => {
     loadingSheets,
     sheetErorMessages,
     resetBatch,
-    sheetCurrentTitle,
     sheetCompleted,
     sheetInfo,
     updateSheetInfo,
@@ -338,10 +337,7 @@ const BatchSB37Analysis = () => {
             <strong>DO NOT</strong> refresh the page!{' '}
           </p>
           <div className="flex items-center gap-x-2">
-            <p>
-              Processing multiple documents...{' '}
-              <span className="font-semibold">{sheetCurrentTitle[sheetName]}</span>
-            </p>
+            <p>Processing multiple documents... </p>
             <Loading size="sm" />
           </div>
         </div>
