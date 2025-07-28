@@ -240,9 +240,10 @@ Return only the combined audit report.`;
   };
 
   const extractDocId = (input: string) => {
-    const match = input.match(/[-\w]{25,}/); // Google doc IDs are 25+ chars
+    const match = input.match(/[-\w]{25,}/);
     return match ? match[0] : null;
   };
+
 
   const fetchGoogleDocContent = async () => {
     if (!googleDocId.trim()) {
@@ -269,8 +270,9 @@ Return only the combined audit report.`;
       const response = await fetch(apiUrl, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ docId: googleDocId.trim() }),
+        body: JSON.stringify({ docId: cleanDocId }), // 👈 Use extracted ID
       });
+
 
       const data = await response.json();
 
@@ -525,7 +527,7 @@ Return only the combined audit report.`;
       {summary && (
         <div className="grid md:grid-cols-2 gap-6 mt-6">
           {/* Original Blog Content */}
-          <div className="border-4 border-[#c0c0c0] rounded-xl p-4 bg-white">
+          <div className="border-4 border-[#c0c0c0] rounded-xl p-4 bg-white dark:!text-black">
             <h2 style={{ fontSize: "20px", fontWeight: "bold", marginBottom: "0.5rem" }}>
               📄 Original Blog Content
             </h2>
