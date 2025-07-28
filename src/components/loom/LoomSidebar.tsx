@@ -1218,31 +1218,42 @@ const renderErrorList = (
     handleAnalyzeLink();
     handleAnalyzeKeyword();
   };
+  
+  const showSummaryAfterToolRun = () => {
+    setHasRunChecks(true);
+  };
+
 
   const handleYoastClick = () => {
     setSelectedTab('Yoast');
-    setShowSummary('tools');
+    showSummaryAfterToolRun();
   };
-    const handleSB37Click = () => {
+
+  const handleSB37Click = () => {
     setSelectedTab('SB37');
-    setShowSummary('tools');
+    showSummaryAfterToolRun();
   };
-    const handleFormatClick = () => {
+
+  const handleFormatClick = () => {
     setSelectedTab('Format');
-    setShowSummary('tools');
+    showSummaryAfterToolRun();
   };
-    const handleContentClick = () => {
+
+  const handleContentClick = () => {
     setSelectedTab('Content');
-    setShowSummary('tools');
+    showSummaryAfterToolRun();
   };
-    const handleLinkClick = () => {
+
+  const handleLinkClick = () => {
     setSelectedTab('Link');
-    setShowSummary('tools');
+    showSummaryAfterToolRun();
   };
+
   const handleKeywordClick = () => {
     setSelectedTab('Keyword');
-    setShowSummary('tools');
+    showSummaryAfterToolRun();
   };
+
 
   function hasIssue(type: string) {
   return (
@@ -1319,7 +1330,11 @@ const renderErrorList = (
                   {/* YOAST */}
                   <li className="border border-black/20 p-2 rounded-md">
                     <div className="flex justify-between">
-                      <span className="font-bold cursor-pointer hover:text-blue-500" onClick={handleYoastClick}>Yoast SEO</span>
+                      <span className="font-bold cursor-pointer hover:text-blue-500" 
+                      onClick={() => {
+                        setSelectedTab('Yoast');
+                        setShowSummary('tools');
+                      }}>Yoast SEO</span>
                       <FiEyeOff className="text-gray-200" />
                     </div>
                     <ul className="text-sm">
@@ -1369,7 +1384,12 @@ const renderErrorList = (
                   {/* SB37 */}
                   <li className="border border-black/20 p-2 mt-2 rounded-md">
                     <div className="flex justify-between">
-                      <span className="font-bold cursor-pointer hover:text-blue-500" onClick={handleSB37Click}>SB37</span>
+                      <span className="font-bold cursor-pointer hover:text-blue-500" 
+                      onClick={() => {
+                        setSelectedTab('SB37');
+                        setShowSummary('tools');
+                      }}
+                      >SB37</span>
                       {highlightActive ? (
                         <GoEye
                           title="Remove Highlights"
@@ -1425,7 +1445,12 @@ const renderErrorList = (
                   {/* FORMATTING */}
                   <li className="border border-black/20 p-2 mt-2 rounded-md">
                     <div className="flex justify-between">
-                      <span className="font-bold cursor-pointer hover:text-blue-500" onClick={handleFormatClick}>Formatting</span>
+                      <span className="font-bold cursor-pointer hover:text-blue-500" 
+                      onClick={() => {
+                        setSelectedTab('Format');
+                        setShowSummary('tools');
+                      }}
+                      >Formatting</span>
                       {formatHighlightActive ? (
                         <GoEye
                           title="Remove Highlights"
@@ -1498,7 +1523,12 @@ const renderErrorList = (
                   {/* CONTENT */}
                   <li className="border border-black/20 p-2 mt-2 rounded-md">
                     <div className="flex justify-between">
-                      <span className="font-bold cursor-pointer hover:text-blue-500" onClick={handleContentClick}>Content</span>
+                      <span className="font-bold cursor-pointer hover:text-blue-500" 
+                      onClick={() => {
+                        setSelectedTab('Content');
+                        setShowSummary('tools');
+                      }}
+                      >Content</span>
 
                       {contentHighlightsActive ? (
                         <GoEye
@@ -1589,7 +1619,11 @@ const renderErrorList = (
                   {/* LINKS */}
                   <li className="border border-black/20 p-2 mt-2 rounded-md">
                     <div className="flex justify-between">
-                      <span className="font-bold cursor-pointer hover:text-blue-500" onClick={handleLinkClick}>
+                      <span className="font-bold cursor-pointer hover:text-blue-500" 
+                      onClick={() => {
+                        setSelectedTab('Link');
+                        setShowSummary('tools');
+                      }}>
                         Links
                       </span>
                       {linkHighlightsActive ? (
@@ -1804,7 +1838,10 @@ const renderErrorList = (
                     <div className="flex justify-between items-center">
                       <span
                         className="font-bold cursor-pointer hover:text-blue-500"
-                        onClick={handleKeywordClick}
+                        onClick={() => {
+                          setSelectedTab('Keywords');
+                          setShowSummary('tools');
+                        }}
                       >
                         Keywords
                       </span>
@@ -1983,7 +2020,11 @@ const renderErrorList = (
               <div className="text-center dark:!text-black relative">
                 <Button
                   className="w-full !bg-[#2563ea] hover:!bg-blue-1000 text-white dark:!text-white border-0 hover:shadow-none dark:hover:shadow-none rounded-none"
-                  onClick={yoastSEOAnalyze}>
+                  onClick={() => {
+                    yoastSEOAnalyze();
+                    handleYoastClick();
+                  }}
+                  >
                   Run Yoast SEO Analysis
                 </Button>
               {showYoastDoneTooltip && (
@@ -2098,7 +2139,10 @@ const renderErrorList = (
               <div className="mb-5 dark:!text-black relative">
                 <Button
                   className="w-full !bg-[#2563ea] hover:!bg-blue-1000 text-white dark:!text-white border-0 hover:shadow-none rounded-none dark:hover:shadow-none"
-                  onClick={checkForViolations}>
+                  onClick={() => {
+                      checkForViolations();
+                      handleSB37Click();
+                  }}>
                   Check For Potential Violations
                 </Button>
 
@@ -2621,6 +2665,7 @@ const renderErrorList = (
                 onClick={() => {
                   runFormatCheck();
                   setShowResults(true);
+                  handleFormatClick();
                 }}
                 className="w-full !bg-[#2563ea] hover:!bg-blue-1000 text-white border-0 hover:shadow-none rounded-none dark:hover:shadow-none dark:!text-white">
                 {loading ? 'Checking...' : 'Check For Formatting Errors'}
@@ -2942,7 +2987,10 @@ const renderErrorList = (
               <div>
               <Button
                 disabled={!text || disableContentIssuesButton}
-                onClick={checkContentIssues}
+                onClick={() => {
+                  checkContentIssues();
+                  handleContentClick();
+                }}
                 className="w-full !bg-[#2563ea] hover:!bg-blue-1000 text-white border-0 hover:shadow-none rounded-none dark:hover:shadow-none dark:!text-white">
                 Check For Content Issues
               </Button>
@@ -2999,7 +3047,10 @@ const renderErrorList = (
               <div>
                 <Button
                   disabled={!text}
-                  onClick={handleAnalyzeLink}
+                  onClick={() => {
+                    handleAnalyzeLink();
+                    handleLinkClick();
+                  }}
                   className="w-full !bg-[#2563ea] flex items-center justify-center hover:!bg-blue-1000 text-white border-0 hover:shadow-none rounded-none dark:hover:shadow-none dark:!text-white">
                   {loadingAnalyzeLink ? 'Analyzing links...' : ' Analyze Links'}
                 </Button>
@@ -3054,7 +3105,10 @@ const renderErrorList = (
             <TabPanel id="Keyword" className="flex-1">
               <Button
                 disabled={!keyword || !text}
-                onClick={handleAnalyzeKeyword}
+                onClick={() => {
+                  handleAnalyzeKeyword();
+                  handleKeywordClick();
+                }}
                 className="w-full !bg-[#2563ea] hover:!bg-blue-1000 text-white border-0 hover:shadow-none rounded-none dark:hover:shadow-none dark:!text-white">
                 Analyze Keywords
               </Button>

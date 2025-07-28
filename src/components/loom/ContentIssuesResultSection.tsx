@@ -19,16 +19,22 @@ const ContentIssuesResultSection = ({ result, errorMessage }: Props) => {
     setShowHeadings(prev => !prev);
   };
 
-  const onHeaderItemClick = (headingId: string) => {
-    const el = document.getElementById(headingId);
-    if (el) {
-      el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  const onHeaderItemClick = (headingText: string) => {
+    const allHeadings = Array.from(document.querySelectorAll('h1, h2, h3, h4, h5, h6'));
+    const target = allHeadings.find(h => h.textContent?.trim() === headingText.trim());
 
-      el.classList.add('transition-colors', 'duration-1000');
-      el.classList.add('bg-black-200', 'text-white');
+    if (target) {
+      target.scrollIntoView({ behavior: 'smooth', block: 'center' });
 
+      target.classList.add(
+        'bg-black',
+        'text-white',
+        'transition-all',
+        'relative',
+        'z-[999]'
+      );
       setTimeout(() => {
-        el.classList.remove('bg-black-200', 'text-white');
+        target.classList.remove('bg-black', 'text-white', 'relative', 'z-[999]');
       }, 5000);
     }
   };
@@ -47,7 +53,6 @@ const ContentIssuesResultSection = ({ result, errorMessage }: Props) => {
     <div className="space-y-3 mt-4">
       <div className="w-full flex justify-center">
         <span className="!w-full">{renderAlert()}</span>
-        <span className="w-none"></span>
       </div>
 
       <p className="flex justify-between">
@@ -77,27 +82,24 @@ const ContentIssuesResultSection = ({ result, errorMessage }: Props) => {
           </div>
 
           <ul className="space-y-2 ml-2">
-            {headings?.map((heading, i) => {
-              const headingId = `heading-${i}`;
-              return (
-                <li key={heading.text} className="flex justify-between items-start">
-                  <button
-                    type="button"
-                    onClick={() => onHeaderItemClick(headingId)}
-                    className="text-left text-blue-600 hover:underline cursor-pointer w-3/4"
-                  >
-                    {heading.level.toUpperCase()} - {heading.text}
-                  </button>
-                  <span
-                    className={`w-1/4 text-right font-medium ${
-                      (heading.wordCount ?? 0) > 300 ? 'text-red-500' : ''
-                    }`}
-                  >
-                    {heading.wordCount}
-                  </span>
-                </li>
-              );
-            })}
+            {headings?.map((heading, ) => (
+              <li key={heading.text} className="flex justify-between items-start">
+                <button
+                  type="button"
+                  onClick={() => onHeaderItemClick(heading.text)}
+                  className="text-left text-blue-600 hover:underline cursor-pointer w-3/4"
+                >
+                  {heading.level.toUpperCase()} - {heading.text}
+                </button>
+                <span
+                  className={`w-1/4 text-right font-medium ${
+                    (heading.wordCount ?? 0) > 300 ? 'text-red-500' : ''
+                  }`}
+                >
+                  {heading.wordCount}
+                </span>
+              </li>
+            ))}
           </ul>
         </div>
       )}
@@ -125,23 +127,25 @@ const ContentIssuesResultSection = ({ result, errorMessage }: Props) => {
               <ul className="mx-2 space-y-3 text-sm">
                 {over300Sections.map(section => (
                   <li key={section.text}>
-                    <p className="font-bold">
+                    <button
+                      type="button"
+                      onClick={() => onHeaderItemClick(section.text)}
+                      className="font-bold text-blue-600 hover:underline cursor-pointer text-left"
+                    >
                       {section.level.toUpperCase()} - {section.text}
-                    </p>
-                    <div className="flex items-center">
+                    </button>
+                    <div className="flex items-center mt-1">
                       <PiDotOutlineFill />
-                      <p>Word count: {section.wordCount}</p>
+                      <p className="ml-1">Word count: {section.wordCount}</p>
                     </div>
                   </li>
                 ))}
               </ul>
             </div>
           ) : (
-            <div>
-              <p className="italic text-gray-600 text-xs">
-                No sections with over 300 words. Rawr
-              </p>
-            </div>
+            <p className="italic text-gray-600 text-xs">
+              No sections with over 300 words. Rawr
+            </p>
           )}
         </Accordion>
       )}
@@ -169,7 +173,13 @@ const ContentIssuesResultSection = ({ result, errorMessage }: Props) => {
               <ul className="mx-2 space-y-3 text-sm">
                 {sameWordStreaks.map((section, idx) => (
                   <li key={`${section.heading}-${idx}`}>
-                    <p className="font-bold mb-1">{section.heading}</p>
+                    <button
+                      type="button"
+                      onClick={() => onHeaderItemClick(section.heading)}
+                      className="font-bold text-blue-600 hover:underline cursor-pointer text-left mb-1"
+                    >
+                      {section.heading}
+                    </button>
                     <p className="leading-relaxed">
                       {section.sentences.map((sentence, sIdx) => {
                         const words = sentence.split(/\s+/);
@@ -188,11 +198,9 @@ const ContentIssuesResultSection = ({ result, errorMessage }: Props) => {
               </ul>
             </div>
           ) : (
-            <div>
-              <p className="italic text-gray-600 text-xs">
-                No same word at the start of three consecutive sentences. Rawr
-              </p>
-            </div>
+            <p className="italic text-gray-600 text-xs">
+              No same word at the start of three consecutive sentences. Rawr
+            </p>
           )}
         </Accordion>
       )}

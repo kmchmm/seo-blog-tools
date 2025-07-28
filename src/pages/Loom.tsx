@@ -433,7 +433,7 @@ useEffect(() => {
         const tempDiv = document.createElement('div');
         tempDiv.innerHTML = (node.nodeValue || '').replace(
           regex,
-          match => `<mark class="highlight-keyword bg-yellow-300">${match}</mark>`
+          match => `<mark class="highlight-keyword bg-yellow-300 mark-word">${match}</mark>`
         );
         const fragment = document.createDocumentFragment();
         [...tempDiv.childNodes].forEach(n => fragment.appendChild(n));
@@ -760,8 +760,8 @@ const removeFormatHighlights = () => {
       <p className="text-left italic self-start">For writers by developers</p>
 
       <div className=" dark:!text-black-200 w-full p-5">
-      <section className="w-full py-2 gap-5 flex flex-row mb-5">
-        <div className="w-1/2">
+      <section className="w-full py-2 gap-5 flex flex-col lg:flex-row mb-5">
+        <div className="w-full lg:w-1/2">
           <label className="dark:text-white-100">Meta Title</label>
           {title && (
             <span>
@@ -805,7 +805,7 @@ const removeFormatHighlights = () => {
           </div>
         </div>
 
-        <div className="w-1/2 flex flex-col">
+        <div className="w-full lg:w-1/2 flex flex-col">
           <label className="dark:text-white-100">Google Appearance Preview</label>
           <div className="border border-black/17.5 rounded-md p-4 bg-white flex-1 flex flex-col dark:text-black-200">
             <span>Arash Law</span>

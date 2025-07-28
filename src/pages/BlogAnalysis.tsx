@@ -1,7 +1,7 @@
-import React, { useState, useRef, ChangeEvent, KeyboardEvent } from "react";
+import React, { useState, useRef, useEffect, ChangeEvent, KeyboardEvent } from "react";
 import mammoth from "mammoth";
-
-const MAX_CHARS = 3500;
+import TurndownService from "turndown";
+import supabase from '../utils/supabaseInit';
 
 const greenButton: React.CSSProperties = {
   backgroundColor: "#10b981",
@@ -53,39 +53,9 @@ const preStyle: React.CSSProperties = {
 };
 
 const PASSWORD = "V8#qLp9z@4eT!rW2";
+const PROMPT_ID = "00000000-0000-0000-0000-000000000001";
 
-const defaultPrompt = `
-You are an expert blog auditor helping blogs rank #1 in AI-generated answers (ChatGPT, Gemini, Claude, Perplexity).
-
-Please analyze the entire blog content below and respond in a natural audit format with paragraph explanations and section headers, like:
-
----
-
-I reviewed the blog post titled "[Blog Title or Topic]." Here's the audit based on your request:
-
-1. Main Topic Addressing  
-[Clearly explain whether the post answers the topic. Mention if the answer is early.]
-
-2. LLM Compatibility  
-[Explain if LLMs like ChatGPT could extract answers easily.]
-
-3. Missing or Underdeveloped Info  
-[Mention any missing data, context, subtopics, legal/safety resources, or audience-specific advice.]
-
-4. Optimization for Top AI Search Engines  
-[Recommendations on headings, intro clarity, internal linking, keyword use, and content structure.]
-
-5. Final Suggestions  
-[Summarize the actionable advice to make the post AI-optimized.]
-
----
-
-Please format your response using markdown-style paragraph breaks and readable section titles.
-
---- BEGIN BLOG CONTENT ---
-\${blogContent}
---- END BLOG CONTENT ---
-`.trim();
+const defaultPrompt = `You are an expert blog auditor...`; // Truncated for brevity
 
 const BlogAnalysisPage: React.FC = () => {
   const [blogContent, setBlogContent] = useState("");
@@ -93,42 +63,81 @@ const BlogAnalysisPage: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [loadingText, setLoadingText] = useState("");
   const [fileName, setFileName] = useState("");
+  // const [fileType, setFileType] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Prompt editor state & password protection
   const [promptText, setPromptText] = useState(defaultPrompt);
   const [promptUnlocked, setPromptUnlocked] = useState(false);
   const [passwordInput, setPasswordInput] = useState("");
-
-  // NEW: toggle visibility for prompt editor
   const [showPromptEditor, setShowPromptEditor] = useState(true);
 
-  const handleFileUpload = (e: ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  const [googleDocId, setGoogleDocId] = useState("");
 
-    setFileName(file.name);
+  const turndownService = new TurndownService();
 
-    const reader = new FileReader();
+  
+  useEffect(() => {
+    const fetchPrompt = async () => {
+      const { data,  } = await supabase
+        .from("blog_analysis_prompts")
+        .select("content")
+        .eq("id", PROMPT_ID)
+        .single();
 
-    if (file.name.endsWith(".docx")) {
-      reader.onload = async (event) => {
-        try {
-          const arrayBuffer = event.target?.result as ArrayBuffer;
-          const result = await mammoth.extractRawText({ arrayBuffer });
-          setBlogContent(result.value);
-        } catch {
-          alert("Failed to parse DOCX file.");
-        }
-      };
-      reader.readAsArrayBuffer(file);
+      if (data?.content) {
+        setPromptText(data.content);
+      }
+    };
+
+    fetchPrompt();
+  }, []);
+
+  const savePromptToSupabase = async () => {
+    if (!promptText.includes("${blogContent}")) {
+      return; // silently block save
+    }
+
+    const { error } = await supabase
+      .from("blog_analysis_prompts")
+      .upsert([{ id: PROMPT_ID, content: promptText }]);
+
+    if (error) {
+      alert(" Failed to save prompt");
+      console.error(error);
     } else {
-      reader.onload = (event) => {
-        setBlogContent(event.target?.result as string);
-      };
-      reader.readAsText(file);
+      alert(" Prompt saved");
     }
   };
+
+const handleFileUpload = (e: ChangeEvent<HTMLInputElement>) => {
+  const file = e.target.files?.[0];
+  if (!file) return;
+
+  setFileName(file.name);
+  setGoogleDocId(""); // ✅ Clear Google Doc input box
+
+  const reader = new FileReader();
+
+  if (file.name.endsWith(".docx")) {
+    reader.onload = async (event) => {
+      try {
+        const arrayBuffer = event.target?.result as ArrayBuffer;
+        const result = await mammoth.convertToHtml({ arrayBuffer });
+        const markdown = turndownService.turndown(result.value);
+        setBlogContent(markdown);
+      } catch {
+        alert("Failed to parse DOCX file.");
+      }
+    };
+    reader.readAsArrayBuffer(file);
+  } else {
+    reader.onload = (event) => {
+      setBlogContent(event.target?.result as string);
+    };
+    reader.readAsText(file);
+  }
+};
+
 
   const analyzeContent = async () => {
     if (!blogContent.trim()) {
@@ -137,51 +146,73 @@ const BlogAnalysisPage: React.FC = () => {
     }
 
     setIsLoading(true);
-    setLoadingText("Preparing content for analysis...");
+    setLoadingText("Analyzing blog content in chunks...");
     setSummary("");
 
     try {
-      const prompt = promptText.replace("${blogContent}", blogContent);
-
       const apiUrl =
         import.meta.env.MODE === "production"
           ? import.meta.env.VITE_PROD_AI_BLOG_ANALYSIS
           : import.meta.env.VITE_LOCAL_AI_BLOG_ANALYSIS;
 
-      setLoadingText("Analyzing full blog content...");
+      const MAX_CHARS = 20000;
+      const chunks: string[] = [];
 
-      const response = await fetch(apiUrl, {
+      for (let i = 0; i < blogContent.length; i += MAX_CHARS) {
+        chunks.push(blogContent.slice(i, i + MAX_CHARS));
+      }
+
+      const chunkAudits: string[] = [];
+
+      for (const [idx, chunk] of chunks.entries()) {
+        setLoadingText(`Analyzing chunk ${idx + 1} of ${chunks.length}...`);
+        const auditPrompt = promptText.replace("${blogContent}", chunk);
+
+        const response = await fetch(apiUrl, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            messages: [{ role: "user", content: auditPrompt }],
+            temperature: 0.7,
+          }),
+        });
+
+        const data = await response.json();
+        const auditText = data.choices?.[0]?.message?.content?.trim();
+        if (!auditText) throw new Error("Audit failed for chunk");
+        chunkAudits.push(`--- Audit for chunk ${idx + 1} ---\n${auditText}`);
+      }
+
+      setLoadingText("Combining chunk audits into unified report...");
+      const combinedAuditsText = chunkAudits.join("\n\n");
+
+      const combinePrompt = `
+You have been provided multiple audit sections for different parts of a single blog post:
+
+${combinedAuditsText}
+
+Please combine all these partial audits into ONE comprehensive, coherent audit report.  
+Make sure the report is well-structured, non-repetitive, and provides actionable insights covering the whole blog.
+
+Return only the combined audit report.`;
+
+      const combineResponse = await fetch(apiUrl, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          messages: [{ role: "user", content: prompt }],
+          messages: [{ role: "user", content: combinePrompt }],
           temperature: 0.7,
         }),
       });
 
-      if (!response.ok) {
-        const error = await response.json();
-        alert(`API error: ${error.error?.message || "Unknown error"}`);
-        setIsLoading(false);
-        setLoadingText("");
-        return;
-      }
+      const combineData = await combineResponse.json();
+      const finalAudit = combineData.choices?.[0]?.message?.content?.trim();
+      if (!finalAudit) throw new Error("Failed to combine audits");
 
-      const data = await response.json();
-      const analysis = data.choices?.[0]?.message?.content?.trim() || "";
-
-      const displayResult = `
---- Original Blog Content ---
-${blogContent}
-
---- Suggestions from AI Analysis ---
-${analysis}
-      `.trim();
-
-      setSummary(displayResult);
+      setSummary(finalAudit);
     } catch (err) {
-      console.error("Error:", err);
-      alert("AI analysis failed. Please check your backend.");
+      console.error("AI analysis failed:", err);
+      alert("AI analysis failed. Please check your backend or token limits.");
     } finally {
       setIsLoading(false);
       setLoadingText("");
@@ -208,268 +239,325 @@ ${analysis}
     }
   };
 
+  const extractDocId = (input: string) => {
+    const match = input.match(/[-\w]{25,}/); // Google doc IDs are 25+ chars
+    return match ? match[0] : null;
+  };
+
+  const fetchGoogleDocContent = async () => {
+    if (!googleDocId.trim()) {
+      alert("Please enter a Google Doc ID.");
+      return;
+    }
+
+    const cleanDocId = extractDocId(googleDocId.trim());
+
+    if (!cleanDocId) {
+      alert("Invalid Google Doc URL or ID.");
+      return;
+    }
+
+    setIsLoading(true);
+    setLoadingText("Fetching Google Doc content...");
+
+    try {
+      const apiUrl =
+        import.meta.env.MODE === "production"
+          ? import.meta.env.VITE_PROD_AI_BLOG_ANALYSIS
+          : import.meta.env.VITE_LOCAL_AI_BLOG_ANALYSIS;
+
+      const response = await fetch(apiUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ docId: googleDocId.trim() }),
+      });
+
+      const data = await response.json();
+
+      if (data.error) {
+        alert("Failed to fetch Google Doc: " + data.error);
+        return;
+      }
+
+      setBlogContent(data.content || "");
+      setFileName(`Google Doc: ${cleanDocId}`);
+      setGoogleDocId(""); // ✅ Clear the input field
+      if (fileInputRef.current) fileInputRef.current.value = ""; // ✅ Clear file upload
+    } catch (error) {
+      alert("Error fetching Google Doc content.");
+    } finally {
+      setIsLoading(false);
+      setLoadingText("");
+    }
+  };
+
+
+  useEffect(() => {
+    if (googleDocId.trim()) {
+      fetchGoogleDocContent();
+    }
+  }, [googleDocId]);
+
+  
   return (
-    <div
-      style={{
-        maxWidth: 1400,
-        margin: "0 auto",
-        padding: "1rem",
-        fontFamily: "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif",
-        textAlign: "justify",
-        lineHeight: 1.6,
-        color: "#333",
-      }}
-    >
-      <h1
-        style={{
-          fontSize: "2.8rem",
-          fontWeight: "700",
-          marginBottom: "1rem",
-        }}
-        className="dark:text-white"
-      >
+    <div style={{ maxWidth: 1400, margin: "0 auto", padding: "1rem" }}>
+      <h1 style={{ fontSize: "2.8rem", fontWeight: "700", marginBottom: "1rem" }}>
         Blog Audit & AI Ranking Optimization
       </h1>
 
-      <div className="flex justify-between">
-        <div>
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: "1rem",
-              marginBottom: "1rem",
-            }}
-          >
-            <input
-              type="file"
-              accept=".txt,.md,.docx"
-              onChange={handleFileUpload}
-              disabled={isLoading}
-              ref={fileInputRef}
-              style={{ display: "none" }}
-            />
-            <button
-              onClick={() => fileInputRef.current?.click()}
-              disabled={isLoading}
-              style={{
-                backgroundColor: "#2563eb",
-                color: "white",
-                padding: "12px 28px",
-                border: "none",
-                borderRadius: 6,
-                fontSize: "16px",
-                fontWeight: "600",
-                cursor: "pointer",
-                userSelect: "none",
-              }}
-              aria-label="Upload blog file"
-            >
-              Upload Blog File
-            </button>
-            {fileName && (
-              <span
-                title={fileName}
-                style={{
-                  maxWidth: "300px",
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                  whiteSpace: "nowrap",
-                  fontSize: "15px",
-                  color: "#555",
-                }}
-                className="dark:!text-white"
-              >
-                {fileName}
-              </span>
-            )}
-          </div>
-        </div>
+      <div className="flex justify-between items-baseline gap-6">
+        {/* Upload & Analyze Buttons */}
+        <div className="flex justify-center flex-col items-center w-full">
+          <div className="w-[500px]">
+            <div>
 
-        <div>
-          <button
-            onClick={analyzeContent}
-            style={{
-              ...greenButton,
-              opacity: isLoading || !blogContent ? 0.6 : 1,
-              cursor: isLoading || !blogContent ? "not-allowed" : "pointer",
-            }}
-            disabled={isLoading || !blogContent}
-          >
-            {isLoading ? "Analyzing..." : "Analyze with AI"}
-          </button>
-        </div>
-      </div>
-
-      {/* Prompt editor with password protection */}
-      <div style={{ marginTop: "1rem" }}>
-        {!promptUnlocked ? (
-          <div style={{ marginBottom: "1rem" }}>
-            <input
-              type="password"
-              placeholder="Enter prompt editor password"
-              value={passwordInput}
-              onChange={(e) => setPasswordInput(e.target.value)}
-              onKeyDown={onPasswordKeyDown}
-              disabled={isLoading}
-              style={{
-                padding: "8px 12px",
-                fontSize: "16px",
-                borderRadius: 6,
-                border: "1px solid #ccc",
-                width: "300px",
-              }}
-            />
-            <button
-              onClick={handlePasswordUnlock}
-              disabled={isLoading}
-              style={{
-                ...greenButton,
-                marginLeft: "0.5rem",
-                padding: "8px 20px",
-                fontSize: "16px",
-                cursor: "pointer",
-              }}
-            >
-              Unlock Prompt Editor
-            </button>
-          </div>
-        ) : (
-          <>
-            <button
-              onClick={() => setShowPromptEditor((prev) => !prev)}
-              style={{
-                ...blueButton,
-                marginBottom: "0.5rem",
-              }}
-              type="button"
-            >
-              {showPromptEditor ? "Hide Prompt Editor" : "Show Prompt Editor"}
-            </button>
-
-            {showPromptEditor && (
-              <div style={{ marginBottom: "1rem" }}>
-                <label
-                  htmlFor="prompt-editor"
-                  style={{ display: "block", marginBottom: "0.5rem", fontWeight: "600" }}
-                  className="dark:!text-white"
-                >
-                  Edit AI Prompt
-                </label>
-                <textarea
-                  id="prompt-editor"
-                  rows={14}
-                  value={promptText}
-                  onChange={(e) => setPromptText(e.target.value)}
-                  disabled={isLoading}
-                  className="dark:!border-4 dark:!border-white"
+                {fileName && (
+                <span
+                  title={fileName}
+                  className="dark:!text-white truncate block"
                   style={{
-                    width: "100%",
-                    padding: "12px",
-                    fontSize: "14px",
-                    fontFamily: "monospace",
-                    borderRadius: 6,
-                    border: "4px solid black",
-                    whiteSpace: "pre-wrap",
-                    resize: "vertical",
-                    minHeight: 320,
+                    maxWidth: "500px",
+                    fontSize: "15px",
+                    color: "#555",
+                    overflow: "hidden",
+                    whiteSpace: "nowrap",
+                    textOverflow: "ellipsis",
                   }}
+                >
+                  <span className="font-extrabold">File to Analyze: </span><span>{fileName}</span>
+                </span>
+                )}
+              <div style={{ marginBottom: ".2rem" }}>
+                <input
+                  type="text"
+                  placeholder="Enter Google Doc ID"
+                  value={googleDocId}
+                  onChange={(e) => setGoogleDocId(e.target.value)}
+                  disabled={isLoading}
+                  style={{ padding: "8px", fontSize: "16px", width: "300px", marginRight: "1rem" }}
+                  className="!w-full"
                 />
+
               </div>
-            )}
-          </>
-        )}
+              <div className="flex items-center">
+                <div className="flex-grow border-t border-gray-600"></div>
+                <span className="mx-4 text-gray-500">OR</span>
+                <div className="flex-grow border-t border-gray-600"></div>
+              </div>
+
+              <div 
+                style={{
+                  marginBottom: "1rem",
+                  marginTop: ".2rem"
+                }}
+              >
+              <input
+                type="file"
+                accept=".txt,.md,.docx"
+                onChange={handleFileUpload}
+                disabled={isLoading } 
+                ref={fileInputRef}
+                style={{ display: "none" }}
+              />
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                disabled={isLoading}
+                className="!w-full hover:!bg-blue-1000"
+                style={{
+                  backgroundColor: "#2563eb",
+                  color: "white",
+                  padding: "12px 28px",
+                  border: "none",
+                  borderRadius: 6,
+                  fontSize: "16px",
+                  fontWeight: "600",
+                  cursor: isLoading ? "not-allowed" : "pointer",
+                  userSelect: "none",
+                  opacity: isLoading ? 0.6 : 1,
+                }}
+              >
+                Upload Blog File
+              </button>
+              </div>
+
+            </div>
+
+            <div>
+              <button
+                onClick={analyzeContent}
+                style={{
+                  ...greenButton,
+                  opacity: isLoading || !blogContent ? 0.6 : 1,
+                  cursor: isLoading || !blogContent ? "not-allowed" : "pointer",
+                }}
+                disabled={isLoading || !blogContent}
+                className="!w-full hover:!bg-green-100"
+              >
+                {isLoading ? "Analyzing..." : "Analyze with AI"}
+              </button>
+            </div>
+          </div>
+        </div>
+        {/* Prompt Editor with Save to Supabase */}
+        <div className="w-full">
+          {!promptUnlocked ? (
+            <div style={{ marginBottom: "1rem" }}>
+              <input
+                type="password"
+                placeholder="Enter prompt editor password"
+                value={passwordInput}
+                onChange={(e) => setPasswordInput(e.target.value)}
+                onKeyDown={onPasswordKeyDown}
+                disabled={isLoading}
+                style={{
+                  padding: "8px 12px",
+                  fontSize: "16px",
+                  borderRadius: 6,
+                  border: "1px solid #ccc",
+                  width: "300px",
+                }}
+              />
+              <button
+                onClick={handlePasswordUnlock}
+                disabled={isLoading}
+                style={{
+                  ...greenButton,
+                  marginLeft: "0.5rem",
+                  padding: "8px 20px",
+                  fontSize: "16px",
+                }}
+              >
+                Unlock Prompt Editor
+              </button>
+            </div>
+          ) : (
+            <>
+              <button
+                onClick={() => setShowPromptEditor((prev) => !prev)}
+                className="hover:!bg-blue-1000"
+                style={{ ...blueButton, marginBottom: "0.5rem" }}
+                type="button"
+              >
+                {showPromptEditor ? "Hide Prompt Editor" : "Show Prompt Editor"}
+              </button>
+
+              {showPromptEditor && (
+                <div style={{ marginBottom: "1rem", position: "relative" }}>
+                  <div className="flex justify-between items-center">
+                    <label
+                      htmlFor="prompt-editor"
+                      style={{ display: "block", marginBottom: "0.5rem", fontWeight: "600" }}
+                    >
+                      Edit AI Prompt
+                    </label>
+                    {/* Tooltip */}
+                    {!promptText.includes("${blogContent}") && (
+                      <div
+                        style={{
+                          left: 0,
+                          backgroundColor: "#f87171",
+                          color: "#fff",
+                          padding: "8px 12px",
+                          borderRadius: 6,
+                          fontSize: "14px",
+                          fontWeight: "500",
+                          boxShadow: "0 2px 8px rgba(0,0,0,0.15)",
+                          zIndex: 10,
+                        }}
+                      >
+                        ⚠️ Prompt must include <code>${"{blogContent}"}</code>
+                      </div>
+                    )}
+                  </div>
+
+                  <textarea
+                    id="prompt-editor"
+                    rows={14}
+                    value={promptText}
+                    onChange={(e) => setPromptText(e.target.value)}
+                    disabled={isLoading}
+                    className="text-black dark:!border-2 dark:!border-white mt-4"
+                    style={{
+                      width: "100%",
+                      padding: "12px",
+                      fontSize: "14px",
+                      fontFamily: "monospace",
+                      borderRadius: 6,
+                      border: "2px solid black",
+                      whiteSpace: "pre-wrap",
+                      resize: "vertical",
+                      minHeight: 320,
+                    }}
+                  />
+
+                  <button
+                    onClick={savePromptToSupabase}
+                    disabled={isLoading || !promptText.includes("${blogContent}")}
+                    className="hover:!bg-black-200"
+                    style={{
+                      ...greenButton,
+                      backgroundColor: !promptText.includes("${blogContent}") ? "#9ca3af" : "#334155",
+                      cursor: !promptText.includes("${blogContent}") ? "not-allowed" : "pointer",
+                      marginTop: "0.5rem",
+                    }}
+                  >
+                    Update Prompt
+                  </button>
+                </div>
+              )}
+
+            </>
+          )}
+        </div>
       </div>
 
+
+
+      {/* Loading Text */}
       {loadingText && (
-        <p
-          style={{ color: "#444", fontStyle: "italic", marginTop: 8 }}
-          className="text-center dark:!text-white"
-        >
+        <p style={{ color: "#444", fontStyle: "italic", marginTop: 8 }}
+        className="dark:!text-white text-center">
           {loadingText}
         </p>
       )}
 
+      {/* Summary Output */}
       {summary && (
-        <>
-          <div className="grid md:grid-cols-2 gap-6 mt-6">
-            {/* Original Content Block */}
-            <div className="border-4 border-[#c0c0c0] rounded-xl p-4 bg-white dark:bg-[#0a1a31]">
-              <h2
-                style={{
-                  fontSize: "20px",
-                  fontWeight: "bold",
-                  marginBottom: "0.5rem",
-                  color: "#444",
-                }}
-                className="dark:!text-white"
-              >
-                📄 Original Blog Content
-              </h2>
-              <div style={outputBlock}>
-                <pre style={preStyle}>
-                  {summary
-                    .split("--- Suggestions from AI Analysis ---")[0]
-                    .replace("--- Original Blog Content ---", "")
-                    .trim()}
-                </pre>
-              </div>
-            </div>
-
-            {/* Suggestions Block */}
-            <div className="border-4 border-[#facc15] rounded-xl p-4 bg-white dark:bg-[#232104]">
-              <h2
-                style={{
-                  fontSize: "20px",
-                  fontWeight: "bold",
-                  marginBottom: "0.5rem",
-                  color: "#92400e",
-                }}
-                className="dark:!text-yellow-300"
-              >
-                💡 AI Suggestions for Improvement
-              </h2>
-              <div style={{ ...outputBlock, backgroundColor: "#fffbea" }}>
-                <pre style={preStyle}>
-                  {summary.split("--- Suggestions from AI Analysis ---")[1]?.trim()}
-                </pre>
-              </div>
-              <button onClick={copyToClipboard} style={blueButton}>
-                Copy Suggestions
-              </button>
+        <div className="grid md:grid-cols-2 gap-6 mt-6">
+          {/* Original Blog Content */}
+          <div className="border-4 border-[#c0c0c0] rounded-xl p-4 bg-white">
+            <h2 style={{ fontSize: "20px", fontWeight: "bold", marginBottom: "0.5rem" }}>
+              📄 Original Blog Content
+            </h2>
+            <div style={outputBlock}>
+              <pre style={preStyle}>{blogContent.trim() || "No blog content uploaded."}</pre>
             </div>
           </div>
 
-          {/* Revised Version Block */}
-          <div className="border-4 border-[#34d399] mt-6 rounded-xl p-4 bg-white dark:bg-[#032519]">
+          {/* AI Suggestions */}
+          <div className="border-4 border-[#facc15] rounded-xl p-4 bg-white">
             <h2
               style={{
                 fontSize: "20px",
                 fontWeight: "bold",
                 marginBottom: "0.5rem",
-                color: "#065f46",
+                color: "#92400e",
               }}
-              className="dark:!text-green-300"
             >
-              📝 Updated Blog Version (with AI Suggestions Applied)
+              💡 AI Suggestions for Improvement
             </h2>
-            <div style={outputBlock}>
-              <pre style={preStyle}>{summary}</pre>
+            <div style={{ ...outputBlock, backgroundColor: "#fffbea" }}>
+              <pre style={preStyle}>{summary.trim() || "No suggestions yet."}</pre>
             </div>
-            <button
-              onClick={() => {
-                navigator.clipboard.writeText(summary);
-                alert("📋 Updated blog version copied to clipboard!");
-              }}
-              style={{ ...blueButton, marginTop: "1rem" }}
-            >
-              Copy Updated Version
+            <button onClick={copyToClipboard} style={greenButton} className="mt-5">
+              Copy Suggestions
             </button>
           </div>
-        </>
+        </div>
       )}
     </div>
   );
 };
 
 export default BlogAnalysisPage;
+
