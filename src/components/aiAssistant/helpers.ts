@@ -23,3 +23,29 @@ export const getEstimatedTime = (wordCount: number) => {
 
   return parts.join(' ');
 };
+
+export const getModels = (aiAssistant: string) => {
+  if (aiAssistant === 'claude') {
+    return [
+      { label: 'claude-opus-4-20250514', value: 'claude-opus-4-20250514' },
+      { label: 'claude-sonnet-4-20250514', value: 'claude-sonnet-4-20250514' },
+      { label: 'claude-3-7-sonnet-20250219', value: 'claude-3-7-sonnet-20250219' },
+      { label: 'claude-3-5-haiku-20241022', value: 'claude-3-5-haiku-20241022' },
+      { label: 'claude-3-5-sonnet-20241022', value: 'claude-3-5-sonnet-20241022' },
+      { label: 'claude-3-5-sonnet-20240620', value: 'claude-3-5-sonnet-20240620' },
+      { label: 'claude-3-haiku-20240307', value: 'claude-3-haiku-20240307' },
+    ];
+  }
+
+  if (aiAssistant === 'gemini') {
+    return [
+      { label: 'gemini-2.5-pro', value: 'gemini-2.5-pro' },
+      { label: 'gemini-2.5-flash', value: 'gemini-2.5-flash' },
+      { label: 'gemini-2.5-flash-lite', value: 'gemini-2.5-flash-lite' },
+      { label: 'gemini-2.0-flash', value: 'gemini-2.0-flash' },
+      { label: 'gemini-2.0-flash-lite', value: 'gemini-2.0-flash-lite' },
+    ];
+  }
+
+  return [];
+};

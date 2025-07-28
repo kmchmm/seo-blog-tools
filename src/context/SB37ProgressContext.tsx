@@ -1,8 +1,8 @@
-import React, { createContext, use, useRef, useState } from 'react';
+import React, { createContext, use, useEffect, useMemo, useRef, useState } from 'react';
 import usePostSB37SingleAnalysis, {
   SB37AnalysisResult,
 } from '../hooks/usePostSB37SingleAnalysis';
-import { useGetSheetNames } from '../hooks';
+import { useGetSheetNames, useGetSystemPrompts } from '../hooks';
 import {
   AI_PROCESS_DOCUMENT_API_URL,
   AI_PROCESS_SHEET_API_URL,
@@ -11,6 +11,8 @@ import {
 } from '../services/constants';
 import axios, { AxiosError } from 'axios';
 import { ToastContext } from './ToastContext';
+import { SystemPrompts } from '../hooks/useGetSystemPrompts';
+import { promptMap } from './aiAssistant/helpers';
 
 export type SheetInfo = {
   sheetValidDocsCount: number;
@@ -95,6 +97,20 @@ type BatchProgressContextType = {
   resetSheetNames: () => void;
   sheetNames: string[];
   sheetNamesError: string;
+
+  //prompts
+  systemPrompts: SystemPrompts[];
+  loadingSystemPrompts: boolean;
+  errorMessageSystemPrompts: string;
+  fetchSystemPrompts: () => void;
+  systemPromptObj: Record<
+    string,
+    {
+      systemPrompt: string;
+      model: string;
+      max_tokens: string;
+    }
+  >;
 };
 
 // eslint-disable-next-line react-refresh/only-export-components
@@ -122,7 +138,18 @@ export const Provider: React.FC<{ children: React.ReactNode }> = ({ children }) 
   const [url, setUrl] = useState('');
   const [isCompletedSingle, setIsCompletedSingle] = useState(false);
 
+  const {
+    loading: loadingSystemPrompts,
+    sendRequest: fetchSystemPrompts,
+    systemPrompts,
+    errorMessage: errorMessageSystemPrompts,
+  } = useGetSystemPrompts();
+
   const { showToast } = use(ToastContext);
+
+  const systemPromptObj = useMemo(() => {
+    return promptMap({ prompts: systemPrompts || [] });
+  }, [systemPrompts]);
 
   const eventSourceRef = useRef<EventSource | null>(null);
   const {
@@ -443,6 +470,10 @@ export const Provider: React.FC<{ children: React.ReactNode }> = ({ children }) 
     }
   };
 
+  useEffect(() => {
+    fetchSystemPrompts();
+  }, []);
+
   return (
     <Context.Provider
       value={{
@@ -482,6 +513,13 @@ export const Provider: React.FC<{ children: React.ReactNode }> = ({ children }) 
         isFetchingSheetNames,
         sheetNamesError,
         resetSheetNames,
+
+        //prompts
+        systemPrompts,
+        loadingSystemPrompts,
+        errorMessageSystemPrompts,
+        fetchSystemPrompts,
+        systemPromptObj,
       }}>
       {children}
     </Context.Provider>

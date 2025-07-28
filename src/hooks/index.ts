@@ -10,3 +10,5 @@ export { default as useGetDocumentInfo } from './useGetDocumentInfo';
 export { default as useParseJsonToText } from './useParseJsonToText';
 export { default as useGetValidRowsInSheet } from './useGetValidRowsInSheet';
 export { default as useSB37AnalysisContext } from './useSB37AnalysisContext';
+export { default as useGetSystemPrompts } from './useGetSystemPrompts';
+export { default as usePutSystemPrompt } from './usePutSystemPrompt';
