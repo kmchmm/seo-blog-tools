@@ -49,7 +49,6 @@ export enum TOOLS {
   KOMPASS = 'kompass',
   LOOM = 'loom',
 
-  
   CHRONOS = 'hr-chronos-admin',
   MONITORING = 'hr-hub-monitoring',
 
