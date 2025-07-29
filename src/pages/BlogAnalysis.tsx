@@ -330,8 +330,15 @@ Return only the combined audit report.`;
                 </span>
                 )}
               <div style={{ marginBottom: ".2rem" }}>
+                <input type="text" name="fakeusernameremembered" style={{ display: "none" }} autoComplete="username" />
+                <input type="password" name="fakepasswordremembered" style={{ display: "none" }} autoComplete="current-password" />
+
                 <input
                   type="text"
+                  name="google-doc-id"
+                  autoComplete="off"
+                  autoCorrect="off"
+                  spellCheck={false}
                   placeholder="Enter Google Doc ID"
                   value={googleDocId}
                   onChange={(e) => setGoogleDocId(e.target.value)}
@@ -339,6 +346,7 @@ Return only the combined audit report.`;
                   style={{ padding: "8px", fontSize: "16px", width: "300px", marginRight: "1rem" }}
                   className="!w-full"
                 />
+
 
               </div>
               <div className="flex items-center">
