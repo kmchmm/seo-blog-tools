@@ -12,7 +12,7 @@ const VersionSection = () => {
     <div className="flex gap-x-4">
       {email.toLocaleLowerCase() === VITE_SECRET_EMAIL && (
         <button
-          onClick={() => navigate('/publishing/ai-assistant/get-prompts')}
+          onClick={() => navigate('/publishing/ai-assistant/system-prompts')}
           className="underline hover:text-blue-400 cursor-pointer">
           Prompts
         </button>
