@@ -17,7 +17,7 @@ const VersionSection = () => {
           Prompts
         </button>
       )}
-      <p>Beta v2.0.1</p>
+      <p>Beta v2.1.0</p>
     </div>
   );
 };
