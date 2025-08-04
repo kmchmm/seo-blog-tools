@@ -1,4 +1,5 @@
-export const WORD_PER_SEC = 2.5;
+export const WORD_PER_SEC_DOCUMENT = 5;
+export const WORD_PER_SEC_BATCH = 15;
 
 export const steps = {
   batchAnalysis: [

@@ -134,7 +134,7 @@ export const FetchPrompts: React.FC<Props> = ({
               <strong>ID:</strong> {prompt.promptId}
             </p>
             <p className="line-clamp-3 overflow-hidden text-ellipsis">
-              <strong>Model:</strong> {prompt.systemPrompt}
+              <strong>System Instruction:</strong> {prompt.systemPrompt}
             </p>
             <p>
               <strong>Model:</strong> {prompt.model}

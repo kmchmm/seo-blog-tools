@@ -72,7 +72,7 @@ const BatchSB37Analysis = () => {
 
   const estimatedTime = useMemo(() => {
     if (!sheetInfo[sheetName]) return;
-    return getEstimatedTime(sheetInfo[sheetName].docsTotalWords || 0);
+    return getEstimatedTime(sheetInfo[sheetName].docsTotalWords || 0, 'batch');
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sheetInfo[sheetName]]);
 
