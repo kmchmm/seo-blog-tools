@@ -123,7 +123,7 @@ const AiAssistantPage = () => {
           </div>
         }></Route>
       <Route
-        path="/get-prompts"
+        path="/system-prompts"
         element={
           <FetchPrompts
             prompts={systemPrompts}

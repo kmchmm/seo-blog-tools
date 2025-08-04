@@ -66,7 +66,7 @@ const SingleSB37Analysis = () => {
   const isBusy = singleLoading || loadingParsing || loadingDocInfo;
   const errorMessage = singleErrorMessage || errorMessageDocInfo || errorMessageParse;
 
-  const estimatedTime = getEstimatedTime(wordCount || 0);
+  const estimatedTime = getEstimatedTime(wordCount || 0, 'document');
   const handleReset = () => {
     setUrl('');
     setIsCompletedSingle(false);

@@ -1,11 +1,15 @@
-import React, { use, useMemo, useState } from 'react';
+import React, { use, useEffect, useMemo, useState } from 'react';
 import { SystemPrompts } from '../../hooks/useGetSystemPrompts';
 import { Loading } from '../Loading';
-import { usePutSystemPrompt } from '../../hooks';
+import { useAuth, usePutSystemPrompt } from '../../hooks';
 
 import { ToastContext } from '../../context/ToastContext';
 import { getModels } from './helpers';
 import UpdatePromptModal from './UpdatePromptModal';
+import { useNavigate } from 'react-router-dom';
+import BackButton from '../common/BackButton';
+
+const { VITE_SECRET_EMAIL } = import.meta.env;
 
 interface Props {
   prompts: SystemPrompts[];
@@ -24,8 +28,14 @@ export const FetchPrompts: React.FC<Props> = ({
   const [selectedPrompt, setSelectedPrompt] = useState<SystemPrompts | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
+  const { userData, loadingGetTools } = useAuth();
+  const { email } = userData || {};
+
   const { showToast } = use(ToastContext);
   const { sendRequest, loading: loadingSubmit, errorMessage } = usePutSystemPrompt();
+
+  const navigate = useNavigate();
+
   const filteredPrompts = useMemo(() => {
     return (
       prompts &&
@@ -74,6 +84,18 @@ export const FetchPrompts: React.FC<Props> = ({
     sendRequest({ payload, onSuccess });
   };
 
+  const handleClickBack = () => {
+    navigate(-1);
+  };
+
+  useEffect(() => {
+    if (!email) return;
+    if (!loadingGetTools && email.toLowerCase() !== VITE_SECRET_EMAIL) {
+      navigate('/');
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [email]);
+
   if (loading) {
     return (
       <div className="flex justify-center items-center">
@@ -85,19 +107,23 @@ export const FetchPrompts: React.FC<Props> = ({
   return (
     <div className="space-y-4 max-w-7xl mx-auto">
       {errorMessage && <p className="text-red-600 italic mt-2">{errorMessage}</p>}
-      <div className="flex gap-2 mb-4 justify-center">
-        {aiAssistants.map(assistant => (
-          <button
-            key={assistant}
-            onClick={() => setSelectedAI(assistant.toLowerCase())}
-            className={`px-4 py-2 rounded border cursor-pointer ${
-              selectedAI.toLowerCase() === assistant.toLowerCase()
-                ? 'bg-blue-600 text-white'
-                : 'bg-gray-200 text-black'
-            } `}>
-            {assistant}
-          </button>
-        ))}
+      <div className="flex items-center justify-center">
+        <BackButton onClick={handleClickBack} />
+
+        <div className="flex gap-2 justify-center items-center flex-1">
+          {aiAssistants.map(assistant => (
+            <button
+              key={assistant}
+              onClick={() => setSelectedAI(assistant.toLowerCase())}
+              className={`px-4 py-2 rounded border cursor-pointer ${
+                selectedAI.toLowerCase() === assistant.toLowerCase()
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-gray-200 text-black'
+              } `}>
+              {assistant}
+            </button>
+          ))}
+        </div>
       </div>
       {filteredPrompts.map((prompt, idx) => (
         <div
@@ -108,7 +134,7 @@ export const FetchPrompts: React.FC<Props> = ({
               <strong>ID:</strong> {prompt.promptId}
             </p>
             <p className="line-clamp-3 overflow-hidden text-ellipsis">
-              <strong>Model:</strong> {prompt.systemPrompt}
+              <strong>System Instruction:</strong> {prompt.systemPrompt}
             </p>
             <p>
               <strong>Model:</strong> {prompt.model}

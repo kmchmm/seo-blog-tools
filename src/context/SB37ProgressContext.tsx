@@ -295,7 +295,7 @@ export const Provider: React.FC<{ children: React.ReactNode }> = ({ children }) 
 
         default:
           // Legacy handling for older event formats
-          if (data.status === 'success' && !data.stage) {
+          if (data.stage === 'final' && data.status === 'success') {
             setBatchResult(prev => ({
               ...prev,
               [sheetName]: data.spreadsheetUrl || spreadsheetUrl,

@@ -1,4 +1,4 @@
-import { WORD_PER_SEC } from './constants';
+import { WORD_PER_SEC_BATCH, WORD_PER_SEC_DOCUMENT } from './constants';
 
 export const getInputLabel = (activeCard: string) => {
   if (activeCard === 'SB37 Analysis - Per Document') {
@@ -10,7 +10,8 @@ export const getInputLabel = (activeCard: string) => {
   return '';
 };
 
-export const getEstimatedTime = (wordCount: number) => {
+export const getEstimatedTime = (wordCount: number, type: 'document' | 'batch') => {
+  const WORD_PER_SEC = type === 'document' ? WORD_PER_SEC_DOCUMENT : WORD_PER_SEC_BATCH;
   const totalSeconds = wordCount / WORD_PER_SEC;
   const hours = Math.floor(totalSeconds / 3600);
   const minutes = Math.floor((totalSeconds % 3600) / 60);
