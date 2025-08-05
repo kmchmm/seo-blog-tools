@@ -1,11 +1,43 @@
 import { FC } from 'react';
 import clsx from 'clsx';
 
-export const Summary: FC = ({}) => {
+type SummaryProps = {
+  totalWordCount: number | null;
+  keywordCounts: number | null;
+  keywordDensity: string | number | null;
+  alternateEsqCount: number;
+  headingsCount: number;
+  internalLinksCount: number;
+  externalLinksCount: number;
+};
+
+export const Summary: FC<SummaryProps> = ({
+  totalWordCount,
+  keywordCounts,
+  keywordDensity,
+  alternateEsqCount,
+  headingsCount,
+  internalLinksCount,
+  externalLinksCount,
+}) => {
+  const Item = ({ label, value }: { label: string; value: string | number | null }) => (
+    <div className="flex justify-between py-1 text-sm">
+      <span className="font-extrabold">{label}</span>
+      <span className="font-extrabold">{value ?? '—'}</span>
+    </div>
+  );
+
   return (
-    <section
-      className={clsx(
-        'bg-white-100 border border-black/17.5 rounded-md p-4 bg-white min-h-[410px]'
-      )}></section>
+    <section className={clsx('p-4')}>
+      <div className="space-y-2">
+        <Item label="Word Count" value={totalWordCount} />
+        <Item label="Focus Keyphrase" value={keywordCounts || '—'} />
+        <Item label="Keyword Density" value={keywordDensity} />
+        <Item label="Alternate ESQ Count" value={alternateEsqCount} />
+        <Item label="Headings" value={headingsCount} />
+        <Item label="Internal Links" value={internalLinksCount} />
+        <Item label="External Links" value={externalLinksCount} />
+      </div>
+    </section>
   );
 };

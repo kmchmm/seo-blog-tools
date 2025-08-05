@@ -26,4 +26,4 @@ tinymce
 *.sw?
 
 
-.env
+config.bat

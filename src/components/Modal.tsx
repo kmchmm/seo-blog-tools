@@ -1,4 +1,5 @@
-import { FC, ReactNode } from 'react';
+import { FC, ReactNode, useRef } from 'react';
+import useOutsideClick from '../hooks/useOutsideClick';
 
 interface ModalProps {
   isOpen: boolean;
@@ -8,6 +9,7 @@ interface ModalProps {
   height?: string;
   backgroundColor?: string;
   showCloseButton?: boolean; // NEW
+  title?: string;
 }
 
 export const Modal: FC<ModalProps> = ({
@@ -18,7 +20,14 @@ export const Modal: FC<ModalProps> = ({
   height = '100%',
   backgroundColor = '#ffffff',
   showCloseButton = true,
+  title = '',
 }) => {
+  const ref = useRef<HTMLDivElement>(null);
+
+  useOutsideClick(ref as React.RefObject<HTMLElement>, () => {
+    onClose();
+  });
+
   if (!isOpen) return null;
 
   return (
@@ -32,6 +41,7 @@ export const Modal: FC<ModalProps> = ({
           maxHeight: '100vh',
           backgroundColor,
         }}
+        ref={ref}
         onClick={e => e.stopPropagation()}>
         {showCloseButton && (
           <button
@@ -39,6 +49,9 @@ export const Modal: FC<ModalProps> = ({
             className="absolute top-5 right-5 text-3xl text-red-500 cursor-pointer z-10">
             &times;
           </button>
+        )}
+        {title && (
+          <p className="text-xl font-bold uppercase pb-4 border-b mb-4">{title}</p>
         )}
         {children}
       </div>

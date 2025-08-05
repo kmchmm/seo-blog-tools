@@ -1,4 +1,5 @@
 import { CustomHTMLElement } from '../hooks/useKeywordAnalysis';
+import { analyzeHeadings, analyzeSections } from '../utils/keywordWorker';
 
 export interface FormatError {
   paragraphIndex: number;
@@ -8,23 +9,22 @@ export interface FormatError {
 export interface ErrorList {
   multipleSpaceErrors: FormatError[];
   emDashErrors: FormatError[];
-  leadingTrailingSpaceErrors: FormatError[];
+  // leadingTrailingSpaceErrors: FormatError[];
   spaceBeforePunctuationErrors: FormatError[];
   missingPunctuationErrors: FormatError[];
   titleCaseErrors: FormatError[];
+  consecutivePunctuationErrors: FormatError[];
 }
 
 export interface LinkDetail {
-  url: string;
-  anchor?: string;
-  location?: string;
+  url: string | null;
+  anchor?: string | null;
+  location?: string | null;
 }
 
-export interface LinkIssue {
-  type: string;
-  url: string;
-  anchor?: string;
-  location?: string;
+export interface LinkIssue extends LinkDetail {
+  type?: string;
+  errorType?: number | 'CORS ERROR';
 }
 
 export interface AssessmentResult {
@@ -42,14 +42,15 @@ export interface AssessmentResult {
 }
 
 export type LinkErrors = {
-  invalidLinks: string[];
-  missingTrailingSlash: string[];
-  duplicateLinks: string[];
-  brokenLinks: string[];
-  identicalAnchors: string[];
-  invalidAnchors: string[];
-  internalLinks: LinkDetail[]; // must be objects, not strings
-  externalLinks: string[];
+  invalidLinks: LinkIssue[];
+  missingTrailingSlash: LinkIssue[];
+  duplicateLinks: LinkIssue[];
+  brokenLinks: LinkIssue[];
+  identicalAnchors: LinkIssue[];
+  invalidAnchors: LinkIssue[];
+  internalLinks: LinkIssue[]; // must be objects, not LinkIssues
+  externalLinks: LinkIssue[];
+  [key: string]: string[] | LinkIssue[] | undefined;
 };
 
 export type CustomSearchResult = {
@@ -81,6 +82,53 @@ export type Section = {
 };
 
 export interface HeadingEntry {
-  level: 'H2' | 'H3';
+  level: 'H1' | 'H2' | 'H3' | 'H4' | 'H5' | 'H6';
   text: string;
+  wordCount?: number;
+}
+
+export type HeadingWithOptionalCount = HeadingEntry & Partial<{ wordCount: number }>;
+
+export interface SectionInfo {
+  level: string;
+  text: string;
+  wordCount: number;
+}
+
+export interface SameWordStreak {
+  heading: string;
+  sentences: string[];
+}
+
+export interface ContentIssueReport {
+  over300Sections: SectionInfo[];
+  sameWordStreaks: SameWordStreak[];
+  headings: HeadingWithOptionalCount[];
+  totalWordCount: number;
+}
+
+export type KeywordAnalysisResult = {
+  density: number;
+  totalKeywordCount: number;
+  keywordCounts: {
+    focusCount: number;
+    altCount: number;
+    total: number;
+  };
+  headingAnalysis: ReturnType<typeof analyzeHeadings>;
+  sectionAnalysis: ReturnType<typeof analyzeSections>;
+  otherKeywords: Array<{
+    category: string;
+    keywords: Array<{
+      keyword: string;
+      count: number;
+    }>;
+  }>;
+  focusKeyphrase: string;
+  altKeyphrase: string;
+};
+
+export interface InitialResults {
+  contentIssuesResult?: ContentIssueReport;
+  keywordAnalyzerResult?: KeywordAnalysisResult;
 }

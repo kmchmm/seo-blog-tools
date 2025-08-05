@@ -9,7 +9,7 @@ const Layout: React.FC = () => {
     <div className="flex flex-col">
       <Sidebar />
       <Headerbar />
-      <div className="p-0 w-full">
+      <div className="p-4 w-full">
         <Outlet /> {/* This renders the nested routes or page content */}
       </div>
     </div>
