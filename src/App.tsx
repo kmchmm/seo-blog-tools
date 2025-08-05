@@ -28,6 +28,8 @@ import {
   TitleTweakPage,
   UnauthorizedPage,
 } from './pages';
+import AiAssistantPage from './pages/AiAssistantPage';
+import BlogAnalysisPage from './pages/BlogAnalysis';
 
 interface ToolRoute {
   path: string;
@@ -65,6 +67,11 @@ const App: FC = () => {
     { path: TOOL_ROUTES.CHRONOS, toolKey: 'CHRONOS', element: <ChronosPage /> },
     { path: TOOL_ROUTES.MONITORING, toolKey: 'MONITORING', element: <MonitoringPage /> },
     { path: TOOL_ROUTES.CHAT, toolKey: 'CHAT', element: <ChatPage /> },
+    {
+      path: `${TOOL_ROUTES.AI_ASSISTANT}/*`,
+      toolKey: 'CHAT',
+      element: <AiAssistantPage />,
+    },
   ];
 
   const isAuthorized = (tool: keyof typeof TOOLS) => toolsAccess.includes(TOOLS[tool]);
@@ -89,6 +96,7 @@ const App: FC = () => {
           <Route path={TOOL_ROUTES.TITLE_TWEAK} element={<TitleTweakPage />} />
           <Route path={TOOL_ROUTES.HTML_CLEANER} element={<HtmlCleanerPage />} />
           <Route path={TOOL_ROUTES.DUPE_KILLER} element={<DupeKillerPage />} />
+          <Route path={TOOL_ROUTES.BLOG_ANALYSIS} element={<BlogAnalysisPage />} />
           <Route path="/logout" element={<LogoutPage />} />
         </Route>
 

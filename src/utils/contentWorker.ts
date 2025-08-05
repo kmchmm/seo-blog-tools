@@ -1,3 +1,8 @@
+import { getHeadings, getSentences, getWordCount } from '../components/loom/helpers';
+import { CustomHTMLElement } from '../hooks/useKeywordAnalysis';
+import { ContentIssueReport, SameWordStreak, SectionInfo } from '../types/loom';
+import { getCleanText, textToHtml } from './formatter';
+
 function contentWorker() {
   self.onmessage = (e: MessageEvent) => {
     let text = e.data;
@@ -12,7 +17,9 @@ function contentWorker() {
       .trim();
 
     // Match words with custom rule (includes numbers and hyphenated parts)
-    const wordMatches = text.match(/\b(?:\d+[-]\d+|\d+|[a-zA-Z]{1,}(?:[-'][a-zA-Z]+)*)\b/g);
+    const wordMatches = text.match(
+      /\b(?:\d+[-]\d+|\d+|[a-zA-Z]{1,}(?:[-'][a-zA-Z]+)*)\b/g
+    );
     const wordCount = wordMatches ? wordMatches.length : 0;
 
     // Split into sentences and detect same starting word in 3 consecutive sentences
@@ -38,3 +45,271 @@ export const createContentWorker = (): Worker => {
   const blob = new Blob([`(${code})()`], { type: 'application/javascript' });
   return new Worker(URL.createObjectURL(blob));
 };
+
+export function analyzeContent({
+  container,
+  editMode,
+}: {
+  container: CustomHTMLElement;
+  editMode: boolean;
+}): ContentIssueReport {
+  const htmlString = editMode ? container.currentContent : container.innerHTML;
+  const doc = textToHtml(htmlString);
+  const children = Array.from(doc.body.children);
+  const cleanText = getCleanText({ container, editMode, excludeH1: false });
+  const totalWordCount = getWordCount(cleanText);
+  const over300Sections: SectionInfo[] = [];
+  const sameWordStreaks: SameWordStreak[] = [];
+
+  // Collect headings with position info
+  const headingPositions: { heading: string; level: string; offset: number }[] = [];
+  let charOffset = 0;
+
+  children.forEach(el => {
+    if (!el.tagName) return;
+    const tag = el.tagName.toUpperCase();
+    const text = el.textContent?.trim() || '';
+
+    if (/^H[1-6]$/.test(tag)) {
+      headingPositions.push({
+        heading: text,
+        level: tag,
+        offset: charOffset,
+      });
+    }
+
+    charOffset += (el.textContent || '').length + 1; // +1 for space/newline
+  });
+
+  // Identify over-300-word sections
+  let currentHeading = '';
+  let currentLevel = '';
+  let bufferText: string[] = [];
+
+  for (const el of children) {
+    if (!el.tagName) continue;
+    const tag = el.tagName.toUpperCase();
+    const text = el.textContent?.trim() || '';
+
+    if (/^H[1-6]$/.test(tag)) {
+      if (bufferText.length > 0) {
+        const wordCount = getWordCount(bufferText.join(' '));
+        if (wordCount > 300) {
+          over300Sections.push({
+            level: currentLevel,
+            text: currentHeading,
+            wordCount,
+          });
+        }
+        bufferText = [];
+      }
+
+      currentHeading = text;
+      currentLevel = tag;
+    } else {
+      bufferText.push(text);
+    }
+  }
+
+  if (bufferText.length > 0) {
+    const wordCount = getWordCount(bufferText.join(' '));
+    if (wordCount > 300) {
+      over300Sections.push({
+        level: currentLevel,
+        text: currentHeading,
+        wordCount,
+      });
+    }
+  }
+
+  // Analyze same word streaks with heading mapping
+  const fullText = doc.body.textContent || '';
+  const sentences = getSentences(fullText)
+    .map(s => s.trim())
+    .filter(Boolean);
+
+  let streak: string[] = [];
+  let lastWord = '';
+  let sentenceOffsets: number[] = [];
+  let runningOffset = 0;
+
+  for (const sentence of sentences) {
+    const trimmedSentence = sentence.trim();
+    const firstWord =
+      trimmedSentence
+        .split(/\s+/)[0]
+        ?.toLowerCase()
+        .replace(/[^a-z0-9]/g, '') || '';
+    if (!firstWord) {
+      runningOffset += sentence.length + 1;
+      continue;
+    }
+
+    if (firstWord === lastWord) {
+      streak.push(trimmedSentence);
+      sentenceOffsets.push(runningOffset);
+    } else {
+      if (streak.length >= 3) {
+        const lastOffset = sentenceOffsets[sentenceOffsets.length - 1] || 0;
+        const heading = findNearestHeading(headingPositions, lastOffset);
+        sameWordStreaks.push({
+          heading: heading?.heading || '',
+          sentences: [...streak],
+        });
+      }
+      streak = [trimmedSentence];
+      sentenceOffsets = [runningOffset];
+      lastWord = firstWord;
+    }
+
+    runningOffset += sentence.length + 1; // +1 for the sentence boundary char
+  }
+
+  if (streak.length >= 3) {
+    const lastOffset = sentenceOffsets[sentenceOffsets.length - 1] || 0;
+    const heading = findNearestHeading(headingPositions, lastOffset);
+    sameWordStreaks.push({
+      heading: heading?.heading || '',
+      sentences: [...streak],
+    });
+  }
+
+  const headings = getHeadings({
+    editMode,
+    container,
+    includeAllHeadings: true,
+    withWordCount: true,
+  });
+
+  return {
+    over300Sections,
+    sameWordStreaks,
+    headings,
+    totalWordCount,
+  };
+}
+
+// Helper: Find the nearest preceding heading by offset
+function findNearestHeading(
+  headings: { heading: string; level: string; offset: number }[],
+  offset: number
+) {
+  let nearest = null;
+
+  for (const h of headings) {
+    if (h.offset <= offset) {
+      if (!nearest || h.offset > nearest.offset) {
+        nearest = h;
+      }
+    }
+  }
+
+  return nearest;
+}
+
+export function highlightContentIssuesDiv({
+  container,
+  over300Sections,
+  sameWordStreaks,
+  editMode,
+}: {
+  container: CustomHTMLElement;
+  over300Sections: { text: string; level: string; wordCount: number }[];
+  sameWordStreaks: { heading: string; sentences: string[] }[];
+  editMode?: boolean;
+}) {
+  if (!container) return;
+
+  let elements: Element[];
+  if (editMode) {
+    const htmlString = container.currentContent;
+    const doc = textToHtml(htmlString);
+    elements = Array.from(doc.body.children);
+  } else {
+    elements = Array.from(container.children);
+  }
+
+  const highlightSection = (el: Element) => {
+    const text = el.textContent?.trim();
+    if (!text) return;
+
+    const match = over300Sections.find(section => section.text === text);
+    if (match) {
+      const sectionEls: Element[] = [el];
+      let sibling = el.nextElementSibling;
+
+      while (sibling && !/^H[1-6]$/.test(sibling.tagName)) {
+        sectionEls.push(sibling);
+        sibling = sibling.nextElementSibling;
+      }
+
+      sectionEls.forEach(sectionEl => {
+        (sectionEl as HTMLElement).style.backgroundColor = '#cccccc';
+        sectionEl.classList.add('highlight-over300');
+        (sectionEl as HTMLElement).title = `Section has ${match.wordCount} words.`;
+      });
+    }
+  };
+
+const highlightSameWordSentences = (el: Element) => {
+  const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT, null);
+  const textNodes: Text[] = [];
+  let node = walker.nextNode();
+  while (node) {
+    textNodes.push(node as Text);
+    node = walker.nextNode();
+  }
+
+  textNodes.forEach(textNode => {
+    let content = textNode.nodeValue || '';
+
+    sameWordStreaks.forEach(streak => {
+      streak.sentences.forEach(sentence => {
+        const escaped = sentence.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const regex = new RegExp(escaped, 'g');
+
+        // Add a title attribute to the <mark> for tooltip
+        content = content.replace(
+          regex,
+          match =>
+            `<mark class="highlight-sameword bg-[#f9cb9c]" title="Repeated starting word in consecutive sentences">${match}</mark>`
+        );
+      });
+    });
+
+    if (content !== textNode.nodeValue) {
+      const span = document.createElement('span');
+      span.innerHTML = content;
+      textNode.parentNode?.replaceChild(span, textNode);
+    }
+  });
+};
+
+
+  elements.forEach(el => {
+    if (/^H[1-6]$/.test(el.tagName)) {
+      highlightSection(el);
+    } else {
+      highlightSameWordSentences(el);
+    }
+  });
+}
+
+export function removeContentIssueHighlights(container: HTMLElement) {
+  if (!container) return;
+  // Remove styles and class from over300 highlights
+  const over300Els = container.querySelectorAll('.highlight-over300');
+  over300Els.forEach(el => {
+    (el as HTMLElement).style.backgroundColor = '';
+    el.classList.remove('highlight-over300');
+  });
+
+  // Remove <mark> tags with highlight-sameword class
+  const markEls = container.querySelectorAll('mark.highlight-sameword');
+  markEls.forEach(mark => {
+    const parent = mark.parentNode;
+    if (parent) {
+      parent.replaceChild(document.createTextNode(mark.textContent || ''), mark);
+    }
+  });
+}

@@ -1,111 +1,310 @@
-interface LinkDetail {
-  url: string;
+import { CustomHTMLElement } from '../hooks/useKeywordAnalysis';
+import { LinkIssue } from '../types/loom';
+
+export interface LinkEntry {
   anchor: string;
-  location: string;
+  url: string;
+  heading: string | null;
 }
 
-export function analyzeLinks(htmlString: string): {
-  invalidLinks: LinkDetail[];
-  missingTrailingSlash: LinkDetail[];
-  duplicateLinks: LinkDetail[];
-  brokenLinks: LinkDetail[]; // Placeholder
-  identicalAnchors: LinkDetail[];
-  invalidAnchors: LinkDetail[];
-  internalLinks: LinkDetail[];
-  externalLinks: LinkDetail[];
-} {
+export interface IssueEntry {
+  issueType: string;
+  anchor: string | null;
+  url: string | null;
+  heading: string | null;
+  globalAlert: boolean;
+  errorType?: number | 'CORS ERROR';
+}
+
+export interface LinkAnalysisResult {
+  internalLinks: LinkEntry[];
+  externalLinks: LinkEntry[];
+  issues: IssueEntry[];
+}
+
+export async function analyzeLinks(html: string): Promise<LinkAnalysisResult> {
+  const internalLinks: LinkEntry[] = [];
+  const externalLinks: LinkEntry[] = [];
+  const issues: IssueEntry[] = [];
+
+  const seenUrls = new Map<string, { anchor: string; heading: string | null }[]>();
+  const seenAnchors = new Map<string, { url: string; heading: string | null }[]>();
+  let foundCarAccidentPA = false;
+
   const parser = new DOMParser();
-  const doc = parser.parseFromString(htmlString, 'text/html');
-  const links = Array.from(doc.querySelectorAll('a'));
+  const doc = parser.parseFromString(html, 'text/html');
 
-  const invalidLinks: LinkDetail[] = [];
-  const missingTrailingSlash: LinkDetail[] = [];
-  const duplicateLinks: LinkDetail[] = [];
-  const brokenLinks: LinkDetail[] = []; // You can fill this later using async HEAD/GET
-  const identicalAnchors: LinkDetail[] = [];
-  const invalidAnchors: LinkDetail[] = [];
+  function getNearestHeading(element: Element): string | null {
+    let el: Element | null = element;
+    while (el) {
+      let prev = el.previousElementSibling;
+      while (prev) {
+        if (/^H[1-6]$/.test(prev.tagName)) {
+          return prev.textContent?.trim() || null;
+        }
+        prev = prev.previousElementSibling;
+      }
+      el = el.parentElement;
+    }
+    return null;
+  }
 
-  const internalLinks: LinkDetail[] = [];
-  const externalLinks: LinkDetail[] = [];
+  function punctuationCheck(anchorText: string): boolean {
+    const punctuations = `.?!,;:'"()[]{}-`;
+    const trimmed = anchorText.trim();
+    const first = trimmed[0];
+    const last = trimmed[trimmed.length - 1];
+    return punctuations.includes(first) || punctuations.includes(last);
+  }
 
-  const linkSet = new Set<string>();
-  const anchorMap = new Map<string, LinkDetail[]>();
+  function surroundingPunctuationCheck(link: Element): boolean {
+    const parent = link.parentNode;
+    if (!parent) return false;
 
-  const hasTrailingSlash = (url: string) => url.endsWith('/');
+    const childNodes = Array.from(parent.childNodes);
+    const linkIndex = childNodes.indexOf(link);
+    if (linkIndex === -1) return false;
 
-  links.forEach((link) => {
-    const rawHref = link.getAttribute('href') || '';
-    const href = rawHref.trim().replace(/&amp;/g, '&');
-    const anchor = (link.textContent || '').trim();
-    const heading = link.closest('section')?.querySelector('h1,h2,h3,h4,h5,h6')?.textContent?.trim() || 'Unknown Section';
+    const prevNode = childNodes[linkIndex - 1];
+    const nextNode = childNodes[linkIndex + 1];
 
-    const normalizedUrl = href.startsWith('http') ? href : `https://arashlaw.com${href}`;
+    const prevText = prevNode && prevNode.nodeType === Node.TEXT_NODE
+      ? prevNode.textContent?.trim()
+      : '';
+    const nextText = nextNode && nextNode.nodeType === Node.TEXT_NODE
+      ? nextNode.textContent?.trim()
+      : '';
 
-    const linkDetail: LinkDetail = {
-      url: normalizedUrl,
-      anchor,
-      location: heading,
-    };
+    const linkIsLastChild = linkIndex === childNodes.length - 1;
 
-    // Invalid link detection
-    const isInvalidLink = !href || href === '#' || href.startsWith('#');
-    if (isInvalidLink) {
-      invalidLinks.push(linkDetail);
-      return;
+    const nextHasBadPunctuation = !!(nextText && /^[.?!,;:]/.test(nextText));
+    const prevHasBadPunctuation = !!(prevText && /[.?!,;:]"?$/.test(prevText));
+
+    return (nextHasBadPunctuation || prevHasBadPunctuation) && !linkIsLastChild;
+  }
+
+
+  const links = Array.from(doc.querySelectorAll('a[href]'));
+
+  links.forEach(link => {
+    const url = link.getAttribute('href')!;
+    const anchorText = link.textContent || '';
+    const heading = getNearestHeading(link);
+
+    if (
+      url === 'https://arashlaw.com/practice-areas/car-accident-lawyers/' ||
+      url === 'https://arashlaw.com/practice-areas/car-accident-lawyers'
+    ) {
+      foundCarAccidentPA = true;
     }
 
-    const isInternal = href.startsWith('/') || href.includes('arashlaw.com');
+    const entry: LinkEntry = { anchor: anchorText, url, heading };
+    const isInternal = url.includes('arashlaw.com');
 
-    // Missing trailing slash on internal URLs
-    if (isInternal && !hasTrailingSlash(href)) {
-      missingTrailingSlash.push(linkDetail);
-    }
-
-    // Duplicate link detection
-    if (linkSet.has(href)) {
-      duplicateLinks.push(linkDetail);
-    } else {
-      linkSet.add(href);
-    }
-
-    // Track anchor text frequency for identical anchors
-    if (anchor) {
-      if (!anchorMap.has(anchor)) anchorMap.set(anchor, []);
-      anchorMap.get(anchor)!.push(linkDetail);
-    }
-
-    // Detect invalid anchor text (leading/trailing punctuation or space)
-    const hasInvalidWhitespaceOrPunctuation = /^[\s\p{P}]+|[\s\p{P}]+$/u.test(anchor);
-    if (anchor && hasInvalidWhitespaceOrPunctuation) {
-      invalidAnchors.push(linkDetail);
-    }
-
-    // Add to internal/external lists
     if (isInternal) {
-      internalLinks.push(linkDetail);
+      internalLinks.push(entry);
+      if (!url.endsWith('/')) {
+        issues.push({
+          issueType: 'Missing trailing slash',
+          anchor: anchorText,
+          url,
+          heading,
+          globalAlert: false,
+        });
+      }
     } else {
-      externalLinks.push(linkDetail);
+      externalLinks.push(entry);
+    }
+
+    if (!seenUrls.has(url)) seenUrls.set(url, []);
+    seenUrls.get(url)!.push({ anchor: anchorText, heading });
+
+    if (!seenAnchors.has(anchorText)) seenAnchors.set(anchorText, []);
+    seenAnchors.get(anchorText)!.push({ url, heading });
+
+    if (url.includes('#')) {
+      issues.push({
+        issueType: 'Invalid link',
+        anchor: anchorText,
+        url,
+        heading,
+        globalAlert: false,
+      });
+    }
+
+    if (anchorText[0] === ' ') {
+      issues.push({
+        issueType: 'Space at beginning or end of anchor text',
+        anchor: anchorText,
+        url,
+        heading,
+        globalAlert: false,
+      });
+    }
+
+    if (punctuationCheck(anchorText)) {
+      issues.push({
+        issueType: 'Punctuation at beginning or end of anchor text',
+        anchor: anchorText,
+        url,
+        heading,
+        globalAlert: false,
+      });
+    }
+
+    if (surroundingPunctuationCheck(link)) {
+      issues.push({
+        issueType: 'Punctuation surrounding anchor',
+        anchor: anchorText,
+        url,
+        heading,
+        globalAlert: false,
+      });
     }
   });
 
-  // Identify identical anchors (same anchor text with different URLs)
-  for (const [anchorText, linkDetails] of anchorMap.entries()) {
-    if (linkDetails.length > 1) {
-      const uniqueUrls = new Set(linkDetails.map(ld => ld.url));
+  seenUrls.forEach((arr, url) => {
+    if (arr.length > 1) {
+      arr.forEach(info => {
+        issues.push({
+          issueType: 'Duplicate link',
+          url,
+          anchor: info.anchor,
+          heading: info.heading,
+          globalAlert: false,
+        });
+      });
+    }
+  });
+
+  seenAnchors.forEach((arr, anchorText) => {
+    if (arr.length > 1) {
+      const uniqueUrls = new Set(arr.map(a => a.url));
       if (uniqueUrls.size > 1) {
-        identicalAnchors.push(...linkDetails);
+        arr.forEach(info => {
+          issues.push({
+            issueType: 'Identical anchor',
+            url: info.url,
+            anchor: anchorText,
+            heading: info.heading,
+            globalAlert: false,
+          });
+        });
       }
     }
+  });
+
+  if (internalLinks.length === 0) {
+    issues.push({
+      issueType: 'No internal links',
+      anchor: null,
+      url: null,
+      heading: null,
+      globalAlert: true,
+    });
   }
 
-  return {
-    invalidLinks,
-    missingTrailingSlash,
-    duplicateLinks,
-    brokenLinks,
-    identicalAnchors,
-    invalidAnchors,
-    internalLinks,
-    externalLinks,
+  if (externalLinks.length === 0) {
+    issues.push({
+      issueType: 'No external links',
+      anchor: null,
+      url: null,
+      heading: null,
+      globalAlert: true,
+    });
+  }
+
+  if (!foundCarAccidentPA) {
+    issues.push({
+      issueType: 'No link to Car Accident PA',
+      anchor: null,
+      url: 'https://arashlaw.com/practice-areas/car-accident-lawyers/',
+      heading: null,
+      globalAlert: true,
+    });
+  }
+
+  return { internalLinks, externalLinks, issues };
+}
+
+
+export function highlightLinkIssuesInHtml(
+  container: CustomHTMLElement,
+  analysisResult: LinkAnalysisResult
+): void {
+  const urlToTypes = new Map<string, Set<string>>();
+
+  const normalizeUrl = (url: string): string => url.replace(/\/$/, '').toLowerCase();
+
+  const addToMap = (type: string, links: LinkIssue[]) => {
+    for (const link of links) {
+      const normUrl = normalizeUrl(link.url || '');
+      if (!urlToTypes.has(normUrl)) {
+        urlToTypes.set(normUrl, new Set());
+      }
+      urlToTypes.get(normUrl)!.add(type);
+    }
   };
+
+  addToMap('issues', analysisResult.issues);
+  addToMap('internalLinks', analysisResult.internalLinks);
+  addToMap('externalLinks', analysisResult.externalLinks);
+
+  const links = container.querySelectorAll<HTMLAnchorElement>('a[href]');
+
+  links.forEach((link, index) => {
+    const hrefRaw = link.getAttribute('href');
+    if (!hrefRaw) return;
+
+    const href = normalizeUrl(
+      hrefRaw.startsWith('http') ? hrefRaw : `https://arashlaw.com${hrefRaw}`
+    );
+
+    const types = urlToTypes.get(href);
+    if (!types) return;
+    console.log(`href`, href);
+    // Add unique ID for reference
+    link.setAttribute('id', `link-issue-${index}`);
+
+    // Add red underline if there's any issue
+    if (types.has('issues')) {
+      link.style.textDecoration = 'underline';
+      link.style.textDecorationColor = 'red';
+      link.style.textDecorationThickness = '2px';
+      link.style.textUnderlineOffset = '3px';
+    }
+  });
+}
+
+export function removeLinkIssueHighlights(container: CustomHTMLElement): void {
+  (container.querySelectorAll('a[id^="link-issue-"]') as NodeListOf<HTMLElement>).forEach(
+    link => {
+      link.removeAttribute('id');
+      link.style.textDecoration = '';
+      link.style.textDecorationColor = '';
+      link.style.textDecorationThickness = '';
+      link.style.textUnderlineOffset = '';
+    }
+  );
+}
+
+export function groupIssuesByType(issues: IssueEntry[]): Record<string, LinkIssue[]> {
+  const grouped: Record<string, LinkIssue[]> = {};
+
+  issues.forEach(issue => {
+    const { issueType, url = '', anchor = '', heading = '', errorType } = issue;
+
+    if (!grouped[issueType]) {
+      grouped[issueType] = [];
+    }
+
+    grouped[issueType].push({
+      url,
+      anchor,
+      location: heading || '',
+      errorType: errorType,
+    });
+  });
+
+  return grouped;
 }

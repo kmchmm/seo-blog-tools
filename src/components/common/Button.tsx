@@ -1,10 +1,12 @@
 import clsx from 'clsx';
 import { IBtnType } from '../../types';
+import { Loading } from '../Loading';
 
 interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   disabled?: boolean;
   btnType?: string;
   children?: React.ReactNode;
+  loading?: boolean;
   ref?: React.Ref<HTMLButtonElement>;
 }
 
@@ -42,6 +44,7 @@ const Button = (btnProps: ButtonProps) => {
     disabled,
     children,
     className,
+    loading = false,
     btnType = IBtnType.PRIMARY,
     ...props
   } = btnProps;
@@ -84,7 +87,10 @@ const Button = (btnProps: ButtonProps) => {
       type="button"
       disabled={disabled}
       className={clsx(btnStyle, className)}>
-      {children}
+      <div className="flex gap-x-2 items-center justify-center">
+        {children}
+        {loading && <Loading size="sm" />}
+      </div>
     </button>
   );
 };

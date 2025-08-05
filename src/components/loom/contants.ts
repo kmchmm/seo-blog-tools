@@ -133,7 +133,7 @@ export const otherKeywords = [
 
   {
     category: 'Check for Personal Injury KW',
-    keywords: ['injury ESQ near me', 'personal injury law ESQ', 'best injury ESQ'],
+    keywords: ['injury ESQ near me', 'personal injury law ESQ'],
   },
   {
     category: 'Check For Car Accident KW',
@@ -143,5 +143,10 @@ export const otherKeywords = [
     category: 'Check For Truck Accident KW',
     keywords: ['truck accident ESQ near me'],
   },
-  { category: 'Check For Uber Accident KW', keywords: ['uber injury ESQ'] },
+  { 
+    category: 'Check For Uber Accident KW', 
+    keywords: ['uber injury ESQ'] },
+  { 
+    category: 'Blog Keywords', 
+    keywords: ['AK Law Firm'] },
 ];

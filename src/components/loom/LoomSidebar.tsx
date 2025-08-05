@@ -1,35 +1,51 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { FC, useState, useEffect, useContext, useRef } from 'react';
+import { FC, useState, useEffect, useContext, useCallback } from 'react';
 import clsx from 'clsx';
 import { AnalysisWorkerWrapper, Paper } from 'yoastseo';
 import { Modal } from '../Modal.js';
 import supabase from '../../utils/supabaseInit.js';
 import { UserContext } from '../../context/UserContext.js';
-import { createContentWorker } from '../../utils/contentWorker.js';
-import { analyzeLinks } from '../../utils/analyzeLinksWorker.js';
 
 import { Accordion } from '../Accordion.js';
 import { Summary } from '../Summary.js';
 
 import { Tabs, TabList, Tab, TabPanel } from 'react-aria-components';
+import YoastWorker from '../../utils/yoastWorker.ts?worker&inline';
 import YoastIcon from '../../assets/icons/yoast.svg?react';
-import { GoAlert, GoChecklist, GoLaw, GoLink, GoSearch } from 'react-icons/go';
+import {
+  GoAlert,
+  GoChecklist,
+  GoLaw,
+  GoLink,
+  GoSearch,
+  GoEye,
+  GoDotFill,
+} from 'react-icons/go';
+import { FiEyeOff } from 'react-icons/fi';
 
-import { FaCheckCircle, FaTimesCircle, FaTrash } from 'react-icons/fa';
+import { FaCheckCircle, FaTimesCircle, FaTrash, FaBars } from 'react-icons/fa';
 import {
   AssessmentResult,
+  ContentIssueReport,
   CustomSearchResult,
   ErrorList,
   FormatError,
-  LinkDetail,
-  LinkErrors,
-  LinkIssue,
+  KeywordAnalysisResult,
 } from '../../types/loom.js';
-import { VIOLATION_PHRASES } from './contants.js';
+// import { VIOLATION_PHRASES } from './contants.js';
 import { formatList } from './helpers.js';
-import { KeywordAnalysisResult } from '../../hooks/useKeywordAnalysis.js';
+
 import KeywordResultSection from './KeywordResultSection.js';
 import { Button, Alert } from '../common';
+import ContentIssuesResultSection from './ContentIssuesResultSection.js';
+import LinkIssuesResultSection from './LinkIssuesResultSection.js';
+import { LinkAnalysisResult } from '../../utils/analyzeLinksWorker.js';
+// import { groupIssuesByType } from '../../utils/analyzeLinksWorker';
+import '../../assets/css/Loom.css';
+
+// import { Paper, AnalysisWorkerWrapper } from 'yoastseo';
+// import type { AssessmentResult } from 'yoastseo';
+// import EnglishResearcher from 'yoastseo/build/languageProcessing/languages/en/Researcher';
 
 interface LoomProps {
   text: string;
@@ -41,16 +57,33 @@ interface LoomProps {
   onFixAll: (newHtml: string) => void;
   onFormatHighlight: (errors: ErrorList) => void;
   onRemoveFormatHighlight: () => void;
-  onHighlightContent?: (headings: string[], repeatedWords: string[]) => void;
+  onHighlightContent: () => void;
   onRemoveContentHighlight: () => void;
-  highlightedContentSections?: { level: string; text: string; wordCount: number }[];
-  onLinkIssues?: (issues: LinkIssue[]) => void;
+  onLinkIssues: () => void;
   handleAnalyze: () => void;
   keywordAnalysisResult: KeywordAnalysisResult | null;
   error: string | null;
   onKeywordShowHighlightClick: () => void;
   onKeywordRemoveHighlightClick: () => void;
+  onCheckContentIssuesClick: () => void;
   editMode: boolean;
+  contentIssuesResult: ContentIssueReport | null;
+  contentIssuesErrorMessage: string;
+  disableContentIssuesButton?: boolean;
+  linkIssuesResult: LinkAnalysisResult | null;
+  onLinkIssuesShowHighlightsClick: () => void;
+  loadingAnalyzeLink: boolean;
+  onLinkIssuesRemoveHighlightClick: () => void;
+}
+
+interface DictionaryEntry {
+  id: number;
+  keyword: string;
+  created_by: string;
+  deleted_at?: string | null;
+  created_at?: string;
+  created?: string | null;
+  deleted_by: string;
 }
 
 const tabHeaderStyle = clsx(
@@ -91,29 +124,42 @@ export const LoomSidebar: FC<LoomProps> = ({
   onFixAll,
   onHighlightContent,
   onRemoveContentHighlight,
-  highlightedContentSections,
   onLinkIssues,
   handleAnalyze,
   keywordAnalysisResult,
   error,
   onKeywordShowHighlightClick,
   onKeywordRemoveHighlightClick,
+  onCheckContentIssuesClick,
   editMode,
+  contentIssuesErrorMessage,
+  contentIssuesResult,
+  disableContentIssuesButton = false,
+  linkIssuesResult,
+  onLinkIssuesShowHighlightsClick,
+  onLinkIssuesRemoveHighlightClick,
+  loadingAnalyzeLink,
 }) => {
   const { userData } = useContext(UserContext);
-  const [showSummary, setShowSummary] = useState<boolean>(false);
+  const [hasRunChecks, setHasRunChecks] = useState(false);
+  const [showSummary, setShowSummary] = useState<'summary' | 'tools'>('tools');
+  const [selectedTab, setSelectedTab] = useState<string>('Yoast');
   const [readabilityProblems, setReadabilityProblems] = useState<AssessmentResult[]>([]);
   const [readabilityAchievements, setReadabilityAchievements] = useState<
     AssessmentResult[]
   >([]);
   const [seoProblems, setSEOProblems] = useState<AssessmentResult[]>([]);
   const [seoAchievements, setSEOAchievements] = useState<AssessmentResult[]>([]);
-  const [violations, setViolations] = useState<string[]>([]);
-  const [violationResults, setViolationResults] = useState<
-    Record<string, { heading: string; id: string }[]>
-  >({});
+  // const [violations, setViolations] = useState<string[]>([]);
+  // const [violationResults, setViolationResults] = useState<
+  //   Record<string, { heading: string; id: string }[]>
+  // >({});
+  const [violationCheckMessage, setViolationCheckMessage] = useState<{
+    type: 'success' | 'error' | null;
+    text: string;
+  } | null>(null);
   const [highlightActive, setHighlightActive] = useState(false);
-  const [hasCheckedViolations, setHasCheckedViolations] = useState(false);
+  // const [hasCheckedViolations, setHasCheckedViolations] = useState(false);
   const [customSearchTerm, setCustomSearchTerm] = useState('');
   const [customSearchResults, setCustomSearchResults] = useState<CustomSearchResult[]>(
     []
@@ -123,36 +169,111 @@ export const LoomSidebar: FC<LoomProps> = ({
   const [activeHighlights, setActiveHighlights] = useState<string[]>([]);
 
   const [dictionary, setDictionary] = useState<
-    { id: number; keyword: string; created_by: string }[]
+    {
+      id: number;
+      keyword: string;
+      created_by: string;
+      deleted_at?: string | null;
+      created_at?: string;
+      created?: string | null;
+      deleted_by: string;
+    }[]
   >([]);
+
   const [newPhrase, setNewPhrase] = useState('');
   const [addStatus, setAddStatus] = useState<null | 'success' | 'exists' | 'error'>(null);
   const [dictionaryViolations, setDictionaryViolations] = useState<string[]>([]);
   const [dictionaryViolationResults, setDictionaryViolationResults] = useState<
     Record<string, { heading: string; id: string }[]>
   >({});
+  const [searchMessage, setSearchMessage] = useState<string | null>(null);
   const [showResults, setShowResults] = useState(false);
 
-  const workerRef = useRef<Worker | null>(null);
-  const [wordCount, setWordCount] = useState<number | null>(null);
-  const [contentHeadings, setContentHeadings] = useState<
-    { level: string; text: string; wordCount: number }[]
-  >([]);
-  const [contentHeadingCount, setContentHeadingCount] = useState(0);
-  const [sameStartWordSequences, setSameStartWordSequences] = useState<
-    { startIndex: number; word: string }[]
-  >([]);
-  const [sectionsOver300Words, setSectionsOver300Words] = useState<
-    { heading: string; wordCount: number }[]
-  >([]);
-  const [hasContentChecked, setHasContentChecked] = useState(false);
-  const [totalContentErrors, setTotalContentErrors] = useState(0);
-  const [contentShowResults, setContentShowResults] = useState(false);
+  const [didFixAll, setDidFixAll] = useState(false);
+  const [formatHighlightActive, setFormatHighlightActive] = useState(false);
 
   const [hasLinkChecked, setHasLinkChecked] = useState(false);
-  const [linkShowResults, setLinkShowResults] = useState(false);
 
   const [hasKeywordChecked, setHasKeywordChecked] = useState(false);
+
+  const [linkHighlightsActive, setLinkHighlightsActive] = useState(false);
+  const [contentHighlightsActive, setContentHighlightsActive] = useState(false);
+  const [keywordHighlightsActive, setKeywordHighlightsActive] = useState(false);
+
+  const [showYoastDoneTooltip, setShowYoastDoneTooltip] = useState(false);
+  const [showSB37DoneTooltip, setShowSB37DoneTooltip] = useState(false);
+  const [showFormatDoneTooltip, setShowFormatDoneTooltip] = useState(false);
+  const [showContentDoneTooltip, setShowContentDoneTooltip] = useState(false);
+  const [showLinkDoneTooltip, setShowLinkDoneTooltip] = useState(false);
+
+  const [showSB37HighlightsTooltip, setShowSB37HighlightsTooltip] = useState(false);
+  const [showFormatHighlightsTooltip, setShowFormatHighlightsTooltip] = useState(false);
+  const [showContentHighlightsTooltip, setShowContentHighlightsTooltip] = useState(false);
+  const [showLinkHighlightsTooltip, setShowLinkHighlightsTooltip] = useState(false);
+  const [showKeywordHighlightsTooltip, setShowKeywordHighlightsTooltip] = useState(false);
+
+
+  const [showSB37RemoveHighlightsTooltip, setShowSB37RemoveHighlightsTooltip] = useState(false);
+  const [showFormatRemoveHighlightsTooltip, setShowFormatRemoveHighlightsTooltip] = useState(false);
+  const [showContentRemoveHighlightsTooltip, setShowContentRemoveHighlightsTooltip] = useState(false);
+  const [showLinkRemoveHighlightsTooltip, setShowLinkRemoveHighlightsTooltip] = useState(false);
+  const [showKeywordRemoveHighlightsTooltip, setshowKeywordRemoveHighlightsTooltip] = useState(false);
+  // const uniqueViolationHeadings = prepareHeadingsForAccordion(violationResults);
+  const uniqueDictionaryHeadings = prepareHeadingsForAccordion(
+    dictionaryViolationResults
+  );
+  const [activeView, setActiveView] = useState('default'); // 'default' or 'trash' SB37 VIEW MODAL
+
+  const rowsPerPage = 6;
+
+  const [currentPage, setCurrentPage] = useState(1); // for active list
+  const [currentPageDeleted, setCurrentPageDeleted] = useState(1); // for deleted list
+  const [dictionarySearchTerm, setDictionarySearchTerm] = useState('');
+
+  // Filter and sort active entries (latest added first)
+  const filteredDictionary = dictionary
+    .filter(entry => entry.deleted_at === null)
+    .sort(
+      (a, b) =>
+        new Date(b.created_at as string).getTime() -
+        new Date(a.created_at as string).getTime()
+    );
+
+  const totalPages = Math.ceil(filteredDictionary.length / rowsPerPage);
+  const startIndex = (currentPage - 1) * rowsPerPage;
+  const paginatedData = filteredDictionary.slice(startIndex, startIndex + rowsPerPage);
+
+  const [archivedDictionary, setArchivedDictionary] = useState<DictionaryEntry[]>([]);
+
+  useEffect(() => {
+    const deleted = dictionary
+      .filter(entry => entry.deleted_at !== null)
+      .sort(
+        (a, b) => new Date(b.deleted_at!).getTime() - new Date(a.deleted_at!).getTime()
+      );
+    setArchivedDictionary(deleted);
+  }, [dictionary]);
+
+  const totalPagesForDeleted = Math.ceil(archivedDictionary.length / rowsPerPage);
+  const startIndexDeleted = (currentPageDeleted - 1) * rowsPerPage;
+  const deletedEntries = archivedDictionary.slice(
+    startIndexDeleted,
+    startIndexDeleted + rowsPerPage
+  );
+
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages || 1);
+    }
+  }, [filteredDictionary, totalPages]);
+
+  useEffect(() => {
+    if (currentPageDeleted > totalPagesForDeleted) {
+      setCurrentPageDeleted(totalPagesForDeleted || 1);
+    }
+  }, [archivedDictionary, totalPagesForDeleted]);
+
+  const [statusMessage, setStatusMessage] = useState<string | null>(null);
 
   // const [loading, setLoading] = useState(false);
   const [loading] = useState(false);
@@ -161,34 +282,45 @@ export const LoomSidebar: FC<LoomProps> = ({
     multipleSpaceErrors: any[];
     emDashErrors: any[];
     titleCaseErrors: any[];
-    leadingTrailingSpaceErrors: any[];
+    // leadingTrailingSpaceErrors: any[];
     spaceBeforePunctuationErrors: any[];
     missingPunctuationErrors: any[];
+    consecutivePunctuationErrors: any[];
   };
 
   const [formatErrors, setFormatErrors] = useState<ErrorList>({
     multipleSpaceErrors: [],
     emDashErrors: [],
     titleCaseErrors: [],
-    leadingTrailingSpaceErrors: [],
+    // leadingTrailingSpaceErrors: [],
     spaceBeforePunctuationErrors: [],
     missingPunctuationErrors: [],
+    consecutivePunctuationErrors: [],
   });
-
-  const [linkErrors, setLinkErrors] = useState<LinkErrors | null>(null);
 
   const hasErrors = Object.values(formatErrors).some(arr => arr.length > 0);
 
+  const [openAccordions, setOpenAccordions] = useState({
+    seoProblems: false,
+    seoGood: false,
+    readabilityProblems: false,
+    readabilityGood: false,
+    sb37ViolationsOpen: false,
+  });
   ////////////////////////////////////////////////////////
   ////////////////YOAST  TOOL/////////////////////////////
   ////////////////////////////////////////////////////////
+
   const yoastSEOAnalyze = () => {
-    const url = new URL('../utils/yoastWorker.ts', import.meta.url);
-    const newWorker = new AnalysisWorkerWrapper(
-      new Worker(url, {
-        type: 'module',
-      })
-    );
+    setOpenAccordions({
+      seoProblems: false,
+      seoGood: false,
+      readabilityProblems: false,
+      readabilityGood: false,
+      sb37ViolationsOpen: false,
+    });
+
+    const newWorker = new AnalysisWorkerWrapper(new YoastWorker());
 
     newWorker
       .initialize({
@@ -231,61 +363,100 @@ export const LoomSidebar: FC<LoomProps> = ({
         setReadabilityAchievements(goodReadability);
         setSEOProblems(badSEO);
         setSEOAchievements(goodSEO);
+        setOpenAccordions({
+          seoProblems: true,
+          seoGood: true,
+          readabilityProblems: true,
+          readabilityGood: true,
+          sb37ViolationsOpen: false,
+        });
       })
       .catch((error: Error) => {
         console.error('An error occured while analyzing the text:');
         console.error(error);
       });
+      
+    setShowYoastDoneTooltip(true);
+    setTimeout(() => setShowYoastDoneTooltip(false), 3000);
   };
 
   ////////////////////////////////////////////////////////
   //////////////////SB37 TOOL/////////////////////////////
   ////////////////////////////////////////////////////////
-  const checkForStaticViolations = () => {
-    const allMatches: string[] = [];
-    const lowerText = text.toLowerCase();
 
-    for (const phrase of VIOLATION_PHRASES) {
-      const escapedPhrase = phrase.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-      const regex = new RegExp(`\\b${escapedPhrase}\\b`, 'gi');
-      const matches = lowerText.match(regex);
+  // const checkForStaticViolations = () => {
+  //   const allMatches: string[] = [];
+  //   const lowerText = text.toLowerCase();
 
-      if (matches) {
-        for (let i = 0; i < matches.length; i++) {
-          allMatches.push(phrase);
+  //   for (const phrase of VIOLATION_PHRASES) {
+  //     const escapedPhrase = phrase.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  //     const regex = new RegExp(`\\b${escapedPhrase}\\b`, 'gi');
+  //     const matches = lowerText.match(regex);
+
+  //     if (matches) {
+  //       for (let i = 0; i < matches.length; i++) {
+  //         allMatches.push(phrase);
+  //       }
+  //     }
+  //   }
+
+  //   setViolations(allMatches);
+  //   setHighlightActive(true);
+  //   setHasCheckedViolations(true);
+
+  //   const uniquePhrases = [...new Set(allMatches)];
+  //   const mappedResults = mapViolationsToHeadings(text, uniquePhrases);
+  //   setViolationResults(mappedResults);
+
+  //   return allMatches;
+  // };
+
+
+  
+  useEffect(() => {
+    const handleAnchorClick = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+
+      if (target.tagName === 'A' && target.getAttribute('href')?.startsWith('#')) {
+        e.preventDefault();
+
+        const id = target.getAttribute('href')!.substring(1);
+        const el = document.getElementById(id);
+
+        if (el) {
+          el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+          el.classList.remove('anchor-highlight-fade'); 
+          el.classList.add('anchor-highlight-pulse');
+
+          setTimeout(() => {
+            el.classList.remove('anchor-highlight-pulse');
+            el.classList.add('anchor-highlight-fade');
+
+            setTimeout(() => {
+              el.classList.remove('anchor-highlight-fade');
+            }, 1000); 
+          }, 2500); 
         }
       }
-    }
+    };
 
-    setViolations(allMatches);
-    setHighlightActive(true);
-    setHasCheckedViolations(true);
-
-    const uniquePhrases = [...new Set(allMatches)];
-    const mappedResults = mapViolationsToHeadings(text, uniquePhrases);
-    setViolationResults(mappedResults);
-
-    return allMatches;
-  };
-
-  // useEffect(() => {
-  //   const foundViolations = checkForViolations();
-  //   console.log("Found violations:", foundViolations);
-  // }, [text]);
+    document.addEventListener('click', handleAnchorClick);
+    return () => document.removeEventListener('click', handleAnchorClick);
+  }, []);
 
   const checkForDictionaryViolations = () => {
     const allMatches: string[] = [];
-    const lowerText = text.toLowerCase();
 
     for (const item of dictionary) {
-      const phrase = item.keyword.toLowerCase();
+      const phrase = item.keyword;
       const escapedPhrase = phrase.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
       const regex = new RegExp(`\\b${escapedPhrase}\\b`, 'gi');
-      const matches = lowerText.match(regex);
+      const matches = text.match(regex);
 
       if (matches) {
-        for (let i = 0; i < matches.length; i++) {
-          allMatches.push(phrase);
+        for (const match of matches) {
+          allMatches.push(match); // preserve original casing
         }
       }
     }
@@ -293,33 +464,113 @@ export const LoomSidebar: FC<LoomProps> = ({
     setDictionaryViolations(allMatches);
     setHighlightActive(true);
 
-    const uniquePhrases = [...new Set(allMatches)];
+    const uniquePhrases = [...new Set(allMatches.map(m => m.toLowerCase()))];
     const mappedResults = mapViolationsToHeadings(text, uniquePhrases);
     setDictionaryViolationResults(mappedResults);
 
     return allMatches;
   };
 
-  const checkForViolations = () => {
-    checkForStaticViolations();
-    checkForDictionaryViolations();
-  };
+  // Helper to flatten, sort and dedupe headings by their 'id' or 'heading'
+  function prepareHeadingsForAccordion(violationResults: Record<string, any[]>) {
+    const allHeadings = Object.values(violationResults).flat();
+
+    allHeadings.sort((a, b) => {
+      if ('position' in a && 'position' in b) {
+        return a.position - b.position;
+      }
+      return a.heading?.localeCompare(b.heading ?? '') ?? 0;
+    });
+
+    const seen = new Set();
+    const uniqueHeadings = [];
+
+    for (const h of allHeadings) {
+      const key = h.heading || h.id || JSON.stringify(h); // Ensure a key is always defined
+      if (!seen.has(key)) {
+        seen.add(key);
+        uniqueHeadings.push(h);
+      }
+    }
+
+    return uniqueHeadings;
+  }
+
+const checkForViolations = () => {
+  const dictionaryMatches = checkForDictionaryViolations();
+  const totalMatches = dictionaryMatches.length;
+
+  if (totalMatches === 0) {
+    setViolationCheckMessage({
+      type: 'success',
+      text: '🎉 No potential violations found! Good job',
+    });
+  } else {
+    setViolationCheckMessage({
+      type: 'error',
+      text: '⚠️ Potential violations found. Please review carefully',
+    });
+
+    const updated = Array.from(
+      new Set([
+        ...activeHighlights,
+        ...dictionaryMatches,
+      ])
+    );
+    setActiveHighlights(updated);
+    onHighlight(updated);
+    setHighlightActive(true);
+    setShowSB37HighlightsTooltip(true);
+    setTimeout(() => setShowSB37HighlightsTooltip(false), 1000);
+  }
+
+  // Open the SB37 accordion
+  setOpenAccordions((prev) => ({
+    ...prev,
+    sb37ViolationsOpen: true,
+  }));
+
+  setShowSB37DoneTooltip(true);
+  setTimeout(() => setShowSB37DoneTooltip(false), 3000);
+};
+
 
   useEffect(() => {
     const fetchDictionary = async () => {
       const { data, error } = await supabase
         .from('loom_dictionary')
-        .select('id, keyword, created_by');
+        .select('id, keyword, created_by, deleted_by, deleted_at')
+        .is('deleted_at', null);
 
       if (!error && data) {
         setDictionary(data);
       } else {
-        console.error('Failed to load dictionary', error);
+        console.error('Failed to load deleted dictionary', error);
       }
     };
 
     fetchDictionary();
   }, []);
+
+  const getVisiblePages = (
+    currentPage: number,
+    totalPages: number,
+    maxVisible: number = 5
+  ) => {
+    let startPage = Math.max(1, currentPage - Math.floor(maxVisible / 2));
+    let endPage = startPage + maxVisible - 1;
+
+    if (endPage > totalPages) {
+      endPage = totalPages;
+      startPage = Math.max(1, endPage - maxVisible + 1);
+    }
+
+    const pages = [];
+    for (let i = startPage; i <= endPage; i++) {
+      pages.push(i);
+    }
+    return pages;
+  };
 
   const mapViolationsToHeadings = (text: string, violations: string[]) => {
     const parser = new DOMParser();
@@ -393,14 +644,35 @@ export const LoomSidebar: FC<LoomProps> = ({
   const fetchDictionary = async () => {
     const { data, error } = await supabase
       .from('loom_dictionary')
-      .select('id, keyword, created_by');
-
+      .select('id, keyword, created_by, deleted_at, deleted_by')
+      .is('deleted_at', null); 
     if (!error) setDictionary(data || []);
   };
 
+const fetchArchivedDictionary = async () => {
+  const { data, error } = await supabase
+    .from('loom_dictionary')
+    .select('id, keyword, created_by, deleted_at, deleted_by')
+    .not('deleted_at', 'is', null);
+
+  if (!error && data) {
+    const sorted = data.sort((a, b) => {
+      const aTime = new Date(a.deleted_at ?? '').getTime();
+      const bTime = new Date(b.deleted_at ?? '').getTime();
+      return bTime - aTime;
+    });
+
+    setArchivedDictionary(sorted);
+  } else {
+    console.error('Failed to fetch archived dictionary', error);
+  }
+};
+
+
+
   useEffect(() => {
     if (isViewModalOpen) {
-      fetchDictionary();
+      fetchArchivedDictionary();
     }
   }, [isViewModalOpen]);
 
@@ -439,93 +711,203 @@ export const LoomSidebar: FC<LoomProps> = ({
     }
   };
 
-  const handleDeletePhrase = async (id: number) => {
+const handleDeletePhrase = async (id: number) => {
+  const deletedAt = new Date().toISOString();
+  const deletedBy = userData.full_name || 'Unknown User';
+
+  const { error } = await supabase
+    .from('loom_dictionary')
+    .update({ deleted_at: deletedAt, deleted_by: deletedBy })
+    .eq('id', id);
+
+  if (error) {
+    console.error('Failed to delete phrase:', error.message);
+  } else {
+    setDictionary(prev =>
+      prev.map(entry =>
+        entry.id === id ? { ...entry, deleted_at: deletedAt, deleted_by: deletedBy } : entry
+      )
+    );
+    setStatusMessage('Phrase successfully archived.');
+  }
+};
+
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages || 1);
+    }
+  }, [currentPage, totalPages]);
+
+  const handlePermanentDelete = async (id: number) => {
     const { error } = await supabase.from('loom_dictionary').delete().eq('id', id);
 
     if (error) {
-      console.error('Failed to delete phrase:', error.message);
+      console.error('Failed to permanently delete:', error);
+      alert('Failed to delete entry. Please try again.');
     } else {
-      setDictionary(prev => prev.filter(entry => entry.id !== id));
+      setArchivedDictionary(prev => prev.filter(item => item.id !== id));
+      setStatusMessage('Phrase permanently deleted.');
+
+      if (deletedEntries.length === 1 && currentPage > 1) {
+        setCurrentPage(currentPage - 1);
+      }
     }
   };
 
-  const handleCustomSearch = () => {
-    const term = customSearchTerm.trim().toLowerCase();
-    if (!term) return;
+  useEffect(() => {
+    if (statusMessage) {
+      const timer = setTimeout(() => {
+        setStatusMessage(null);
+      }, 5000); 
 
-    if (customSearchResults.some(res => res.term.toLowerCase() === term)) return;
-
-    const regex = new RegExp(
-      `\\b${term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`,
-      'gi'
-    );
-    const matches = text.match(regex);
-    const matchCount = matches ? matches.length : 0;
-
-    setCustomSearchResults(prev => [
-      ...prev,
-      {
-        id: crypto.randomUUID(), // or use any unique ID generator
-        term: customSearchTerm,
-        count: matchCount,
-      },
-    ]);
-
-    if (matchCount > 0) {
-      setHighlightActive(true);
-      onHighlight([customSearchTerm]);
-    } else {
-      setHighlightActive(false);
+      return () => clearTimeout(timer); 
     }
+  }, [statusMessage]);
 
-    setCustomSearchTerm('');
-  };
+  useEffect(() => {
+    const now = new Date();
+
+    archivedDictionary.forEach(entry => {
+      const deletedAt = new Date(entry.deleted_at as string);
+      const diffDays = (now.getTime() - deletedAt.getTime()) / (1000 * 60 * 60 * 24);
+
+      if (diffDays > 30) {
+        handlePermanentDelete(entry.id);
+      }
+    });
+  }, [archivedDictionary]);
+
+  // MINUTE TEST
+  //   useEffect(() => {
+  //   const now = new Date();
+
+  //   archivedDictionary.forEach(entry => {
+  //     if (!entry.deleted_at) return;
+
+  //     const deletedAt = new Date(entry.deleted_at);
+  //     const diffMinutes = (now.getTime() - deletedAt.getTime()) / (1000 * 60);
+
+  //     if (diffMinutes > 1) {
+  //       handlePermanentDelete(entry.id);
+  //     }
+  //   });
+  // }, [archivedDictionary]);
+
+const handleCustomSearch = () => {
+  const term = customSearchTerm.trim().toLowerCase();
+  if (!term) return;
+
+  if (customSearchResults.some(res => res.term.toLowerCase() === term)) return;
+
+  const regex = new RegExp(
+    `\\b${term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`,
+    'gi'
+  );
+  const matches = text.match(regex);
+  const matchCount = matches ? matches.length : 0;
+
+  setCustomSearchResults(prev => [
+    ...prev,
+    {
+      id: crypto.randomUUID(),
+      term: customSearchTerm,
+      count: matchCount,
+    },
+  ]);
+
+  if (matchCount > 0) {
+    setHighlightActive(true);
+    onHighlight([customSearchTerm]);
+    setSearchMessage(''); // Clear message if found
+  } else {
+    setHighlightActive(false);
+    setSearchMessage(`No matches found for "${customSearchTerm}"`);
+  }
+
+  setCustomSearchTerm('');
+};
+
+
+useEffect(() => {
+  if (!searchMessage) return;
+
+  const timer = setTimeout(() => {
+    setSearchMessage('');
+  }, 3000);
+
+  return () => clearTimeout(timer);
+}, [searchMessage]);
 
   ////////////////////////////////////////////////////////
   //////////////FORMAT QA TOOL////////////////////////////
   ////////////////////////////////////////////////////////
-  const runFormatCheck = () => {
-    const worker = new Worker(new URL('../utils/formatErrors.ts', import.meta.url), {
-      type: 'module',
-    });
+const runFormatCheck = useCallback(() => {
+  const worker = new Worker(new URL('../../utils/formatErrors.ts', import.meta.url), {
+    type: 'module',
+  });
 
-    const parser = new DOMParser();
-    const preprocessed = text.replace(/<br\s*\/?>/gi, '\n');
-    const doc = parser.parseFromString(preprocessed, 'text/html');
+  const parser = new DOMParser();
+  const preprocessed = text.replace(/<br\s*\/?>/gi, '\n');
+  const doc = parser.parseFromString(preprocessed, 'text/html');
 
-    const paragraphs = Array.from(
-      doc.body.querySelectorAll('p, h1, h2, h3, h4, h5, h6')
-    ).map(el => {
-      const htmlEl = el as HTMLElement; // Cast to access innerText
-      return {
-        text: htmlEl.innerText || '',
-        heading: htmlEl.tagName.toUpperCase().startsWith('H')
-          ? htmlEl.tagName.toUpperCase()
-          : null,
-      };
-    });
+  let headingIndex = 0;
 
-    worker.onmessage = e => {
-      setFormatErrors(e.data);
-      worker.terminate();
+  const paragraphs = Array.from(
+    doc.body.querySelectorAll('p, h1, h2, h3, h4, h5, h6')
+  ).map(el => {
+    const htmlEl = el as HTMLElement;
+    const tag = htmlEl.tagName.toUpperCase();
+
+    let headingId: string | null = null;
+    if (tag.startsWith('H')) {
+      headingId = htmlEl.id || `heading-${headingIndex++}`;
+      htmlEl.id = headingId; // Ensure ID exists
+    }
+
+    return {
+      text: htmlEl.innerText || '',
+      heading: tag.startsWith('H') ? tag : null,
+      id: headingId,
     };
+  });
 
-    worker.postMessage(paragraphs);
+  worker.onmessage = e => {
+    const errors = e.data;
+
+    // Set state and apply highlights using accurate results
+    setFormatErrors(errors);
+    onFormatHighlight(errors);
+    setHighlightActive(true);
+
+    // Show highlight tooltip briefly
+    setShowFormatHighlightsTooltip(true);
+    setTimeout(() => setShowFormatHighlightsTooltip(false), 1000);
+
+    // Optionally show done tooltip (delayed to not overlap visually)
+    setShowFormatDoneTooltip(true);
+    setTimeout(() => setShowFormatDoneTooltip(false), 3000);
+
+    worker.terminate(); // Now safe to clean up
   };
 
-  //   const checkFormatting = () => {
-  //     // Run your formatting checks and update `formatErrors` accordingly
-  //     const results = runAllFormatChecks(); // <- Your custom function
-  //     setFormatErrors(results);
-  //     setShowResults(true);
-  //   };
-  // const handleHeaderClick = (type: string) => {
-  //   // You can call onHighlight with relevant phrases or do any action you want here.
-  //   // For example, highlight all sentences related to this error type.
-  //   const phrasesToHighlight = formatErrors[type] || [];
-  //   onHighlight(phrasesToHighlight);
-  //   setHighlightActive(true);
-  // };
+  worker.postMessage(paragraphs);
+}, [text]);
+
+
+  const scrollToHeading = (headingText: string) => {
+    const allHeadings = Array.from(document.querySelectorAll('h1, h2, h3, h4, h5, h6'));
+    const target = allHeadings.find(h => h.textContent?.trim() === headingText.trim());
+
+    if (target) {
+      target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+      target.classList.add('bg-black', 'text-white', 'transition-all', 'z-50');
+
+      setTimeout(() => {
+        target.classList.remove('bg-black', 'text-white');
+      }, 5000);
+    }
+  };
 
   type ErrorKey = keyof ErrorList;
 
@@ -534,79 +916,88 @@ export const LoomSidebar: FC<LoomProps> = ({
       'multipleSpaceErrors',
       'emDashErrors',
       'titleCaseErrors',
-      'leadingTrailingSpaceErrors',
+      // 'leadingTrailingSpaceErrors',
       'spaceBeforePunctuationErrors',
       'missingPunctuationErrors',
+      'consecutivePunctuationErrors',
     ].includes(key);
   }
 
-  const renderErrorList = (
-    errors: { heading?: string; sentence: string }[],
-    regex: RegExp,
-    type: string
-  ) => {
-    const handleHeaderClick = (type: string) => {
-      // Optional: highlight all sentences under this error type
-      const phrasesToHighlight: FormatError[] = isErrorKey(type)
-        ? formatErrors[type]
-        : [];
-      onHighlight(phrasesToHighlight.map((e: any) => e.sentence));
-      setHighlightActive(true);
-    };
-
-    if (errors.length > 0) {
-      return (
-        <ul className="text-xs space-y-1">
-          {errors.map((err, idx) => {
-            const highlighted = err.sentence.replace(regex, match => {
-              return `<mark class="bg-red-300 text-red-700 rounded-sm px-1">${match}</mark>`;
-            });
-
-            return (
-              <li key={idx}>
-                {err.heading && err.sentence !== err.heading ? (
-                  <>
-                    <div
-                      className="font-bold cursor-pointer hover:text-blue-500"
-                      onClick={() => handleHeaderClick(type)}
-                      role="button"
-                      tabIndex={0}
-                      onKeyDown={e => {
-                        if (e.key === 'Enter' || e.key === ' ') handleHeaderClick(type);
-                      }}>
-                      {err.heading}
-                    </div>
-                    <ul className="pl-3 mt-2">
-                      <li
-                        className="list-disc"
-                        dangerouslySetInnerHTML={{ __html: highlighted }}
-                      />
-                    </ul>
-                  </>
-                ) : (
-                  <span dangerouslySetInnerHTML={{ __html: highlighted }} />
-                )}
-              </li>
-            );
-          })}
-        </ul>
-      );
-    }
-
-    const noIssuesMessages: Record<string, string> = {
-      multipleSpaceErrors: 'No multiple spaces. Rawr',
-      emDashErrors: 'No em dash issues. Rawr',
-      leadingTrailingSpaceErrors: 'No leading/trailing spaces. Rawr',
-      spaceBeforePunctuationErrors: 'No space before punctuation. Rawr',
-      missingPunctuationErrors: 'No missing punctuation. Rawr',
-    };
-
-    return (
-      <p className="text-gray-500 italic">
-        {noIssuesMessages[type] || 'No issues found.'}
-      </p>
-    );
+const renderErrorList = (
+  errors: { heading?: string; sentence: string }[],
+  regex: RegExp,
+  type: string
+) => {
+  const handleHeaderClick = (type: string) => {
+    const phrasesToHighlight: FormatError[] = isErrorKey(type)
+      ? formatErrors[type]
+      : [];
+    onHighlight(phrasesToHighlight.map((e: any) => e.sentence));
+    setHighlightActive(true);
   };
+
+  if (errors.length > 0) {
+    return (
+      <ul className="text-xs space-y-1">
+        {errors.map((err, idx) => {
+          // Highlight matches using regex (e.g., !!, ??, etc.)
+          const highlighted = err.sentence.replace(regex, match => {
+            return `<mark class="bg-red-300 text-red-700 rounded-sm px-1">${match}</mark>`;
+          });
+
+          return (
+            <li key={idx}>
+              {err.heading && err.sentence !== err.heading ? (
+                <>
+                  <div
+                    className="font-bold cursor-pointer hover:text-blue-500 text-sm"
+                    onClick={() => {
+                      handleHeaderClick(type);
+                      if (err.heading) scrollToHeading(err.heading);
+                    }}
+                    role="button"
+                    tabIndex={0}
+                    onKeyDown={e => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        handleHeaderClick(type);
+                        if (err.heading) scrollToHeading(err.heading);
+                      }
+                    }}>
+                    {err.heading}
+                  </div>
+
+                  <ul className=" mt-2 ml-10">
+                    <li
+                      className="list-disc"
+                      dangerouslySetInnerHTML={{ __html: highlighted }}
+                    />
+                  </ul>
+                </>
+              ) : (
+                <span dangerouslySetInnerHTML={{ __html: highlighted }} />
+              )}
+            </li>
+          );
+        })}
+      </ul>
+    );
+  }
+
+  const noIssuesMessages: Record<string, string> = {
+    multipleSpaceErrors: 'No multiple spaces. Rawr',
+    emDashErrors: 'No em dash issues. Rawr',
+    spaceBeforePunctuationErrors: 'No space before punctuation. Rawr',
+    missingPunctuationErrors: 'No missing punctuation. Rawr',
+    consecutivePunctuationErrors: 'No consecutive punctuation. Rawr'
+  };
+
+  return (
+    <p className="text-gray-500 italic">
+      {noIssuesMessages[type] || 'No issues found.'}
+    </p>
+  );
+};
+
 
   // function getAllErrorSentences(formatErrors: Record<string, { sentence: string }[]>): string[] {
   //   const allSentences: string[] = [];
@@ -625,6 +1016,9 @@ export const LoomSidebar: FC<LoomProps> = ({
   const handleHighlightFormatErrors = () => {
     onFormatHighlight(formatErrors);
     setHighlightActive(true);
+    setShowFormatHighlightsTooltip(true);
+    setTimeout(() => setShowFormatHighlightsTooltip(false), 1000);
+    
   };
 
   const highlightTitleCaseErrorsStrict = (sentence: string) => {
@@ -651,210 +1045,134 @@ export const LoomSidebar: FC<LoomProps> = ({
     const parser = new DOMParser();
     const doc = parser.parseFromString(text, 'text/html');
 
-    const paragraphs = Array.from(doc.body.querySelectorAll('p, h1, h2, h3, h4, h5, h6'));
-    paragraphs.forEach(el => {
-      let fixedText = el.textContent || '';
-      const tagName = el.tagName.toUpperCase();
+    const isHeading = (tag: string) => /^H[1-6]$/.test(tag.toUpperCase());
 
-      // Fix multiple spaces
-      fixedText = fixedText.replace(/[ \u00A0]{2,}/g, ' ');
+    function normalizeTextContent(text: string) {
+      return text
+        .replace(/\u00A0/g, ' ')             // non-breaking space to normal
+        .replace(/ {2,}/g, ' ')              // multiple spaces to one
+        .replace(/\s*—\s*/g, ' — ')          // spacing around em dash
+        .replace(/ ([.,;:!?])/g, '$1')       // no space before punctuation
+        .replace(/([.!?,;:])\1+/g, '$1');    // reduce consecutive punctuation (!! -> !)
+    }
 
-      // Fix em dash spacing
-      fixedText = fixedText.replace(/ ?— ?/g, ' — ');
 
-      // Fix leading/trailing spaces
-      fixedText = fixedText.trim();
+    function fixTextNodes(element: HTMLElement | Node) {
+      const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT, null);
 
-      // Fix space before punctuation
-      fixedText = fixedText.replace(/ ([.,;:!?])/g, '$1');
-
-      // Title Case Headings
-      if (tagName.startsWith('H')) {
-        fixedText = toTitleCase(fixedText);
+      const textNodes: Text[] = [];
+      while (walker.nextNode()) {
+        const node = walker.currentNode as Text;
+        if (node.nodeValue) {
+          textNodes.push(node);
+        }
       }
 
-      el.textContent = fixedText;
+      textNodes.forEach((node, index) => {
+        let value = node.nodeValue ?? '';
+
+        value = normalizeTextContent(value);
+
+        if (
+          index > 0 &&
+          textNodes[index - 1].nodeValue?.endsWith(' ') &&
+          value.startsWith(' ')
+        ) {
+          value = value.replace(/^ /, '');
+        }
+
+        node.nodeValue = value;
+      });
+
+      for (const node of textNodes) {
+        if (node.nodeValue && node.nodeValue.trim().length > 0) {
+          node.nodeValue = node.nodeValue.replace(/^ +/, '');
+          break;
+        }
+      }
+
+      for (let i = textNodes.length - 1; i >= 0; i--) {
+        const node = textNodes[i];
+        if (node.nodeValue && node.nodeValue.trim().length > 0) {
+          node.nodeValue = node.nodeValue.replace(/ +$/, '');
+          break;
+        }
+      }
+    }
+
+    const blocks = Array.from(doc.body.querySelectorAll('p, h1, h2, h3, h4, h5, h6'));
+
+    blocks.forEach(el => {
+      fixTextNodes(el);
+
+      if (isHeading(el.tagName)) {
+        const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT, null);
+        while (walker.nextNode()) {
+          const node = walker.currentNode as Text;
+          if (node.nodeValue) {
+            node.nodeValue = toTitleCase(node.nodeValue);
+          }
+        }
+      }
     });
 
-    onFixAll(doc.body.innerHTML);
+    const updatedHtml = doc.body.innerHTML;
+    onFixAll(updatedHtml);
+
+    const formatParagraphs = blocks.map(el => {
+      const rawText = (el as HTMLElement).innerText;
+
+      const normalizedText = rawText
+        .replace(/\u00A0/g, ' ')
+        .replace(/ {2,}/g, ' ')
+        .replace(/\s*—\s*/g, ' — ')
+        .replace(/ ([.,;:!?])/g, '$1')
+        .trim(); // This trim is fine for analysis, not DOM
+
+      return {
+        text: normalizedText,
+        heading: isHeading(el.tagName) ? el.tagName.toUpperCase() : null,
+      };
+    });
+
+    const worker = new Worker(new URL('../../utils/formatErrors.ts', import.meta.url), {
+      type: 'module',
+    });
+
+    worker.onmessage = e => {
+      setFormatErrors(e.data);
+      worker.terminate();
+    };
+
+    worker.postMessage(formatParagraphs);
   };
+
+  useEffect(() => {
+    if (didFixAll) {
+      runFormatCheck();
+      setDidFixAll(false);
+    }
+  }, [didFixAll, text, runFormatCheck]);
 
   ////////////////////////////////////////////////////////
   //////////////CONTENT QA TOOL///////////////////////////
   ////////////////////////////////////////////////////////
+
   const checkContentIssues = () => {
-    if (!workerRef.current) {
-      workerRef.current = createContentWorker();
-    }
-
-    const container = document.createElement('div');
-    container.innerHTML = text;
-
-    const emptySpans = container.querySelectorAll('span');
-    emptySpans.forEach(span => {
-      if (!span.textContent || span.textContent.trim() === '') {
-        span.remove();
-      }
-    });
-
-    const headings: { level: string; text: string; wordCount: number }[] = [];
-    const elements = Array.from(container.children);
-
-    for (let i = 0; i < elements.length; i++) {
-      const el = elements[i];
-      const tag = el.tagName.toUpperCase();
-
-      if (/H[1-6]/.test(tag)) {
-        const level = parseInt(tag.substring(1));
-        const headingText = el.textContent?.trim() || '';
-
-        let contentText = '';
-        for (let j = i + 1; j < elements.length; j++) {
-          const sibling = elements[j];
-          const siblingTag = sibling.tagName.toUpperCase();
-          if (/H[1-6]/.test(siblingTag)) break;
-
-          contentText += ' ' + (sibling.textContent || '');
-        }
-
-        const normalizedContent = contentText.replace(/\((\d+)\)/g, '$1');
-        const words = normalizedContent.match(
-          /\b(?:\d+[-]\d+|\d+|[a-zA-Z]{1,}(?:[-'][a-zA-Z]+)*)\b/gi
-        );
-
-        headings.push({
-          level: 'H' + level,
-          text: headingText,
-          wordCount: words ? words.length : 0,
-        });
-      }
-    }
-
-    setContentHeadings(headings);
-    setContentHeadingCount(headings.length);
-
-    const bigSections = headings
-      .filter(h => h.wordCount > 300)
-      .map(h => ({
-        heading: h.text,
-        wordCount: h.wordCount,
-      }));
-    setSectionsOver300Words(bigSections);
-
-    const plainText = container.textContent || '';
-    const normalizedText = plainText.replace(/\((\d+)\)/g, '$1');
-
-    workerRef.current.onmessage = (e: MessageEvent) => {
-      const { wordCount, sameStartWordSequences } = e.data;
-      setWordCount(wordCount);
-      setSameStartWordSequences(sameStartWordSequences || []);
-
-      // ✅ Count total content errors
-      const errorCount = bigSections.length + (sameStartWordSequences?.length || 0);
-      setTotalContentErrors(errorCount);
-      setContentShowResults(true); // enable UI showing the results
-    };
-
-    workerRef.current.postMessage(normalizedText);
-    setHasContentChecked(true);
+    onCheckContentIssuesClick();
+    setShowContentDoneTooltip(true);
+    setTimeout(() => setShowContentDoneTooltip(false), 3000);
   };
-
-  useEffect(() => {
-    if (highlightedContentSections) {
-      setContentHeadings(highlightedContentSections);
-      setContentHeadingCount(highlightedContentSections.length);
-
-      const bigSections = highlightedContentSections
-        .filter((h: any) => h.wordCount > 300)
-        .map((section: any) => ({
-          heading: section.text, // map 'text' to 'heading'
-          wordCount: section.wordCount,
-        }));
-
-      setSectionsOver300Words(bigSections);
-    }
-  }, [highlightedContentSections]);
-
-  // const totalContentErrors =
-  //   sectionsOver300Words.length + sameStartWordSequences.length;
-
-  const contentErrorMessage =
-    totalContentErrors === 0
-      ? 'No content issues found! Good job! 🎉'
-      : `Content issues found! Please review ⚠️`;
 
   ////////////////////////////////////////////////////////
   ///////////////LINK QA TOOL/////////////////////////////
   ////////////////////////////////////////////////////////
 
   const handleAnalyzeLink = () => {
-    checkAnalyzeLink();
+    onLinkIssues();
     setHasLinkChecked(true);
-  };
-
-  const checkAnalyzeLink = async () => {
-    if (!text) return;
-
-    const result = await analyzeLinks(text);
-    console.log('analyzeLinks result:', result);
-
-    setLinkErrors(result);
-
-    if (typeof onLinkIssues === 'function') {
-      const issues: LinkIssue[] = [];
-
-      Object.entries(result).forEach(([type, details]) => {
-        console.log(`Type: ${type}, Details:`, details);
-        if (Array.isArray(details)) {
-          details.forEach(entry => {
-            if (typeof entry === 'string') {
-              issues.push({ type, url: entry });
-            } else {
-              issues.push({ type, url: entry.url, anchor: entry.anchor });
-            }
-          });
-        }
-      });
-
-      onLinkIssues(issues);
-    }
-
-    setLinkShowResults(true);
-  };
-
-  const formatErrorLabel = (label: string) =>
-    label.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase());
-
-  const totalLinkAndAnchorIssues = linkErrors
-    ? Object.entries(linkErrors)
-        .filter(([key]) => key !== 'internalLinks' && key !== 'externalLinks')
-        .reduce((sum, [, arr]) => sum + arr.length, 0)
-    : 0;
-
-  const totalLinkErrors = linkErrors
-    ? Object.entries(linkErrors)
-        .filter(([key]) => key !== 'internalLinks' && key !== 'externalLinks')
-        .reduce((sum, [, arr]) => sum + arr.length, 0)
-    : 0;
-
-  const linkErrorMessage =
-    totalLinkErrors === 0
-      ? 'No link issues found! Good job! 🎉'
-      : 'Some link issues found! Please review.⚠️';
-
-  const scrollToLink = (url: string) => {
-    try {
-      const el = document.querySelector(`a[href="${CSS.escape(url)}"]`);
-      if (el) {
-        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        el.classList.add('bg-green-100', '!text-white');
-        setTimeout(() => {
-          el.classList.remove('bg-green-100', '!text-white');
-        }, 2000);
-      }
-    } catch (e) {
-      console.warn(`Failed to scroll to link: ${url}`, e);
-    }
+    setShowLinkDoneTooltip(true);
+    setTimeout(() => setShowLinkDoneTooltip(false), 3000);
   };
 
   ////////////////////////////////////////////////////////
@@ -875,35 +1193,800 @@ export const LoomSidebar: FC<LoomProps> = ({
     setHasKeywordChecked(true);
   };
 
-  //TODO:
   const onShowHighlightClick = () => {
     onKeywordShowHighlightClick();
   };
 
+  const renderKeywordAlert = () => {
+    if (!keyword) {
+      return <Alert message="Enter keyphrase to analyze" type="info" />;
+    }
+    if (keywordAnalysisResult?.focusKeyphrase === keyword) {
+      return <Alert message="Done analyzing. Please check the results" type="success" />;
+    }
+    if (!error) return <Alert message="Click 'Analyze Keywords' again" type="info" />;
+  };
+  /////////////////////////////////////////
+  ///////////RUN ALL CHECKS////////////////
+  /////////////////////////////////////////
+  const runAllChecks = () => {
+    yoastSEOAnalyze();
+    checkForViolations();
+    runFormatCheck();
+    setShowResults(true);
+    checkContentIssues();
+    handleAnalyzeLink();
+    handleAnalyzeKeyword();
+  };
+  
+  const showSummaryAfterToolRun = () => {
+    setHasRunChecks(true);
+  };
+
+
+  const handleYoastClick = () => {
+    setSelectedTab('Yoast');
+    showSummaryAfterToolRun();
+  };
+
+  const handleSB37Click = () => {
+    setSelectedTab('SB37');
+    showSummaryAfterToolRun();
+  };
+
+  const handleFormatClick = () => {
+    setSelectedTab('Format');
+    showSummaryAfterToolRun();
+  };
+
+  const handleContentClick = () => {
+    setSelectedTab('Content');
+    showSummaryAfterToolRun();
+  };
+
+  const handleLinkClick = () => {
+    setSelectedTab('Link');
+    showSummaryAfterToolRun();
+  };
+
+  const handleKeywordClick = () => {
+    setSelectedTab('Keyword');
+    showSummaryAfterToolRun();
+  };
+
+
+  function hasIssue(type: string) {
+  return (
+    linkIssuesResult?.issues?.some(issue => issue.issueType === type) ?? false
+  );
+}
+
+
   return (
     <div className="w-[350px] min-h-[500px]">
-      <Button className="w-full mb-4">Run All Checks</Button>
+      <Button
+        onClick={() => {
+          runAllChecks();
+          setShowSummary('summary');
+          setHasRunChecks(true);
+        }}
+        className="w-full mb-4">
+        Run All Checks
+      </Button>
       <section
         className={clsx(
-          'border border-black/17.5 rounded-md p-4 bg-white',
+          'border border-black/17.5 rounded-md pb-4 px-4 bg-white',
           'flex flex-1 flex-col'
         )}>
-        <Button className="self-center">Export Full Report</Button>
-        <div
-          className={clsx(
-            'justify-between flex border-b px-4 pb-5 border-black/17.5',
-            'mx-[-16px] mb-4'
-          )}>
-          <label className="font-bold">Summary</label>
+        {/* <Button className="self-center">Export Full Report</Button> */}{' '}
+        {/*TO BE ADDED*/}
+        <div className={clsx('justify-between flex', 'mx-[-16px] mb-4')}>
           <a
-            className="cursor-pointer text-blue-300 select-none"
-            onClick={() => setShowSummary(!showSummary)}>
-            Show/Hide
+            onClick={() => setShowSummary('summary')}
+            className={`w-full text-center cursor-pointer font-bold p-2 ${
+              showSummary === 'summary'
+                ? ''
+                : 'border border-y-black/17.5 border-r-black/17.5 border-l-0 hover:bg-black-200 hover:text-white bg-[#e4e4eb]'
+            }`}>
+            Summary
+          </a>
+
+          <a
+            onClick={() => setShowSummary('tools')}
+            className={`w-full text-center cursor-pointer font-bold p-2 ${
+              showSummary === 'tools'
+                ? ''
+                : 'border border-y-black/17.5 border-l-black/17.5 border-r-0 hover:bg-black-200 hover:text-white bg-[#e4e4eb]'
+            }`}>
+            Tools
           </a>
         </div>
-        {showSummary && <Summary />}
-        {!showSummary && (
-          <Tabs className={clsx('min-h-[410px]')}>
+        <div
+          className={clsx(
+            'transition-all duration-500 ease-in-out',
+            showSummary === 'summary'
+              ? 'max-h-[9999px] opacity-100'
+              : 'max-h-0 opacity-0 overflow-hidden'
+          )}
+        >
+          {hasRunChecks && showSummary === 'summary' && (
+            <div>
+              <Summary
+                totalWordCount={contentIssuesResult?.totalWordCount ?? null}
+                keywordCounts={keywordAnalysisResult?.keywordCounts.focusCount ?? null}
+                keywordDensity={
+                  keywordAnalysisResult?.density != null
+                    ? `${keywordAnalysisResult.density.toFixed(2)}%`
+                    : null
+                }
+                alternateEsqCount={keywordAnalysisResult?.keywordCounts.altCount ?? 0}
+                headingsCount={contentIssuesResult?.headings?.length ?? 0}
+                internalLinksCount={linkIssuesResult?.internalLinks?.length || 0}
+                externalLinksCount={linkIssuesResult?.externalLinks?.length || 0}
+              />
+              {/* <div className="w-full border border-b-black-200"></div> */}
+              {(contentIssuesResult?.totalWordCount ?? 0) > 0 && (
+                <ul>
+                  {/* YOAST */}
+                  <li className="border border-black/20 p-2 rounded-md">
+                    <div className="flex justify-between">
+                      <span className="font-bold cursor-pointer hover:text-blue-500" 
+                      onClick={() => {
+                        setSelectedTab('Yoast');
+                        setShowSummary('tools');
+                      }}>Yoast SEO</span>
+                      <FiEyeOff className="text-gray-200" />
+                    </div>
+                    <ul className="text-sm">
+                      <li>
+                        <h6 className="font-bold text-xs mt-2">YOAST SEO ANALYSIS</h6>
+                        <ul>
+                          <li className="flex justify-between">
+                            <span className="flex justify-between item-center gap-2">
+                              <GoDotFill className="text-red-500 mt-0.5" />
+                              <span>Problems</span>
+                            </span>
+                            <span>{seoProblems.length}</span>
+                          </li>
+                          <li className="flex justify-between">
+                            <span className="flex justify-between item-center gap-2">
+                              <GoDotFill className="text-green-500 mt-0.5" />
+                              <span>Good Results</span>
+                            </span>
+                            <span>{seoAchievements.length}</span>
+                          </li>
+                        </ul>
+                      </li>
+                      <li className="mt-2">
+                        <h6 className="font-bold text-xs mt-2 ">
+                          YOAST READABILITY ANALYSIS
+                        </h6>
+                        <ul>
+                          <li className="flex justify-between">
+                            <span className="flex justify-between item-center gap-2">
+                              <GoDotFill className="text-red-500 mt-0.5" />
+                              <span>Problems</span>
+                            </span>
+                            <span>{readabilityProblems.length}</span>
+                          </li>
+                          <li className="flex justify-between">
+                            <span className="flex justify-between item-center gap-2">
+                              <GoDotFill className="text-green-500 mt-0.5" />
+                              <span>Good Results</span>
+                            </span>
+                            <span>{readabilityAchievements.length}</span>
+                          </li>
+                        </ul>
+                      </li>
+                    </ul>
+                  </li>
+
+                  {/* SB37 */}
+                  <li className="border border-black/20 p-2 mt-2 rounded-md">
+                    <div className="flex justify-between">
+                      <span className="font-bold cursor-pointer hover:text-blue-500" 
+                      onClick={() => {
+                        setSelectedTab('SB37');
+                        setShowSummary('tools');
+                      }}
+                      >SB37</span>
+                      {highlightActive ? (
+                        <GoEye
+                          title="Remove Highlights"
+                          className="text-gray-500 cursor-pointer"
+                          onClick={() => {
+                            onRemoveHighlight();
+                            setActiveHighlights([]);
+                            setHighlightActive(false);
+                          }}
+                        />
+                      ) : (
+                        <FiEyeOff
+                          title="Show Highlights"
+                          className="text-gray-500 cursor-pointer"
+                          onClick={() => {
+                            const updated = Array.from(
+                              new Set([
+                                ...activeHighlights,
+                                // ...violations,
+                                ...dictionaryViolations,
+                              ])
+                            );
+                            setActiveHighlights(updated);
+                            onHighlight(updated);
+                            setHighlightActive(true);
+                          }}
+                        />
+                      )}
+                    </div>
+                    <ul className="text-sm mt-2">
+                      <li className="flex items-start gap-2 mt-2">
+                        <GoDotFill
+                          className={
+                            // violations.length === 0 &&
+                            dictionaryViolations.length === 0
+                              ? 'text-yellow-200 mt-1'
+                              : 'text-yellow-200 mt-1'
+                          }
+                        />
+                        <span>
+                          {/* {violations.length === 0 && dictionaryViolations.length === 0 */}
+                          {dictionaryViolations.length === 0
+                            ? 'No potential SB37 violations found.'
+                            : `Potential SB37 violations found in ${
+                                // Object.keys(violationResults).length +
+                                Object.keys(dictionaryViolationResults).length
+                              } section(s).`}
+                        </span>
+                      </li>
+                    </ul>
+                  </li>
+
+                  {/* FORMATTING */}
+                  <li className="border border-black/20 p-2 mt-2 rounded-md">
+                    <div className="flex justify-between">
+                      <span className="font-bold cursor-pointer hover:text-blue-500" 
+                      onClick={() => {
+                        setSelectedTab('Format');
+                        setShowSummary('tools');
+                      }}
+                      >Formatting</span>
+                      {formatHighlightActive ? (
+                        <GoEye
+                          title="Remove Highlights"
+                          className="text-gray-500 cursor-pointer"
+                          onClick={() => {
+                            onRemoveFormatHighlight();
+                            setFormatHighlightActive(false);
+                          }}
+                        />
+                      ) : (
+                        <FiEyeOff
+                          title="Show Highlights"
+                          className="text-gray-500 cursor-pointer"
+                          onClick={() => {
+                            handleHighlightFormatErrors();
+                            setFormatHighlightActive(true);
+                          }}
+                        />
+                      )}
+                    </div>
+                    <ul className="text-sm">
+                      {[
+                        {
+                          label: 'Multiple spaces',
+                          count: formatErrors.multipleSpaceErrors.length,
+                        },
+                        {
+                          label: 'Em dash issues',
+                          count: formatErrors.emDashErrors.length,
+                        },
+                        {
+                          label: 'Lowercase in headings',
+                          count: formatErrors.titleCaseErrors.length,
+                        },
+                        // {
+                        //   label: 'Leading/trailing spaces',
+                        //   count: formatErrors.leadingTrailingSpaceErrors.length,
+                        // },
+                        {
+                          label: 'Space before punctuation',
+                          count: formatErrors.spaceBeforePunctuationErrors.length,
+                        },
+                        {
+                          label: 'Consecutive Punctuation',
+                          count: formatErrors.consecutivePunctuationErrors.length,
+                        },
+                        {
+                          label: 'Missing punctuation',
+                          count: formatErrors.missingPunctuationErrors.length,
+                        },
+                        
+                      ].map(({ label, count }, idx) => (
+                        <li key={idx} className="flex justify-between mt-2">
+                          <div className="flex items-center gap-2">
+                            {contentIssuesResult && (
+                              <GoDotFill
+                                className={count > 0 ? 'text-red-500' : 'text-green-500'}
+                              />
+                            )}
+                            <span>
+                              {count > 0 ? `${label} found` : `No ${label.toLowerCase()}`}
+                            </span>
+                          </div>
+                          <span>{count}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </li>
+
+                  {/* CONTENT */}
+                  <li className="border border-black/20 p-2 mt-2 rounded-md">
+                    <div className="flex justify-between">
+                      <span className="font-bold cursor-pointer hover:text-blue-500" 
+                      onClick={() => {
+                        setSelectedTab('Content');
+                        setShowSummary('tools');
+                      }}
+                      >Content</span>
+
+                      {contentHighlightsActive ? (
+                        <GoEye
+                          onClick={() => {
+                            if (!text || !contentIssuesResult || editMode) return;
+                            onRemoveContentHighlight();
+                            setContentHighlightsActive(false);
+                          }}
+                          title="Remove Highlights"
+                          className={clsx(
+                            'text-gray-500 cursor-pointer transition-colors',
+                            (!text || !contentIssuesResult || editMode) &&
+                              'opacity-50 cursor-not-allowed',
+                            'text-blue-500' // highlight when active
+                          )}
+                        />
+                      ) : (
+                        <FiEyeOff
+                          onClick={() => {
+                            if (!text || !contentIssuesResult || editMode) return;
+                            onHighlightContent();
+                            setContentHighlightsActive(true);
+                          }}
+                          title="Show Highlights"
+                          className={clsx(
+                            'text-gray-500 cursor-pointer transition-colors',
+                            (!text || !contentIssuesResult || editMode) &&
+                              'opacity-50 cursor-not-allowed'
+                          )}
+                        />
+                      )}
+                    </div>
+                    <ul className="text-sm">
+                      {/* <li className="flex justify-between mt-2">
+                        <div className="flex items-center gap-2">
+                          <GoDotFill className="!text-gray-200" />
+                          <span>Total Word Count:</span>
+                        </div>
+                        <span>{contentIssuesResult?.totalWordCount}</span>
+                      </li> */}
+
+                      <li className="flex justify-between mt-2">
+                        <div className="flex items-center gap-2">
+                          {contentIssuesResult && (
+                            <GoDotFill
+                              className={
+                                (contentIssuesResult?.over300Sections?.length ?? 0) > 0
+                                  ? 'text-gray-600'
+                                  : 'text-gray-600'
+                              }
+                            />
+                          )}
+                          <span>
+                            {(contentIssuesResult?.over300Sections?.length ?? 0) > 0
+                              ? 'Some sections have over 300 words'
+                              : 'All sections are under 300 words'}
+                          </span>
+                        </div>
+                        {(contentIssuesResult?.over300Sections?.length ?? 0) > 0 && (
+                          <span>{contentIssuesResult?.over300Sections.length}</span>
+                        )}
+                      </li>
+
+                      <li className="flex justify-between mt-2">
+                        <div className="flex items-center gap-2">
+                          {contentIssuesResult && (
+                            <GoDotFill
+                              className={
+                                (contentIssuesResult?.sameWordStreaks?.length ?? 0) > 0
+                                  ? 'text-[#fbc795]'
+                                  : 'text-[#fbc795]'
+                              }
+                            />
+                          )}
+                          <span>
+                            {(contentIssuesResult?.sameWordStreaks?.length ?? 0) > 0
+                              ? 'Same starting word error'
+                              : 'No Same starting word error'}
+                          </span>
+                        </div>
+                        {(contentIssuesResult?.sameWordStreaks?.length ?? 0) > 0 && (
+                          <span>{contentIssuesResult?.sameWordStreaks.length}</span>
+                        )}
+                      </li>
+                    </ul>
+                  </li>
+
+                  {/* LINKS */}
+                  <li className="border border-black/20 p-2 mt-2 rounded-md">
+                    <div className="flex justify-between">
+                      <span className="font-bold cursor-pointer hover:text-blue-500" 
+                      onClick={() => {
+                        setSelectedTab('Link');
+                        setShowSummary('tools');
+                      }}>
+                        Links
+                      </span>
+                      {linkHighlightsActive ? (
+                        <FiEyeOff
+                          onClick={() => {
+                            if (!text || !linkIssuesResult || editMode) return;
+                            onLinkIssuesShowHighlightsClick();
+                            setLinkHighlightsActive(false);
+                          }}
+                          title="Show Underlines"
+                          className={clsx(
+                            'text-gray-500 cursor-pointer transition-colors',
+                            (!text || !linkIssuesResult || editMode) && 'opacity-50 cursor-not-allowed',
+                            'text-blue-500'
+                          )}
+                        />
+                      ) : (
+                        <GoEye
+                          onClick={() => {
+                            if (!text || !linkIssuesResult || editMode) return;
+                            onLinkIssuesRemoveHighlightClick();
+                            setLinkHighlightsActive(true);
+                          }}
+                          title="Hide Underlines"
+                          className={clsx(
+                            'text-gray-500 cursor-pointer transition-colors',
+                            (!text || !linkIssuesResult || editMode) && 'opacity-50 cursor-not-allowed'
+                          )}
+                        />
+                      )}
+                    </div>
+
+                    {linkIssuesResult && (
+                      <div className="text-sm mt-2">
+                        {/* GOOD RESULTS */}
+                        <div className="mb-4">
+                          <ul>
+                            {!hasIssue('No link to Car Accident PA') && (
+                              <li className="flex justify-between mt-2">
+                                <div className="flex items-center gap-2">
+                                  <GoDotFill className="text-green-500" />
+                                  <span>With link to car accident PA</span>
+                                </div>
+                              </li>
+                            )}
+                            {!hasIssue('Missing trailing slash') && (
+                              <li className="flex justify-between mt-2">
+                                <div className="flex items-center gap-2">
+                                  <GoDotFill className="text-green-500" />
+                                  <span>No missing trailing slash in internal link</span>
+                                </div>
+                              </li>
+                            )}
+                            {!hasIssue('Invalid link') && (
+                              <li className="flex justify-between mt-2">
+                                <div className="flex items-center gap-2">
+                                  <GoDotFill className="text-green-500" />
+                                  <span>No invalid link</span>
+                                </div>
+                              </li>
+                            )}
+                            {!hasIssue('Duplicate link') && (
+                              <li className="flex justify-between mt-2">
+                                <div className="flex items-center gap-2">
+                                  <GoDotFill className="text-green-500" />
+                                  <span>No duplicate link</span>
+                                </div>
+                              </li>
+                            )}
+                            {!hasIssue('Identical anchor') && (
+                              <li className="flex justify-between mt-2">
+                                <div className="flex items-center gap-2">
+                                  <GoDotFill className="text-green-500" />
+                                  <span>No identical anchor texts</span>
+                                </div>
+                              </li>
+                            )}
+                            {!hasIssue('Space at beginning or end of anchor text') && (
+                              <li className="flex justify-between mt-2">
+                                <div className="flex items-center gap-2">
+                                  <GoDotFill className="text-green-500" />
+                                  <span>No unnecessary space in anchor text</span>
+                                </div>
+                              </li>
+                            )}
+                            {!hasIssue('Punctuation at beginning or end of anchor text') && (
+                              <li className="flex justify-between mt-2">
+                                <div className="flex items-center gap-2">
+                                  <GoDotFill className="text-green-500" />
+                                  <span>No punctuation at beginning or end of anchor</span>
+                                </div>
+                              </li>
+                            )}
+                            {/* {!hasIssue('Punctuation surrounding anchor') && (
+                              <li className="flex justify-between mt-2">
+                                <div className="flex items-center gap-2">
+                                  <GoDotFill className="text-green-500" />
+                                  <span>No punctuation surrounding anchor</span>
+                                </div>
+                              </li>
+                            )} */}
+                            {!hasIssue('No internal links') && (
+                              <li className="flex justify-between mt-2">
+                                <div className="flex items-center gap-2">
+                                  <GoDotFill className="text-green-500" />
+                                  <span>Has internal links</span>
+                                </div>
+                              </li>
+                            )}
+                            {!hasIssue('No external links') && (
+                              <li className="flex justify-between mt-2">
+                                <div className="flex items-center gap-2">
+                                  <GoDotFill className="text-green-500" />
+                                  <span>Has external links</span>
+                                </div>
+                              </li>
+                            )}
+                          </ul>
+                        </div>
+
+                        {/* BAD RESULTS */}
+                        <div>
+                          <ul>
+                            {hasIssue('No link to Car Accident PA') && (
+                              <li className="flex justify-between mt-2">
+                                <div className="flex items-center gap-2">
+                                  <GoDotFill className="text-red-500" />
+                                  <span>No link to car accident PA</span>
+                                </div>
+                              </li>
+                            )}
+                            {hasIssue('No internal links') && (
+                              <li className="flex justify-between mt-2">
+                                <div className="flex items-center gap-2">
+                                  <GoDotFill className="text-red-500" />
+                                  <span>No internal links</span>
+                                </div>
+                              </li>
+                            )}
+                            {hasIssue('No external links') && (
+                              <li className="flex justify-between mt-2">
+                                <div className="flex items-center gap-2">
+                                  <GoDotFill className="text-red-500" />
+                                  <span>No external links</span>
+                                </div>
+                              </li>
+                            )}
+                            {hasIssue('Missing trailing slash') && (
+                              <li className="flex justify-between mt-2">
+                                <div className="flex items-center gap-2">
+                                  <GoDotFill className="text-red-500" />
+                                  <span>Missing trailing slash in internal link</span>
+                                </div>
+                              </li>
+                            )}
+                            {hasIssue('Invalid link') && (
+                              <li className="flex justify-between mt-2">
+                                <div className="flex items-center gap-2">
+                                  <GoDotFill className="text-red-500" />
+                                  <span>Invalid link</span>
+                                </div>
+                              </li>
+                            )}
+                            {hasIssue('Duplicate link') && (
+                              <li className="flex justify-between mt-2">
+                                <div className="flex items-center gap-2">
+                                  <GoDotFill className="text-red-500" />
+                                  <span>Duplicate link</span>
+                                </div>
+                              </li>
+                            )}
+                            {hasIssue('Identical anchor') && (
+                              <li className="flex justify-between mt-2">
+                                <div className="flex items-center gap-2">
+                                  <GoDotFill className="text-red-500" />
+                                  <span>Identical anchor texts</span>
+                                </div>
+                              </li>
+                            )}
+                            {hasIssue('Space at beginning or end of anchor text') && (
+                              <li className="flex justify-between mt-2">
+                                <div className="flex items-center gap-2">
+                                  <GoDotFill className="text-red-500" />
+                                  <span>Unnecessary space in anchor text</span>
+                                </div>
+                              </li>
+                            )}
+                            {hasIssue('Punctuation at beginning or end of anchor text') && (
+                              <li className="flex justify-between mt-2">
+                                <div className="flex items-center gap-2">
+                                  <GoDotFill className="text-red-500" />
+                                  <span>Punctuation at start/end of anchor text</span>
+                                </div>
+                              </li>
+                            )}
+                            {/* {hasIssue('Punctuation surrounding anchor') && (
+                              <li className="flex justify-between mt-2">
+                                <div className="flex items-center gap-2">
+                                  <GoDotFill className="text-red-500" />
+                                  <span>Punctuation around anchor tag</span>
+                                </div>
+                              </li>
+                            )} */}
+                          </ul>
+                        </div>
+                      </div>
+                    )}
+                  </li>
+
+                  {/* KEYWORDS */}
+                  <li className="border border-black/20 p-2 mt-2 rounded-md">
+                    <div className="flex justify-between items-center">
+                      <span
+                        className="font-bold cursor-pointer hover:text-blue-500"
+                        onClick={() => {
+                          setSelectedTab('Keywords');
+                          setShowSummary('tools');
+                        }}
+                      >
+                        Keywords
+                      </span>
+                      {keywordHighlightsActive ? (
+                        <FiEyeOff
+                          onClick={() => {
+                            if (!text || !keywordAnalysisResult || editMode) return;
+                            onShowHighlightClick();
+                            setKeywordHighlightsActive(false);
+                          }}
+                          title="Show Highlights"
+                          className={clsx(
+                            'text-gray-500 cursor-pointer transition-colors',
+                            (!text || !keywordAnalysisResult || editMode) &&
+                              'opacity-50 cursor-not-allowed',
+                            'text-blue-500'
+                          )}
+                        />
+                      ) : (
+                        <GoEye
+                          onClick={() => {
+                            if (!text || !keywordAnalysisResult || editMode) return;
+                            onKeywordRemoveHighlightClick();
+                            setKeywordHighlightsActive(true);
+                          }}
+                          title="Remove Highlights"
+                          className={clsx(
+                            'text-gray-500 cursor-pointer transition-colors',
+                            (!text || !keywordAnalysisResult || editMode) &&
+                              'opacity-50 cursor-not-allowed'
+                          )}
+                        />
+                      )}
+                    </div>
+
+                    {keywordAnalysisResult && !error && (
+                      <div className="text-sm mt-2">
+                        <div className="mb-4">
+                          <ul>
+                            {keywordAnalysisResult.headingAnalysis.percent <= 75 && (
+                              <li className="flex justify-between mt-2">
+                                <div className="flex items-center gap-2">
+                                  <GoDotFill className="text-green-500" />
+                                  <span>H2 & H3 optimization is 75% or below.</span>
+                                </div>
+                              </li>
+                            )}
+                            {keywordAnalysisResult.sectionAnalysis.percent === 100 && (
+                              <li className="flex justify-between mt-2">
+                                <div className="flex items-center gap-2">
+                                  <GoDotFill className="text-green-500" />
+                                  <span>Focus keyphrase appears in every section.</span>
+                                </div>
+                              </li>
+                            )}
+                            {/* Uncomment if you use introduction logic */}
+                            {/* {(keywordAnalysisResult.headingAnalysis.optimized > 0 &&
+                              keywordAnalysisResult.sectionAnalysis.percent === 100) && (
+                              <li className="flex justify-between mt-2">
+                                <div className="flex items-center gap-2">
+                                  <GoDotFill className="text-green-500" />
+                                  <span>
+                                    Exact match keyphrase is optimized in headings and the introduction.
+                                  </span>
+                                </div>
+                              </li>
+                            )} */}
+                            {keywordAnalysisResult.otherKeywords.every(category =>
+                              category.keywords.every(kw => kw.count > 0)
+                            ) && (
+                              <li className="flex justify-between mt-2">
+                                <div className="flex items-center gap-2">
+                                  <GoDotFill className="text-green-500" />
+                                  <span>Required secondary and category keywords are complete.</span>
+                                </div>
+                              </li>
+                            )}
+                          </ul>
+                        </div>
+
+                        <div>
+                          <ul>
+                            {keywordAnalysisResult.headingAnalysis.percent > 75 && (
+                              <li className="flex justify-between mt-2">
+                                <div className="flex items-center gap-2">
+                                  <GoDotFill className="text-red-500" />
+                                  <span>H2 & H3 optimization is over 75%.</span>
+                                </div>
+                              </li>
+                            )}
+                            {keywordAnalysisResult.sectionAnalysis.percent < 100 && (
+                              <li className="flex justify-between mt-2">
+                                <div className="flex items-center gap-2">
+                                  <GoDotFill className="text-red-500" />
+                                  <span>
+                                    Focus keyphrase appears in only {keywordAnalysisResult.sectionAnalysis.percent}% of all sections.
+                                  </span>
+                                </div>
+                              </li>
+                            )}
+                            {/* Uncomment if you use introduction logic */}
+                            {/* {(keywordAnalysisResult.headingAnalysis.optimized === 0 ||
+                              keywordAnalysisResult.sectionAnalysis.percent < 100) && (
+                              <li className="flex justify-between mt-2">
+                                <div className="flex items-center gap-2">
+                                  <GoDotFill className="text-red-500" />
+                                  <span>
+                                    Exact match keyphrase is not optimized in headings and/or introduction.
+                                  </span>
+                                </div>
+                              </li>
+                            )} */}
+                            {keywordAnalysisResult.otherKeywords.some(category =>
+                              category.keywords.some(kw => kw.count === 0)
+                            ) && (
+                              <li className="flex justify-between mt-2">
+                                <div className="flex items-center gap-2">
+                                  <GoDotFill className="text-red-500" />
+                                  <span>Required secondary and category keywords are not complete.</span>
+                                </div>
+                              </li>
+                            )}
+                          </ul>
+                        </div>
+                      </div>
+                    )}
+                  </li>
+                  
+                </ul>
+              )}
+            </div>
+          )}
+        </div>
+        <div
+          className={clsx(
+            'transition-all duration-500 ease-in-out',
+            showSummary === 'tools'
+              ? 'max-h-[9999px] opacity-100'
+              : 'max-h-0 opacity-0 overflow-hidden'
+          )}
+        >
+        {showSummary === 'tools' && (
+          <Tabs className={clsx('min-h-[410px]')}
+            selectedKey={selectedTab}
+            onSelectionChange={(key) => setSelectedTab(String(key))}>
             <TabList
               aria-label="Error List"
               className="flex gap-1 mb-5 dark:!text-black-200">
@@ -934,165 +2017,214 @@ export const LoomSidebar: FC<LoomProps> = ({
             </TabList>
 
             <TabPanel id="Yoast">
-              <div className="text-center dark:!text-black">
+              <div className="text-center dark:!text-black relative">
                 <Button
                   className="w-full !bg-[#2563ea] hover:!bg-blue-1000 text-white dark:!text-white border-0 hover:shadow-none dark:hover:shadow-none rounded-none"
-                  onClick={yoastSEOAnalyze}>
+                  onClick={() => {
+                    yoastSEOAnalyze();
+                    handleYoastClick();
+                  }}
+                  >
                   Run Yoast SEO Analysis
                 </Button>
-
+              {showYoastDoneTooltip && (
+                <div className="text-center !text-green-100 !bg-[#e5f5ea] px-12 py-3 z-10 text-sm mt-5">
+                   🎉 Done analyzing
+                </div>
+              )}
                 <h6 className={resultsHeaderStyle}>YOAST SEO ANALYSIS</h6>
-                <Accordion header="Problems" className="mb-2">
-                  {seoProblems.map((result: AssessmentResult, index: number) => (
-                    <li
-                      key={`seo-problem-${index}`}
-                      className={errorListStyle}
-                      dangerouslySetInnerHTML={{
-                        __html: formatList(result.text),
-                      }}
-                    />
-                  ))}
-                </Accordion>
-                <Accordion header="Good results">
-                  {seoAchievements.map((result: AssessmentResult, index: number) => (
-                    <li
-                      key={`seo-good-${index}`}
-                      className={passListStyle}
-                      dangerouslySetInnerHTML={{
-                        __html: formatList(result.text),
-                      }}
-                    />
-                  ))}
-                </Accordion>
-                <h6 className={resultsHeaderStyle}>YOAST READABILITY ANALYSIS</h6>
-                <Accordion header="Problems" className="mb-2">
-                  {readabilityProblems.map((result: AssessmentResult, index: number) => (
-                    <li
-                      key={`readability-problem-${index}`}
-                      className={errorListStyle}
-                      dangerouslySetInnerHTML={{
-                        __html: formatList(result.text),
-                      }}
-                    />
-                  ))}
-                </Accordion>
-                <Accordion header="Good results">
-                  {readabilityAchievements.map(
-                    (result: AssessmentResult, index: number) => (
+
+                <Accordion
+                  header="Problems"
+                  open={openAccordions.seoProblems}
+                    onToggle={() =>
+                      setOpenAccordions((prev) => ({
+                        ...prev,
+                        seoProblems: !prev.seoProblems,
+                      }))
+                    }
+                  className="mb-2 text-sm"
+                >
+                  <ul>
+                    {seoProblems.map((result: AssessmentResult, index: number) => (
                       <li
-                        key={`readability-problem-${index}`}
+                        key={`seo-problem-${index}`}
+                        className={errorListStyle}
+                        dangerouslySetInnerHTML={{
+                          __html: formatList(result.text),
+                        }}
+                      />
+                    ))}
+                  </ul>
+                </Accordion>
+
+                <Accordion
+                  header="Good results"
+                  open={openAccordions.seoGood}
+                    onToggle={() =>
+                      setOpenAccordions((prev) => ({
+                        ...prev,
+                        seoGood: !prev.seoGood,
+                      }))
+                    }
+                  className="text-sm"
+                >
+                  <ul>
+                    {seoAchievements.map((result: AssessmentResult, index: number) => (
+                      <li
+                        key={`seo-good-${index}`}
                         className={passListStyle}
                         dangerouslySetInnerHTML={{
                           __html: formatList(result.text),
                         }}
                       />
-                    )
-                  )}
+                    ))}
+                  </ul>
                 </Accordion>
+
+                <h6 className={resultsHeaderStyle}>YOAST READABILITY ANALYSIS</h6>
+
+                <Accordion
+                  header="Problems"
+                    open={openAccordions.readabilityProblems}
+                    onToggle={() =>
+                      setOpenAccordions((prev) => ({
+                        ...prev,
+                        readabilityProblems: !prev.readabilityProblems,
+                      }))
+                    }
+                  className="mb-2 text-sm"
+                >
+                  <ul>
+                    {readabilityProblems.map((result: AssessmentResult, index: number) => (
+                      <li
+                        key={`readability-problem-${index}`}
+                        className={errorListStyle}
+                        dangerouslySetInnerHTML={{
+                          __html: formatList(result.text),
+                        }}
+                      />
+                    ))}
+                  </ul>
+                </Accordion>
+
+                <Accordion
+                  header="Good results"
+                  open={openAccordions.readabilityGood}
+                    onToggle={() =>
+                    setOpenAccordions((prev) => ({
+                      ...prev,
+                      readabilityGood: !prev.readabilityGood,
+                    }))
+                  }
+                  className="text-sm"
+                >
+                  <ul>
+                    {readabilityAchievements.map((result: AssessmentResult, index: number) => (
+                      <li
+                        key={`readability-good-${index}`}
+                        className={passListStyle}
+                        dangerouslySetInnerHTML={{
+                          __html: formatList(result.text),
+                        }}
+                      />
+                    ))}
+                  </ul>
+                </Accordion>
+
               </div>
             </TabPanel>
 
-            <TabPanel id="SB37">
-              <div className="mb-5 dark:!text-black">
+            <TabPanel id="SB37">  
+              <div className="mb-5 dark:!text-black relative">
                 <Button
                   className="w-full !bg-[#2563ea] hover:!bg-blue-1000 text-white dark:!text-white border-0 hover:shadow-none rounded-none dark:hover:shadow-none"
-                  onClick={checkForViolations}>
+                  onClick={() => {
+                      checkForViolations();
+                      handleSB37Click();
+                  }}>
                   Check For Potential Violations
                 </Button>
 
+              {showSB37DoneTooltip && (
+                <div className="text-center !text-green-100 !bg-[#e5f5ea] px-12 py-3 z-10 text-sm mt-5">
+                   🎉 Done analyzing
+                </div>
+              )}
+              {showSB37HighlightsTooltip && (
+                <div className="text-center !text-green-100 !bg-[#e5f5ea] px-12 py-3 z-10 text-sm mt-5">
+                   Phrases Highlighted
+                </div>
+              )}
+              {showSB37RemoveHighlightsTooltip && (
+                <div className="text-center !text-red-100 !bg-[#faeaea] px-12 py-3 z-10 text-sm mt-5">
+                    Highlights Removed
+                </div>
+              )}
                 <div className="flex mt-5 gap-2 mb-1">
                   <Button
-                    className="w-1/2 text-sm  !bg-white  text-black !border-black-200 border rounded-none hover:shadow-none hover:!bg-black-200 hover:text-white dark:hover:shadow-none dark:!text-black-200 dark:hover:!text-white"
+                    className="w-full text-sm !bg-white text-black !border-black-200 border rounded-none hover:shadow-none hover:!bg-black-200 hover:text-white dark:hover:shadow-none dark:!text-black-200 dark:hover:!text-white"
+                    disabled={
+                      // violations.length === 0 && dictionaryViolations.length === 0
+                      dictionaryViolations.length === 0
+                    }
+                    onClick={() => {
+                      const updated = Array.from(
+                        new Set([
+                          ...activeHighlights,
+                          // ...violations,
+                          ...dictionaryViolations,
+                        ])
+                      );
+                      setActiveHighlights(updated);
+                      onHighlight(updated);
+                      setHighlightActive(true);
+                      setShowSB37HighlightsTooltip(true);
+                      setTimeout(() => setShowSB37HighlightsTooltip(false), 1000);
+                    }}>
+                    Show All Highlights
+                  </Button>
+
+                  <Button
+                    className="w-full text-sm !bg-[#EF4444] border-[#EF4444]  text-white border hover:!bg-red-700 hover:!border-red-700 rounded-none hover:shadow-none dark:hover:shadow-none dark:!text-white"
                     disabled={!highlightActive}
                     onClick={() => {
-                      const updated = Array.from(
-                        new Set([...activeHighlights, ...violations])
-                      );
-                      setActiveHighlights(updated);
-                      onHighlight(updated);
-                      setHighlightActive(true);
+                      onRemoveHighlight();
+                      setActiveHighlights([]);
+                      setHighlightActive(true);                          
+                      setShowSB37RemoveHighlightsTooltip(true);
+                      setTimeout(() => setShowSB37RemoveHighlightsTooltip(false), 1000);
                     }}>
-                    Show Highlights
-                  </Button>
-                  <Button
-                    className="!bg-white text-sm w-1/2 text-black border !border-black-200 hover:!bg-black-200 hover:text-white rounded-none hover:shadow-none dark:hover:shadow-none dark:!text-black-200 dark:hover:!text-white"
-                    disabled={dictionaryViolations.length === 0}
-                    onClick={() => {
-                      const updated = Array.from(
-                        new Set([...activeHighlights, ...dictionaryViolations])
-                      );
-                      setActiveHighlights(updated);
-                      onHighlight(updated);
-                      setHighlightActive(true);
-                    }}>
-                    Dict Highlights
+                    Remove Highlights
                   </Button>
                 </div>
-                <Button
-                  className="w-full text-sm !bg-[#EF4444] border-[#EF4444]  text-white border hover:!bg-red-700 hover:!border-red-700 rounded-none hover:shadow-none dark:hover:shadow-none dark:!text-white"
-                  disabled={!highlightActive}
-                  onClick={() => {
-                    onRemoveHighlight();
-                    setActiveHighlights([]);
-                    setHighlightActive(true);
-                  }}>
-                  Remove Highlights
-                </Button>
               </div>
 
               <div className="mb-4 dark:!text-black">
-                <h4 className="mb-2 font-semibold">Results:</h4>
+                {violationCheckMessage && (
+                  <div
+                    className={clsx(
+                      'mt-3 p-3 rounded text-sm flex items-center gap-2 mb-5 border',
+                      violationCheckMessage.type === 'success'
+                        ? 'bg-green-50 text-green-100 border-green-100'
+                        : 'bg-red-50 text-red-600 border-red-600'
+                    )}>
+                    <span>{violationCheckMessage.text}</span>
+                  </div>
+                )}
 
                 <Accordion
-                  header={
-                    <div className="flex justify-between items-center w-full">
-                      <span>Potential Violations</span>
-                      {hasCheckedViolations &&
-                        (violations.length > 0 ? (
-                          <div className="bg-[#f5ecee] w-[40px] text-right rounded-2xl px-2">
-                            <span className="text-red-100">{violations.length}</span>
-                          </div>
-                        ) : (
-                          <div className="bg-[#e5f5ea] w-[40px] text-right rounded-2xl px-2">
-                            <span className="text-green-100">0</span>
-                          </div>
-                        ))}
-                    </div>
+                open={openAccordions.sb37ViolationsOpen}
+                  onToggle={() =>
+                    setOpenAccordions((prev) => ({
+                      ...prev,
+                      sb37ViolationsOpen: !prev.sb37ViolationsOpen, // toggle it
+                    }))
                   }
-                  className="border mb-2">
-                  {violations.length === 0 ? (
-                    <div className="flex justify-between">
-                      <span>No potential SB37 violations found!</span>
-                    </div>
-                  ) : (
-                    <div className="space-y-2">
-                      <div className="flex justify-between">
-                        <span>Potential SB37 violations found in:</span>
-                      </div>
-                      <ul className="list-disc pl-4 space-y-2">
-                        {Object.entries(violationResults).map(([, headings], index) =>
-                          headings.map((headingInfo, i) => (
-                            <li key={`${index}-${i}`}>
-                              <a
-                                href={`#${headingInfo.id}`}
-                                className="text-black font-bold hover:underline">
-                                {headingInfo.heading}
-                              </a>
-                            </li>
-                          ))
-                        )}
-                      </ul>
-                      <div className="text-sm text-gray-500">
-                        {`Matched ${violations.length} total phrase occurrences across ${Object.keys(violationResults).length} unique phrases.`}
-                      </div>
-                    </div>
-                  )}
-                </Accordion>
-
-                <Accordion
                   header={
-                    <div className="flex justify-between items-center w-full">
-                      <span className="text-sm">Potential Violations (Dictionary)</span>
+                    <div className="flex justify-between items-center w-full text-sm">
+                      <span className="text-sm">Potential Violations</span>
+                      {/* {hasCheckedViolations && */}
                       {dictionaryViolations.length > 0 ? (
                         <div className="bg-[#f5ecee] w-[40px] text-right rounded-2xl px-2">
                           <span className="text-red-100">
@@ -1104,42 +2236,59 @@ export const LoomSidebar: FC<LoomProps> = ({
                           <span className="text-green-100">0</span>
                         </div>
                       )}
+                      {/* // } */}
                     </div>
                   }
                   className="border mb-2">
                   {dictionaryViolations.length === 0 ? (
                     <div className="flex justify-between">
-                      <span>No dictionary violations found!</span>
+                      <span>No potential SB37 violations found!</span>
                     </div>
                   ) : (
                     <div className="space-y-2">
                       <div className="flex justify-between">
-                        <span>Potential dictionary violations found in:</span>
+                        <span>Potential SB37 violations found in:</span>
                       </div>
                       <ul className="list-disc pl-4 space-y-2">
-                        {Object.entries(dictionaryViolationResults).map(
-                          ([, headings], index) =>
-                            headings.map((headingInfo, i) => (
-                              <li key={`${index}-${i}`}>
-                                <a
-                                  href={`#${headingInfo.id}`}
-                                  className="text-black font-bold hover:underline">
-                                  {headingInfo.heading}
-                                </a>
-                              </li>
-                            ))
-                        )}
+                        {[...uniqueDictionaryHeadings]
+                          .sort((a, b) => {
+                            const aEl = document.getElementById(a.id);
+                            const bEl = document.getElementById(b.id);
+                            const aTop = aEl ? aEl.offsetTop : Infinity;
+                            const bTop = bEl ? bEl.offsetTop : Infinity;
+                            return aTop - bTop;
+                          })
+                          .map(({ id, heading }) => (
+                            <li key={id ?? heading}>
+                              <a
+                                href={`#${id}`}
+                                className="text-black font-bold hover:underline">
+                                {heading}
+                              </a>
+                            </li>
+                          ))}
                       </ul>
-                      <div className="text-sm text-gray-500">
-                        {`Matched ${dictionaryViolations.length} total phrase occurrences across ${Object.keys(dictionaryViolationResults).length} unique dictionary phrases.`}
+                      <div className="text-sm text-gray-500 italic">
+                        {`Matched ${dictionaryViolations.length} total phrase occurrences across ${Object.keys(dictionaryViolationResults).length} unique phrases.`}
                       </div>
                     </div>
                   )}
                 </Accordion>
+
               </div>
 
+
+
               <div className="mb-3">
-                <h5 className="dark:!text-black">Check for additional words/phrases:</h5>
+                <h5 className="dark:!text-black !font-bold">
+                  Check for additional words/phrases:
+                </h5>
+                {searchMessage && (
+                  <div className="search-message text-red-600 mt-2 bg-[#faeaea] text-center py-2 text-sm">
+                    {searchMessage}
+                  </div>
+                )}
+
                 <div className="relative mb-1">
                   <input
                     type="text"
@@ -1152,10 +2301,21 @@ export const LoomSidebar: FC<LoomProps> = ({
                   <GoSearch className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500" />
                 </div>
 
-                {customSearchResults.some(result => result.count > 0) && (
+
+                {customSearchResults.length > 0 && (
                   <div className="mt-1 mb-2">
                     <div className="flex justify-between font-extrabold p-2 bg-gray-300 dark:!text-black-200">
-                      Search Results:
+                      <span>Search Results:</span>
+                      <span 
+                          className="text-red-200 hover:underline cursor-pointer"
+                          onClick={() => {
+                            setCustomSearchResults([]);    
+                            onRemoveHighlight();       
+                            setSearchMessage('');          
+                          }}>
+                            Clear
+                            
+                        </span>
                     </div>
                     {customSearchResults.map(({ term, count, id }, index) => (
                       <div key={index} className="py-1 border-b border-gray-200">
@@ -1163,7 +2323,8 @@ export const LoomSidebar: FC<LoomProps> = ({
                           <a
                             href={`#${id ?? term.replace(/\s+/g, '-').toLowerCase()}`}
                             className="text-blue-600 font-bold hover:underline cursor-pointer flex justify-between hover:bg-gray-100 px-2"
-                            onClick={() => onHighlight([term])}>
+                            onClick={() => onHighlight([term])}
+                          >
                             <strong>{term}</strong> <span>{count}</span>
                           </a>
                         ) : (
@@ -1176,16 +2337,26 @@ export const LoomSidebar: FC<LoomProps> = ({
                   </div>
                 )}
 
-                <div className="flex gap-2 mb-3">
-                  <Button
-                    className="w-full !bg-white border !border-black-200 hover:!bg-black-200 hover:text-white rounded-none  text-black hover:shadow-none dark:hover:shadow-none dark:!text-black-200 dark:hover:!text-white"
-                    onClick={handleCustomSearch}>
-                    Search Now
-                  </Button>
+                <Button
+                  className={clsx(
+                    'w-full !bg-white border !border-black-200 rounded-none text-black',
+                    'hover:!bg-black-200 hover:text-white hover:shadow-none',
+                    'dark:hover:shadow-none dark:!text-black-200 dark:hover:!text-white',
+                    customSearchTerm.trim()
+                      ? ''
+                      : 'opacity-50 cursor-not-allowed pointer-events-none'
+                  )}
+                  onClick={handleCustomSearch}
+                  disabled={customSearchTerm.trim().length === 0}
+                >
+                  Search Now
+                </Button>
 
+
+                <div className="flex gap-2 mt-3">
                   <Button
                     onClick={handleAddOpenModal}
-                    className="w-full border !border-black-200 hover:!bg-black-200 hover:text-white rounded-none !bg-white text-black hover:shadow-none dark:hover:shadow-none dark:!text-black-200 dark:hover:!text-white">
+                    className="w-full border !border-black-200 !text-white hover:!bg-black-200 hover:text-white rounded-none !bg-[#6B7280] hover:shadow-none dark:hover:shadow-none  dark:hover:!text-white">
                     Add to Dictionary
                   </Button>
 
@@ -1249,13 +2420,12 @@ export const LoomSidebar: FC<LoomProps> = ({
                       </div>
                     </Modal>
                   )}
-                </div>
-
                 <Button
                   onClick={handleViewOpenModal}
-                  className="w-full !bg-[#6B7280] hover:!bg-black-200 text-white border-0 rounded-none  hover:shadow-none dark:!text-white dark:hover:shadow-none  dark:hover:!text-white">
+                  className="w-full !bg-[#6B7280] hover:!bg-black-200 text-white border-0 rounded-none hover:shadow-none dark:!text-white dark:hover:shadow-none dark:hover:!text-white">
                   View Dictionary
                 </Button>
+
                 {isViewModalOpen && (
                   <Modal
                     isOpen={isViewModalOpen}
@@ -1265,79 +2435,256 @@ export const LoomSidebar: FC<LoomProps> = ({
                     backgroundColor="#0a1a31"
                     showCloseButton={false}>
                     <div className="w-full h-full">
-                      <h2 className="!text-left text-white text-2xl font-extrabold">
-                        Added Potential Violations
-                      </h2>
-                      <div>
-                        <table
-                          className={clsx(
-                            'w-full my-[20px] mx-auto border-collapse',
-                            'table-fixed shadow-[0_4px_6px_rgba(0, 0, 0, 0.1)]'
-                          )}>
-                          <thead>
-                            <tr>
-                              <th>Keyword</th>
-                              <th>Added By</th>
-                              <th className="w-[80px]"></th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {dictionary.length === 0 ? (
-                              <tr>
-                                <td colSpan={3} className="text-center">
-                                  No entries found.
-                                </td>
-                              </tr>
-                            ) : (
-                              dictionary.map((entry, index) => (
-                                <tr key={index}>
-                                  <td className=" px-4 py-2 !text-white">
-                                    {entry.keyword}
-                                  </td>
-                                  <td className=" px-4 py-2 !text-white">
-                                    {entry.created_by}
-                                  </td>
-                                  <td className=" px-4 py-2 !text-white">
-                                    <FaTrash
-                                      className="text-white hover:text-red-500 cursor-pointer"
-                                      onClick={() => {
-                                        if (
-                                          confirm(`Delete phrase "${entry.keyword}"?`)
-                                        ) {
-                                          handleDeletePhrase(entry.id);
-                                        }
-                                      }}
-                                    />
-                                  </td>
-                                </tr>
-                              ))
-                            )}
-                          </tbody>
-                        </table>
+                      <div className="flex justify-between items-center">
+                        <h2 className="!text-left text-white text-2xl font-extrabold w-full">
+                          {activeView === 'default'
+                            ? 'Added Potential Violations'
+                            : 'Deleted Potential Violations'}
+                        </h2>
+
+                        <div className="relative w-full">
+                          <input
+                            type="text"
+                            placeholder="Search for Keyword"
+                            className="!w-full"
+                            value={dictionarySearchTerm}
+                            onChange={(e) => setDictionarySearchTerm(e.target.value.toLowerCase())}
+                          />
+                          <GoSearch className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500" />
+                        </div>
                       </div>
+
+                      {statusMessage && (
+                        <div className="mt-2 text-sm text-green-400 font-semibold">
+                          {statusMessage}
+                        </div>
+                      )}
+
+                      <div className="flex justify-between items-baseline">
+                        <div className="w-[50px] flex flex-col gap-5 items-center">
+                          {/* View Potential Violations */}
+                          <div
+                            onClick={() => setActiveView('default')}
+                            className={clsx(
+                              'group relative p-2 rounded-md cursor-pointer transition-all duration-200',
+                              activeView === 'default'
+                                ? 'bg-blue-500 text-white'
+                                : 'bg-transparent hover:bg-white text-white/60 hover:text-black-200'
+                            )}>
+                            <FaBars className="text-2xl" />
+                            <span className="absolute left-[110%] top-1/2 -translate-y-1/2 whitespace-nowrap rounded bg-black text-white text-xs px-2 py-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-10">
+                              View Potential Violations
+                            </span>
+                          </div>
+
+                          {/* Trash */}
+                          <div
+                            onClick={() => setActiveView('trash')}
+                            className={clsx(
+                              'group relative p-2 rounded-md cursor-pointer transition-all duration-200',
+                              activeView === 'trash'
+                                ? 'bg-blue-500 text-white'
+                                : 'bg-transparent hover:bg-white text-white/60 hover:text-black-200'
+                            )}>
+                            <FaTrash className="text-2xl" />
+                            <span className="absolute left-[110%] top-1/2 -translate-y-1/2 whitespace-nowrap rounded bg-black text-white text-xs px-2 py-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-10">
+                              Archived Potential Violations
+                            </span>
+                          </div>
+                        </div>
+
+                        <div className="flex-1 px-5">
+                          {activeView === 'default' && (
+                            <>
+                              <table className={clsx('w-full my-[20px] mx-auto border-collapse', 'table-fixed shadow-[0_4px_6px_rgba(0, 0, 0, 0.1)]')}>
+                                <thead>
+                                  <tr>
+                                    <th>Keyword</th>
+                                    <th>Added By</th>
+                                    <th className="w-[80px]"></th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {paginatedData.filter(entry => entry.keyword.toLowerCase().includes(dictionarySearchTerm)).length === 0 ? (
+                                    <tr>
+                                      <td colSpan={3} className="text-center text-white">
+                                        No entries found.
+                                      </td>
+                                    </tr>
+                                  ) : (
+                                    paginatedData
+                                      .filter(entry => entry.keyword.toLowerCase().includes(dictionarySearchTerm))
+                                      .map(entry => (
+                                        <tr key={entry.id}>
+                                          <td className="px-4 py-2 !text-white">{entry.keyword}</td>
+                                          <td className="px-4 py-2 !text-white">{entry.created_by}</td>
+                                          <td className="px-4 py-2 !text-white">
+                                            <FaTrash
+                                              className="text-white hover:text-red-500 cursor-pointer"
+                                              onClick={() => {
+                                                if (confirm(`Move phrase "${entry.keyword}" to trash?`)) {
+                                                  handleDeletePhrase(entry.id);
+                                                }
+                                              }}
+                                            />
+                                          </td>
+                                        </tr>
+                                      ))
+                                  )}
+                                </tbody>
+                              </table>
+
+                              {totalPages > 1 && (
+                                <div className="flex justify-center mt-4 gap-2">
+                                  <button
+                                    onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                                    disabled={currentPage === 1}
+                                    className="px-3 py-1 text-white border border-yellow-100 rounded disabled:opacity-50 cursor-pointer hover:bg-yellow-100 hover:text-black-200">
+                                    Prev
+                                  </button>
+                                  {getVisiblePages(currentPage, totalPages).map(page => (
+                                    <button
+                                      key={page}
+                                      onClick={() => setCurrentPage(page)}
+                                      className={clsx(
+                                        'px-3 py-1 cursor-pointer hover:bg-white hover:text-black-200',
+                                        currentPage === page ? 'bg-yellow-100 text-black' : 'text-white border-white'
+                                      )}>
+                                      {page}
+                                    </button>
+                                  ))}
+                                  <button
+                                    onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                                    disabled={currentPage === totalPages}
+                                    className="px-3 py-1 text-white border border-yellow-100 rounded disabled:opacity-50 cursor-pointer hover:bg-yellow-100 hover:text-black-200">
+                                    Next
+                                  </button>
+                                </div>
+                              )}
+                            </>
+                          )}
+
+                          {activeView === 'trash' && (
+                            <>
+                              <table className={clsx('w-full my-[20px] mx-auto border-collapse', 'table-fixed shadow-[0_4px_6px_rgba(0, 0, 0, 0.1)]')}>
+                                <thead>
+                                  <tr>
+                                    <th>Keyword</th>
+                                    <th>Deleted By</th>
+                                    <th>Days Left</th>
+                                    <th className="w-[80px]"></th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {deletedEntries.filter(entry => entry.keyword.toLowerCase().includes(dictionarySearchTerm)).length === 0 ? (
+                                    <tr>
+                                      <td colSpan={4} className="text-center text-white">
+                                        No deleted entries found.
+                                      </td>
+                                    </tr>
+                                  ) : (
+                                    deletedEntries
+                                      .filter(entry => entry.keyword.toLowerCase().includes(dictionarySearchTerm))
+                                      .map(entry => {
+                                        const deletedAt = new Date(entry.deleted_at as string);
+                                        const now = new Date();
+                                        const diffDays = 30 - Math.floor((now.getTime() - deletedAt.getTime()) / (1000 * 60 * 60 * 24));
+
+                                        return (
+                                          <tr key={entry.id}>
+                                            <td className="px-4 py-2 !text-white">{entry.keyword}</td>
+                                            <td className="px-4 py-2 !text-white">{entry.deleted_by}</td>
+                                            <td className="px-4 py-2 !text-white">{diffDays} days left</td>
+                                            <td className="px-4 py-2 !text-white">
+                                              <FaTrash
+                                                className="text-white hover:text-red-500 cursor-pointer"
+                                                onClick={() => {
+                                                  if (confirm(`Permanently delete phrase "${entry.keyword}"?`)) {
+                                                    handlePermanentDelete(entry.id);
+                                                  }
+                                                }}
+                                              />
+                                            </td>
+                                          </tr>
+                                        );
+                                      })
+                                  )}
+                                </tbody>
+                              </table>
+
+                              {totalPagesForDeleted > 1 && (
+                                <div className="flex justify-center mt-4 gap-2">
+                                  <button
+                                    onClick={() => setCurrentPageDeleted(prev => Math.max(prev - 1, 1))}
+                                    disabled={currentPageDeleted === 1}
+                                    className="px-3 py-1 text-white border border-yellow-100 rounded disabled:opacity-50 cursor-pointer hover:bg-yellow-100 hover:text-black-200">
+                                    Prev
+                                  </button>
+                                  {getVisiblePages(currentPageDeleted, totalPagesForDeleted).map(page => (
+                                    <button
+                                      key={page}
+                                      onClick={() => setCurrentPageDeleted(page)}
+                                      className={clsx(
+                                        'px-3 py-1 cursor-pointer hover:bg-white hover:text-black-200',
+                                        currentPageDeleted === page ? 'bg-yellow-100 text-black' : 'text-white border-white'
+                                      )}>
+                                      {page}
+                                    </button>
+                                  ))}
+                                  <button
+                                    onClick={() => setCurrentPageDeleted(prev => Math.min(prev + 1, totalPagesForDeleted))}
+                                    disabled={currentPageDeleted === totalPagesForDeleted}
+                                    className="px-3 py-1 text-white border border-yellow-100 rounded disabled:opacity-50 cursor-pointer hover:bg-yellow-100 hover:text-black-200">
+                                    Next
+                                  </button>
+                                </div>
+                              )}
+                            </>
+                          )}
+                        </div>
+                      </div>
+
                       <div className="flex justify-end">
                         <button
                           onClick={handleViewCloseModal}
-                          className="border border-white cursor-pointer py-2 px-7 hover:bg-red-100 hover:border-red-100 text-white">
+                          className="border border-white cursor-pointer py-2 px-7 hover:bg-red-100 hover:border-red-100 text-white mt-5">
                           Cancel
                         </button>
                       </div>
                     </div>
                   </Modal>
                 )}
+
+                </div>
               </div>
             </TabPanel>
 
             <TabPanel id="Format">
+              <div className="relative">
               <Button
                 onClick={() => {
                   runFormatCheck();
                   setShowResults(true);
+                  handleFormatClick();
                 }}
                 className="w-full !bg-[#2563ea] hover:!bg-blue-1000 text-white border-0 hover:shadow-none rounded-none dark:hover:shadow-none dark:!text-white">
                 {loading ? 'Checking...' : 'Check For Formatting Errors'}
               </Button>
-
+              {showFormatDoneTooltip && (
+                  <div className="text-center !text-green-100 !bg-[#e5f5ea] px-12 py-3 z-10 text-sm mt-5">
+                    🎉 Done analyzing
+                  </div>
+              )}
+              {showFormatHighlightsTooltip && (
+                <div className="text-center !text-green-100 !bg-[#e5f5ea] px-12 py-3 z-10 text-sm mt-5">
+                   Errors Highlighted
+                </div>
+              )}
+              {showFormatRemoveHighlightsTooltip && (
+                <div className="text-center !text-red-100 !bg-[#faeaea] px-12 py-3 z-10 text-sm mt-5">
+                    Highlights Removed
+                </div>
+              )}
               <div className="flex mt-5 gap-2 mb-2">
                 <Button
                   className="w-1/2 text-sm !bg-white text-black !border-black-200 border rounded-none hover:shadow-none hover:!bg-black-200 hover:text-white dark:hover:shadow-none dark:!text-black-200 dark:hover:!text-white"
@@ -1349,7 +2696,10 @@ export const LoomSidebar: FC<LoomProps> = ({
                   className="w-1/2 text-sm !bg-[#EF4444] border-[#EF4444] text-white border hover:!bg-red-700 hover:!border-red-700 rounded-none hover:shadow-none dark:hover:shadow-none dark:!text-white"
                   onClick={() => {
                     onRemoveFormatHighlight();
-                    setHighlightActive(false);
+                    setFormatHighlightActive(false);
+                    setShowFormatRemoveHighlightsTooltip(true);
+                    setTimeout(() => setShowFormatRemoveHighlightsTooltip(false), 1000);
+                    
                   }}>
                   Remove Highlights
                 </Button>
@@ -1357,24 +2707,27 @@ export const LoomSidebar: FC<LoomProps> = ({
               {showResults && (
                 <>
                   <div
-                    className={`mb-4 p-4 rounded ${hasErrors ? 'bg-[#faeaea] text-red-600' : 'bg-[#e6f6e9] !text-green-100'}`}>
+                    className={`text-sm border  mb-4 p-4 rounded ${hasErrors ? 'bg-red-50 text-red-600 border-red-600' : 'bg-green-50 !text-green-100 border-green-100'}`} >
                     {!hasErrors ? (
-                      <h6 className="!text-center">No error found ✅</h6>
+                      <h6 className="!text-center">
+                        🎉 No formatting errors found! Good job!
+                      </h6>
                     ) : (
                       <div className="w-full flex justify-center flex-col">
                         {formatErrors.missingPunctuationErrors.length > 0 &&
                         formatErrors.multipleSpaceErrors.length === 0 &&
                         formatErrors.emDashErrors.length === 0 &&
-                        formatErrors.leadingTrailingSpaceErrors.length === 0 &&
+                        // formatErrors.leadingTrailingSpaceErrors.length === 0 &&
                         formatErrors.spaceBeforePunctuationErrors.length === 0 &&
-                        formatErrors.titleCaseErrors.length === 0 ? (
+                        formatErrors.titleCaseErrors.length === 0 &&
+                        formatErrors.consecutivePunctuationErrors.length === 0 ? (
                           <h6 className="!text-center !text-sm text-red-600">
-                            Missing Punctuation errors, fix manually ⚠️
+                            ⚠️ Missing Punctuation errors, fix manually
                           </h6>
                         ) : (
                           <>
                             <h6 className="!text-center !text-sm text-red-600">
-                              Formatting Errors found! Please fix ⚠️
+                              ⚠️ Formatting Errors found! Please fix
                             </h6>
                             <Button
                               onClick={handleFixAll}
@@ -1389,7 +2742,7 @@ export const LoomSidebar: FC<LoomProps> = ({
 
                   <Accordion
                     header={
-                      <div className="flex justify-between items-center w-full">
+                      <div className="flex justify-between items-center w-full text-sm">
                         <span>Multiple Spaces</span>
                         {showResults &&
                           (formatErrors.multipleSpaceErrors.length > 0 ? (
@@ -1415,7 +2768,7 @@ export const LoomSidebar: FC<LoomProps> = ({
 
                   <Accordion
                     header={
-                      <div className="flex justify-between items-center w-full">
+                      <div className="flex justify-between items-center w-full text-sm">
                         <span>Em Dash Issues</span>
                         {showResults &&
                           (formatErrors.emDashErrors.length > 0 ? (
@@ -1441,8 +2794,8 @@ export const LoomSidebar: FC<LoomProps> = ({
 
                   <Accordion
                     header={
-                      <div className="flex justify-between items-center w-full">
-                        <span>Lowercase in Heading</span>
+                      <div className="flex justify-between items-center w-full text-sm">
+                        <span>Lowercase In Heading</span>
                         {showResults &&
                           (formatErrors.titleCaseErrors.length > 0 ? (
                             <div className="bg-[#f5ecee] w-[40px] text-right rounded-2xl px-2">
@@ -1464,20 +2817,50 @@ export const LoomSidebar: FC<LoomProps> = ({
                           const highlighted = highlightTitleCaseErrorsStrict(
                             err.sentence
                           );
+                          const handleClick = () => {
+                            if (err.heading) scrollToHeading(err.heading);
+                          };
+
                           return (
-                            <li key={idx} className="list-disc">
+                            <li key={idx} className="list-disc font-bold text-sm">
                               {err.heading && err.sentence !== err.heading ? (
                                 <>
-                                  <div className="font-bold">{err.heading}</div>
-                                  <ul className="pl-3 mt-2">
+                                  <div
+                                    className="font-bold cursor-pointer hover:text-blue-500 text-sm"
+                                    onClick={handleClick}
+                                    role="button"
+                                    tabIndex={0}
+                                    onKeyDown={e => {
+                                      if (e.key === 'Enter' || e.key === ' ')
+                                        handleClick();
+                                    }}>
+                                    {err.heading}
+                                  </div>
+                                  <ul className="pl-3 mt-2 ">
                                     <li
-                                      className="list-disc"
+                                      className="list-disc cursor-pointer hover:text-blue-500"
                                       dangerouslySetInnerHTML={{ __html: highlighted }}
+                                      onClick={handleClick}
+                                      role="button"
+                                      tabIndex={0}
+                                      onKeyDown={e => {
+                                        if (e.key === 'Enter' || e.key === ' ')
+                                          handleClick();
+                                      }}
                                     />
                                   </ul>
                                 </>
                               ) : (
-                                <span dangerouslySetInnerHTML={{ __html: highlighted }} />
+                                <span
+                                  className="cursor-pointer hover:text-blue-500"
+                                  dangerouslySetInnerHTML={{ __html: highlighted }}
+                                  onClick={handleClick}
+                                  role="button"
+                                  tabIndex={0}
+                                  onKeyDown={e => {
+                                    if (e.key === 'Enter' || e.key === ' ') handleClick();
+                                  }}
+                                />
                               )}
                             </li>
                           );
@@ -1490,9 +2873,9 @@ export const LoomSidebar: FC<LoomProps> = ({
                     )}
                   </Accordion>
 
-                  <Accordion
+                  {/* <Accordion
                     header={
-                      <div className="flex justify-between items-center w-full">
+                      <div className="flex justify-between items-center w-full text-sm">
                         <span>Leading/Trailing Spaces</span>
                         {showResults &&
                           (formatErrors.leadingTrailingSpaceErrors.length > 0 ? (
@@ -1514,12 +2897,12 @@ export const LoomSidebar: FC<LoomProps> = ({
                       /^\s+|\s+$/g,
                       'leadingTrailingSpaceErrors'
                     )}
-                  </Accordion>
+                  </Accordion> */}
 
                   <Accordion
                     header={
-                      <div className="flex justify-between items-center w-full">
-                        <span>Space before Punctuation</span>
+                      <div className="flex justify-between items-center w-full text-sm">
+                        <span>Space Before Punctuation</span>
                         {showResults &&
                           (formatErrors.spaceBeforePunctuationErrors.length > 0 ? (
                             <div className="bg-[#f5ecee] w-[40px] text-right rounded-2xl px-2">
@@ -1544,7 +2927,33 @@ export const LoomSidebar: FC<LoomProps> = ({
 
                   <Accordion
                     header={
-                      <div className="flex justify-between items-center w-full">
+                      <div className="flex justify-between items-center w-full text-sm">
+                        <span>Consecutive Punctuation</span>
+                        {showResults &&
+                          (formatErrors.consecutivePunctuationErrors.length > 0 ? (
+                            <div className="bg-[#f5ecee] w-[40px] text-right rounded-2xl px-2">
+                              <span className="text-red-100">
+                                {formatErrors.consecutivePunctuationErrors.length}
+                              </span>
+                            </div>
+                          ) : (
+                            <div className="bg-[#e5f5ea] w-[40px] text-right rounded-2xl px-2">
+                              <span className="text-green-100">0</span>
+                            </div>
+                          ))}
+                      </div>
+                    }
+                    className="mb-2 text-sm dark:!text-black-200">
+                    {renderErrorList(
+                      formatErrors.consecutivePunctuationErrors,
+                      /([.!?,;:])\1+/g, 
+                      'consecutivePunctuationErrors'
+                    )}
+                  </Accordion>
+
+                  <Accordion
+                    header={
+                      <div className="flex justify-between items-center w-full text-sm">
                         <span>Missing Punctuation</span>
                         {showResults &&
                           (formatErrors.missingPunctuationErrors.length > 0 ? (
@@ -1567,474 +2976,182 @@ export const LoomSidebar: FC<LoomProps> = ({
                       'missingPunctuationErrors'
                     )}
                   </Accordion>
+                  
                 </>
               )}
+              </div>
+
             </TabPanel>
 
             <TabPanel id="Content">
+              <div>
               <Button
-                onClick={checkContentIssues}
+                disabled={!text || disableContentIssuesButton}
+                onClick={() => {
+                  checkContentIssues();
+                  handleContentClick();
+                }}
                 className="w-full !bg-[#2563ea] hover:!bg-blue-1000 text-white border-0 hover:shadow-none rounded-none dark:hover:shadow-none dark:!text-white">
                 Check For Content Issues
               </Button>
-              <div className="flex mt-5 gap-2 mb-1">
-                <Button
-                  onClick={() => {
-                    const headings = sectionsOver300Words.map(section => section.heading);
-                    const repeatedWords = sameStartWordSequences.map(seq => seq.word);
-                    onHighlightContent?.(headings, repeatedWords);
-                  }}
-                  className="w-1/2 text-sm !bg-white text-black !border-black-200 border rounded-none hover:shadow-none hover:!bg-black-200 hover:text-white dark:hover:shadow-none dark:!text-black-200 dark:hover:!text-white">
-                  Show Highlights
-                </Button>
-                <Button
-                  onClick={onRemoveContentHighlight}
-                  className="w-1/2 text-sm !bg-[#EF4444] border-[#EF4444]  text-white border hover:!bg-red-700 hover:!border-red-700 rounded-none hover:shadow-none dark:hover:shadow-none dark:!text-white">
-                  Remove Highlights
-                </Button>
+              {showContentDoneTooltip && (
+                <div className="text-center !text-green-100 !bg-[#e5f5ea] px-12 py-3 z-10 text-sm mt-5">
+                   🎉 Done analyzing
+                </div>
+              )}
+              {showContentHighlightsTooltip && (
+                <div className="text-center !text-green-100 !bg-[#e5f5ea] px-12 py-3 z-10 text-sm mt-5">
+                   Content Highlighted
+                </div>
+              )}
+              {showContentRemoveHighlightsTooltip && (
+                <div className="text-center !text-red-100 !bg-[#faeaea] px-12 py-3 z-10 text-sm mt-5">
+                    Highlights Removed
+                </div>
+              )}
+                <div className="flex mt-5 gap-2 mb-1">
+                  <Button
+                    className="w-1/2 text-sm !bg-white text-black !border-black-200 border rounded-none hover:shadow-none hover:!bg-black-200 hover:text-white dark:hover:shadow-none dark:!text-black-200 dark:hover:!text-white"
+                    disabled={!text || !contentIssuesResult || editMode}
+                    onClick={() => {
+                      onHighlightContent();
+                      setShowContentHighlightsTooltip(true);
+                      setTimeout(() => setShowContentHighlightsTooltip(false), 1000);
+                    }}>
+                    Show Highlights
+                  </Button>
+                  <Button
+                    className="w-1/2 text-sm !bg-[#EF4444] border-[#EF4444]  text-white border hover:!bg-red-700 hover:!border-red-700 rounded-none hover:shadow-none dark:hover:shadow-none dark:!text-white"
+                    disabled={!text || !contentIssuesResult || editMode}
+                    onClick={() => {
+                      onRemoveContentHighlight();
+                      setShowContentRemoveHighlightsTooltip(true);
+                      setTimeout(() => setShowContentRemoveHighlightsTooltip(false), 1000);
+                    }}>
+                    Remove Highlights
+                  </Button>
+                </div>
+                {contentIssuesResult && (
+                  <ContentIssuesResultSection
+                    result={contentIssuesResult}
+                    errorMessage={contentIssuesErrorMessage}
+                  />
+                )}
               </div>
 
-              {hasContentChecked && (
-                <>
-                  <div
-                    className={`my-4 text-sm font-medium py-4 text-center ${totalContentErrors === 0 ? 'bg-[#e6f6e9] text-green-100' : 'bg-[#faeaea] text-red-600'}`}>
-                    {contentErrorMessage}
-                  </div>
 
-                  <div>
-                    <div className="flex justify-between my-4">
-                      <h2 className="font-bold">Total Word Count</h2>
-                      <span className="font-bold">
-                        {wordCount !== null ? wordCount : '—'}
-                      </span>
-                    </div>
 
-                    <div>
-                      <div className="flex justify-between">
-                        <h2 className="!text-left font-bold">Headings</h2>
-                        <span className="font-bold">{contentHeadingCount}</span>
-                      </div>
-                      <Accordion
-                        header="View Details"
-                        className="[&_svg]:hidden border-none [&>div:first-child]:text-blue-400 [&>div:first-child]:underline [&>div:first-child]:underline-offset-4 [&>svg]:hidden">
-                        {contentHeadings.length > 0 ? (
-                          <ul className=" list-disc">
-                            <div className="flex justify-between">
-                              <h4 className="font-bold">Headings</h4>
-                              <span className="text-sm font-bold">Word Count</span>
-                            </div>
-                            {contentHeadings.map((h, i) => (
-                              <div
-                                className="flex justify-between items-center"
-                                key={h.text}>
-                                <li key={i} className="list-none w-full text-sm my-1">
-                                  <strong>{h.level}:</strong> {h.text}
-                                </li>
-                                <span className="w-[80px] text-right text-sm">
-                                  {h.wordCount}
-                                </span>
-                              </div>
-                            ))}
-                          </ul>
-                        ) : (
-                          <p>No headings found.</p>
-                        )}
-                      </Accordion>
-                    </div>
-
-                    <div>
-                      <Accordion
-                        header={
-                          <div className="flex items-center justify-between w-full">
-                            <span>Sections with over 300 words</span>
-                            {contentShowResults && (
-                              <div
-                                className={`w-[40px] text-right rounded-2xl px-2 ${
-                                  sectionsOver300Words.length > 0
-                                    ? 'bg-[#f5ecee]'
-                                    : 'bg-[#e5f5ea]'
-                                }`}>
-                                <span
-                                  className={
-                                    sectionsOver300Words.length > 0
-                                      ? 'text-red-100'
-                                      : 'text-green-100'
-                                  }>
-                                  {sectionsOver300Words.length}
-                                </span>
-                              </div>
-                            )}
-                          </div>
-                        }
-                        className="text-sm">
-                        {sectionsOver300Words.length > 0 ? (
-                          <ul>
-                            {sectionsOver300Words.map((section, idx) => (
-                              <li key={idx}>
-                                <strong>{section.heading}</strong> — {section.wordCount}{' '}
-                                words
-                              </li>
-                            ))}
-                          </ul>
-                        ) : (
-                          <p>No sections over 300 words found.</p>
-                        )}
-                      </Accordion>
-
-                      <Accordion
-                        header={
-                          <div className="flex items-center justify-between w-full">
-                            <span>Same Start Word in 3 Sentences</span>
-                            {contentShowResults && (
-                              <div
-                                className={`w-[40px] text-right rounded-2xl px-2 ${
-                                  sameStartWordSequences.length > 0
-                                    ? 'bg-[#f5ecee]'
-                                    : 'bg-[#e5f5ea]'
-                                }`}>
-                                <span
-                                  className={
-                                    sameStartWordSequences.length > 0
-                                      ? 'text-red-100'
-                                      : 'text-green-100'
-                                  }>
-                                  {sameStartWordSequences.length}
-                                </span>
-                              </div>
-                            )}
-                          </div>
-                        }
-                        className="mt-2 text-sm">
-                        {sameStartWordSequences.length > 0 ? (
-                          <ul className="px-2">
-                            {sameStartWordSequences.map((seq, idx) => (
-                              <li key={idx} className="list-disc px-2">
-                                Starting word: <strong>{seq.word}</strong> at sentence
-                                index {seq.startIndex + 1}
-                              </li>
-                            ))}
-                          </ul>
-                        ) : (
-                          <p>
-                            No sequences of 3 consecutive sentences starting with the same
-                            word.
-                          </p>
-                        )}
-                      </Accordion>
-                    </div>
-                  </div>
-                </>
-              )}
             </TabPanel>
 
             <TabPanel id="Link">
-              <Button
-                onClick={handleAnalyzeLink}
-                className="w-full !bg-[#2563ea] hover:!bg-blue-1000 text-white border-0 hover:shadow-none rounded-none dark:hover:shadow-none dark:!text-white">
-                Analyze Links
-              </Button>
-              <div className="flex mt-5 gap-2 mb-1">
-                <Button className="w-1/2 text-sm !bg-white text-black !border-black-200 border rounded-none hover:shadow-none hover:!bg-black-200 hover:text-white dark:hover:shadow-none dark:!text-black-200 dark:hover:!text-white">
-                  Show Highlights
+              <div>
+                <Button
+                  disabled={!text}
+                  onClick={() => {
+                    handleAnalyzeLink();
+                    handleLinkClick();
+                  }}
+                  className="w-full !bg-[#2563ea] flex items-center justify-center hover:!bg-blue-1000 text-white border-0 hover:shadow-none rounded-none dark:hover:shadow-none dark:!text-white">
+                  {loadingAnalyzeLink ? 'Analyzing links...' : ' Analyze Links'}
                 </Button>
-
-                <Button className="w-1/2 text-sm !bg-[#EF4444] border-[#EF4444]  text-white border hover:!bg-red-700 hover:!border-red-700 rounded-none hover:shadow-none dark:hover:shadow-none dark:!text-white">
-                  Remove Highlights
-                </Button>
-              </div>
-
-              {hasLinkChecked && (
-                <>
-                  <div
-                    className={`my-4 text-sm font-medium py-4 text-center ${totalLinkErrors === 0 ? '!bg-[#e6f6e9] !text-green-100' : 'bg-[#faeaea] text-red-600'}`}>
-                    {linkErrorMessage}
+                {showLinkDoneTooltip && (
+                  <div className="text-center !text-green-100 !bg-[#e5f5ea] px-12 py-3 z-10 text-sm mt-5">
+                    🎉 Done analyzing
                   </div>
+                )}
+                {showLinkHighlightsTooltip && (
+                  <div className="text-center !text-green-100 !bg-[#e5f5ea] px-12 py-3 z-10 text-sm mt-5">
+                    Links Highlighted
+                  </div>
+                )}
+                {showLinkRemoveHighlightsTooltip && (
+                  <div className="text-center !text-red-100 !bg-[#faeaea] px-12 py-3 z-10 text-sm mt-5">
+                      Highlights Removed
+                  </div>
+                )}
+                <div className="flex mt-5 gap-2 mb-1">
+                  <Button
+                    disabled={!linkIssuesResult}
+                    className="w-1/2 text-sm !bg-white text-black !border-black-200 border rounded-none hover:shadow-none hover:!bg-black-200 hover:text-white dark:hover:shadow-none dark:!text-black-200 dark:hover:!text-white"
+                    onClick={() => {
+                      onLinkIssuesShowHighlightsClick();
+                      setShowLinkHighlightsTooltip(true);
+                      setTimeout(() => setShowLinkHighlightsTooltip(false), 1000);
+                    }}>
+                    Show Highlights
+                  </Button>
+                  <Button
+                    disabled={!linkIssuesResult}
+                    className="w-1/2 text-sm !bg-[#EF4444] border-[#EF4444]  text-white border hover:!bg-red-700 hover:!border-red-700 rounded-none hover:shadow-none dark:hover:shadow-none dark:!text-white"
+                    onClick={()=> {
+                      onLinkIssuesRemoveHighlightClick();
+                      setShowLinkRemoveHighlightsTooltip(true);
+                      setTimeout(() => setShowLinkRemoveHighlightsTooltip(false), 1000);
+                    }}>
+                    Remove Highlights
+                  </Button>
+                </div>
 
-                  {linkErrors && (
-                    <div>
-                      <Accordion
-                        className="mt-2"
-                        header={
-                          <div className="flex items-center justify-between w-full">
-                            <span>Link & Anchor Text Issues</span>
-                            {linkShowResults && (
-                              <div
-                                className={`w-[40px] text-right rounded-2xl px-2 ${
-                                  totalLinkAndAnchorIssues > 0
-                                    ? 'bg-[#f5ecee] text-red-100'
-                                    : 'bg-[#e5f5ea] !text-green-100'
-                                }`}>
-                                {totalLinkAndAnchorIssues}
-                              </div>
-                            )}
-                          </div>
-                        }>
-                        {(() => {
-                          const requiredLinks = [
-                            {
-                              url: 'https://arashlaw.com/practice-areas/car-accident-lawyers/',
-                              label: 'Car Accident PA',
-                            },
-                          ];
-
-                          const allLinkURLs = linkErrors
-                            ? [
-                                ...(linkErrors.internalLinks || []),
-                                ...(linkErrors.externalLinks || []),
-                              ].map(link => (typeof link === 'string' ? link : link.url))
-                            : [];
-
-                          const missingCriticalLinks = requiredLinks.filter(
-                            req => !allLinkURLs.includes(req.url)
-                          );
-
-                          return (
-                            <>
-                              {missingCriticalLinks.length > 0 && (
-                                <div className="mb-4 text-red-600 bg-red-50 border border-red-200 rounded p-3 text-sm">
-                                  <strong className="block mb-1">⚠️ ALERT:</strong>
-                                  <ul className="list-disc list-inside space-y-1">
-                                    {missingCriticalLinks.map((item, i) => (
-                                      <li key={`missing-${i}`}>
-                                        No link to <strong>{item.label}</strong>. Please
-                                        add:{' '}
-                                        <a
-                                          href={item.url}
-                                          className="!text-blue-800 underline hover:!text-blue-300"
-                                          target="_blank"
-                                          rel="noopener noreferrer">
-                                          {item.url}
-                                        </a>
-                                      </li>
-                                    ))}
-                                  </ul>
-                                </div>
-                              )}
-                            </>
-                          );
-                        })()}
-
-                        <ul className="text-left list-none list-inside space-y-3 text-sm">
-                          {linkErrors &&
-                            Object.entries(linkErrors).map(([key, value]) => {
-                              const isErrorType = [
-                                'invalidLinks',
-                                'missingTrailingSlash',
-                                'duplicateLinks',
-                                'brokenLinks',
-                                'identicalAnchors',
-                                'invalidAnchors',
-                              ].includes(key);
-
-                              if (!isErrorType || !Array.isArray(value)) return null;
-
-                              // Group errors by location
-                              const groupedByLocation = (value as LinkDetail[]).reduce(
-                                (acc, link) => {
-                                  const loc = link.location || 'Unknown Section';
-                                  if (!acc[loc]) acc[loc] = [];
-                                  acc[loc].push(link);
-                                  return acc;
-                                },
-                                {} as Record<string, LinkDetail[]>
-                              );
-
-                              return (
-                                <li key={key}>
-                                  <strong>
-                                    {formatErrorLabel(key)} ({value.length}):
-                                  </strong>
-                                  {value.length === 0 ? (
-                                    <div className="text-gray-500 italic">
-                                      No issues found for this type.
-                                    </div>
-                                  ) : (
-                                    <ul className="mt-1 space-y-3 pl-5">
-                                      {Object.entries(groupedByLocation).map(
-                                        ([location, links]) => (
-                                          <li key={location}>
-                                            <ul className="list-disc list-inside space-y-1">
-                                              {links.map((link, i) => (
-                                                <li
-                                                  key={`${key}-${location}-${i}`}
-                                                  className="text-blue-400 no-underline hover:text-blue-950 break-words whitespace-pre-wrap text-left w-full cursor-pointer flex flex-col">
-                                                  <span
-                                                    onClick={() => scrollToLink(link.url)}
-                                                    className="before:content-['•'] before:mr-2 before:text-black hover:before:text-white font-bold !text-black-100 mr-1 !no-underline cursor-pointer hover:bg-green-100 hover:!text-white p-2 list-disc">
-                                                    {link.anchor || '(no anchor)'}
-                                                  </span>
-                                                  <span>— {link.url}</span>
-                                                </li>
-                                              ))}
-                                            </ul>
-                                          </li>
-                                        )
-                                      )}
-                                    </ul>
-                                  )}
-                                </li>
-                              );
-                            })}
-                        </ul>
-                      </Accordion>
-
-                      <Accordion
-                        className="mt-2"
-                        header={
-                          <div className="flex items-center justify-between w-full">
-                            <span>Internal Links</span>
-                            {linkShowResults && (
-                              <div
-                                className={`w-[40px] text-right rounded-2xl px-2 ${
-                                  (linkErrors?.internalLinks?.length || 0) > 0
-                                    ? 'bg-[#e5f5ea]'
-                                    : 'bg-[#e5f5ea]'
-                                }`}>
-                                {linkErrors?.internalLinks?.length || 0}
-                              </div>
-                            )}
-                          </div>
-                        }>
-                        <ul className="!text-left list-none list-inside space-y-2 text-sm">
-                          {Array.isArray(linkErrors?.internalLinks) &&
-                            linkErrors.internalLinks
-                              .filter(l => typeof l !== 'string')
-                              .reduce(
-                                (grouped: Record<string, LinkDetail[]>, link: any) => {
-                                  const location = link.location || '';
-                                  if (!grouped[location]) grouped[location] = [];
-                                  grouped[location].push(link);
-                                  return grouped;
-                                },
-                                {} as Record<string, LinkDetail[]>
-                              ) &&
-                            Object.entries(
-                              linkErrors.internalLinks
-                                .filter(l => typeof l !== 'string')
-                                .reduce(
-                                  (grouped: Record<string, LinkDetail[]>, link: any) => {
-                                    const location = link.location || 'Unknown Section';
-                                    if (!grouped[location]) grouped[location] = [];
-                                    grouped[location].push(link);
-                                    return grouped;
-                                  },
-                                  {} as Record<string, LinkDetail[]>
-                                )
-                            ).map(([location, links]) => (
-                              <li key={location}>
-                                <ul className="!list-disc list-inside space-y-1">
-                                  {links.map((link, i) => (
-                                    <li
-                                      key={`${location}-${i}`}
-                                      className="text-blue-400 no-underline hover:text-blue-950 break-words whitespace-pre-wrap text-left w-full cursor-pointer flex flex-col">
-                                      <span
-                                        onClick={() => scrollToLink(link.url)}
-                                        className="before:content-['•'] before:mr-2 before:text-black hover:before:text-white font-bold !text-black-100 mr-1 !no-underline cursor-pointer hover:bg-green-100 hover:!text-white p-2">
-                                        {link.anchor || '(no anchor)'}
-                                      </span>
-                                      <span>— {link.url}</span>
-                                    </li>
-                                  ))}
-                                </ul>
-                              </li>
-                            ))}
-                        </ul>
-                      </Accordion>
-
-                      <Accordion
-                        className="mt-2"
-                        header={
-                          <div className="flex items-center justify-between w-full">
-                            <span>External Links</span>
-                            {linkShowResults && (
-                              <div
-                                className={`w-[40px] text-right rounded-2xl px-2 ${
-                                  (linkErrors?.externalLinks?.length || 0) > 0
-                                    ? 'bg-[#e5f5ea]'
-                                    : 'bg-[#e5f5ea]'
-                                }`}>
-                                {linkErrors?.externalLinks?.length || 0}
-                              </div>
-                            )}
-                          </div>
-                        }>
-                        <ul className="!text-left list-none list-inside space-y-2 text-sm">
-                          {Array.isArray(linkErrors?.externalLinks) &&
-                            linkErrors.externalLinks
-                              .filter(l => typeof l !== 'string')
-                              .reduce(
-                                (grouped: Record<string, LinkDetail[]>, link: any) => {
-                                  const location = link.location || 'Unknown Section';
-                                  if (!grouped[location]) grouped[location] = [];
-                                  grouped[location].push(link);
-                                  return grouped;
-                                },
-                                {} as Record<string, LinkDetail[]>
-                              ) &&
-                            Object.entries(
-                              linkErrors.externalLinks
-                                .filter(l => typeof l !== 'string')
-                                .reduce(
-                                  (grouped: Record<string, LinkDetail[]>, link: any) => {
-                                    const location = link.location || 'Unknown Section';
-                                    if (!grouped[location]) grouped[location] = [];
-                                    grouped[location].push(link);
-                                    return grouped;
-                                  },
-                                  {} as Record<string, LinkDetail[]>
-                                )
-                            ).map(([location, links]) => (
-                              <li key={location}>
-                                <ul className="!list-disc list-inside space-y-1">
-                                  {links.map((link, i) => (
-                                    <li
-                                      key={`${location}-external-${i}`}
-                                      className="text-blue-400 no-underline hover:text-blue-950 break-words whitespace-pre-wrap text-left w-full cursor-pointer flex flex-col">
-                                      <span
-                                        onClick={() => scrollToLink(link.url)}
-                                        className="before:content-['•'] before:mr-2 before:text-black hover:before:text-white font-bold !text-black-100 mr-1 !no-underline cursor-pointer hover:bg-green-100 hover:!text-white p-2">
-                                        {link.anchor || '(no anchor)'}
-                                      </span>
-                                      <span>— {link.url}</span>
-                                    </li>
-                                  ))}
-                                </ul>
-                              </li>
-                            ))}
-                        </ul>
-                      </Accordion>
-                    </div>
-                  )}
-                </>
-              )}
+                {hasLinkChecked && (
+                  <>
+                    {linkIssuesResult && (
+                      <LinkIssuesResultSection result={linkIssuesResult} />
+                    )}
+                  </>
+                )}
+              </div>
             </TabPanel>
 
             <TabPanel id="Keyword" className="flex-1">
               <Button
                 disabled={!keyword || !text}
-                onClick={handleAnalyzeKeyword}
+                onClick={() => {
+                  handleAnalyzeKeyword();
+                  handleKeywordClick();
+                }}
                 className="w-full !bg-[#2563ea] hover:!bg-blue-1000 text-white border-0 hover:shadow-none rounded-none dark:hover:shadow-none dark:!text-white">
                 Analyze Keywords
               </Button>
+
+              {showKeywordHighlightsTooltip && (
+                  <div className="text-center !text-green-100 !bg-[#e5f5ea] px-12 py-3 z-10 text-sm mt-5">
+                    Phrases Highlighted
+                  </div>
+                )}
+                {showKeywordRemoveHighlightsTooltip && (
+                  <div className="text-center !text-red-100 !bg-[#faeaea] px-12 py-3 z-10 text-sm mt-5">
+                      Highlights Removed
+                  </div>
+                )}
               <div className="flex mt-5 gap-2 mb-1">
                 <Button
                   disabled={!keywordAnalysisResult || editMode}
                   className="w-1/2 text-sm  !bg-white  text-black !border-black-200 border rounded-none hover:shadow-none hover:!bg-black-200 hover:text-white dark:hover:shadow-none dark:!text-black-200 dark:hover:!text-white"
-                  onClick={onShowHighlightClick}>
+                  onClick={()=>{
+                    onShowHighlightClick();
+                    setShowKeywordHighlightsTooltip(true);
+                    setTimeout(() => setShowKeywordHighlightsTooltip(false), 1000);
+                  }}>
                   Show Highlights
                 </Button>
                 <Button
                   disabled={!keywordAnalysisResult || editMode}
                   className="w-1/2 text-sm !bg-[#EF4444] border-[#EF4444]  text-white border hover:!bg-red-700 hover:!border-red-700 rounded-none hover:shadow-none dark:hover:shadow-none dark:!text-white"
-                  onClick={onKeywordRemoveHighlightClick}>
+                  onClick={()=> {
+                    onKeywordRemoveHighlightClick();
+                    setshowKeywordRemoveHighlightsTooltip(true);
+                    setTimeout(() => setshowKeywordRemoveHighlightsTooltip(false), 1000);
+                  }}>
                   Remove Highlights
                 </Button>
               </div>
 
               {hasKeywordChecked && (
-                <div>
-                  {error && <Alert message={error || linkErrorMessage} type="error" />}
-
+                <div className="w-full">
+                  <div className="">
+                    {error && <Alert message={error} type="error" />}
+                    {renderKeywordAlert()}
+                  </div>
                   {keywordAnalysisResult && !error && (
                     <div className="">
                       <KeywordResultSection result={keywordAnalysisResult} />
@@ -2045,6 +3162,7 @@ export const LoomSidebar: FC<LoomProps> = ({
             </TabPanel>
           </Tabs>
         )}
+        </div>
       </section>
     </div>
   );

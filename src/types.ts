@@ -21,6 +21,8 @@ export enum TOOL_ROUTES {
   CROSS_SITE_POSTING = '/publishing/cross-site-posting',
   KOMPASS = '/publishing/text-kompass',
   LOOM = '/publishing/link-loom',
+  AI_ASSISTANT = '/publishing/ai-assistant',
+  BLOG_ANALYSIS = '/publishing/blog-analysis',
 
   CHRONOS = '/hr/chronos/admin',
   MONITORING = '/hr/hub/monitoring',
@@ -51,6 +53,8 @@ export enum TOOLS {
   MONITORING = 'hr-hub-monitoring',
 
   CHAT = 'chat-app',
+
+  BLOG_ANALYSIS = 'blog-analysis',
 
   TITLE_TWEAK = 'lexi-tweak',
   HTML_CLEANER = 'html-cleaner',

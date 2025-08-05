@@ -1,3 +1,5 @@
+
+
 .prose h1 {
   font-size: 2.25rem; 
   font-weight: 900;
@@ -118,4 +120,20 @@ mark.dictionary {
 
 .decoration-external {
   text-decoration-color: #073b4c; /* dark blue */
+}
+
+.anchor-highlight-pulse {
+  background-color:  #000;
+  color: #ffffff;
+  transition: background-color 1s ease;
+  position: relative;
+}
+
+.anchor-highlight-fade {
+  background-color:  #ffffff;
+  transition: background-color 1s ease;
+}
+
+.loom-tinymce-editor{
+  z-index: 0;
 }

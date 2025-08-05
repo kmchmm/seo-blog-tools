@@ -11,7 +11,7 @@ interface AlertProps {
 }
 
 const Alert = ({ type = 'info', message, className, icon }: AlertProps) => {
-  const baseStyle = 'mt-2 border rounded p-3 text-md flex items-center gap-2 mb-2';
+  const baseStyle = 'mt-2 border rounded p-2 text-md flex justify-center gap-2 mb-2 items-center';
 
   const typeStyles: Record<AlertType, string> = {
     error: 'border-red-200 bg-red-50 text-red-600',
@@ -23,14 +23,14 @@ const Alert = ({ type = 'info', message, className, icon }: AlertProps) => {
   const icons: Record<AlertType, string> = {
     error: '⚠️',
     warning: '⚠️',
-    success: '✅',
+    success: '',
     info: 'ℹ️',
   };
 
   return (
     <div className={clsx(baseStyle, typeStyles[type], className)}>
       <span>{icon ?? icons[type]}</span>
-      <p className="font-medium">{message}</p>
+      <p className="font-medium text-sm">{message}</p>
     </div>
   );
 };
